@@ -1097,9 +1097,23 @@ router.post('/settings/fee', superAdminOnly, (req, res) => {
     return res.redirect('/admin');
   }
   setSetting('default_fee_amount', String(fee));
+  // Also update unpaid (never-paid or expired) non-honorary members
+  const updated = db.prepare(`
+    UPDATE members SET fee_amount = ?, updated_at = datetime('now')
+    WHERE fee_status = 'unpaid'
+    AND id IN (
+      SELECT m.id FROM members m
+      JOIN users u ON u.id = m.user_id
+      WHERE u.position != 'honorary'
+    )
+  `).run(fee);
   writeAudit(res.locals.currentUser.id, res.locals.currentUser.email,
-             null, null, 'settings.fee_changed', `default_fee_amount=${fee}`);
-  req.session.flash = { type: 'success', message: `Default annual fee updated to ${fee} TWD.` };
+             null, null, 'settings.fee_changed',
+             `default_fee_amount=${fee}; retroactively updated ${updated.changes} unpaid member(s)`);
+  req.session.flash = {
+    type: 'success',
+    message: `Default annual fee updated to ${fee} TWD. ${updated.changes} unpaid member(s) also updated.`,
+  };
   res.redirect('/admin');
 });
 

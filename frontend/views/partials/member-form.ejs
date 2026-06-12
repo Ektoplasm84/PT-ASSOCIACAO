@@ -10,12 +10,31 @@
     <div class="row g-3">
       <div class="col-md-6">
         <label class="form-label">First Name *</label>
-        <input type="text" name="first_name" class="form-control" value="<%= v.first_name || '' %>" required>
+        <input type="text" id="input_first_name" name="first_name" class="form-control" value="<%= v.first_name || '' %>" required>
       </div>
       <div class="col-md-6">
         <label class="form-label">Last Name *</label>
-        <input type="text" name="last_name" class="form-control" value="<%= v.last_name || '' %>" required>
+        <input type="text" id="input_last_name" name="last_name" class="form-control" value="<%= v.last_name || '' %>" required>
       </div>
+      <% if (v.arc_name_en) {
+           const _arcFull  = v.arc_name_en.trim();
+           const _arcParts = _arcFull.split(/\s+/);
+           const _arcLast  = _arcParts.length > 1 ? _arcParts[_arcParts.length - 1] : '';
+           const _arcFirst = _arcParts.length > 1 ? _arcParts.slice(0, -1).join(' ') : _arcFull;
+           const _currentFull = ((v.first_name || '') + ' ' + (v.last_name || '')).trim();
+           if (_arcFull !== _currentFull) { %>
+      <div class="col-12">
+        <div class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-person-vcard"></i>
+          <span>ARC English Name: <strong><%= v.arc_name_en %></strong></span>
+          <button type="button" class="btn btn-sm btn-outline-primary ms-auto"
+            data-arc-first="<%= _arcFirst %>" data-arc-last="<%= _arcLast %>"
+            onclick="document.getElementById('input_first_name').value=this.dataset.arcFirst;document.getElementById('input_last_name').value=this.dataset.arcLast;">
+            Use ARC name
+          </button>
+        </div>
+      </div>
+      <% } } %>
       <%
         const _phoneMatch = (v.phone || '').match(/^(\+\d+)\s(.+)$/);
         const _phoneDial  = _phoneMatch ? _phoneMatch[1] : '+351';
