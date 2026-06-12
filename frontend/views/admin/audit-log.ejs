@@ -1,0 +1,100 @@
+<%- include('../partials/header') %>
+
+<%
+  const ACTION_LABELS = {
+    'member.created':       { label: 'Member Created',    icon: 'bi-person-plus-fill',  color: 'success' },
+    'member.updated':       { label: 'Member Updated',    icon: 'bi-pencil-fill',        color: 'primary' },
+    'member.deleted':       { label: 'Member Deleted',    icon: 'bi-person-x-fill',     color: 'danger'  },
+    'member.role_changed':  { label: 'Role Changed',      icon: 'bi-shield-fill',        color: 'warning' },
+    'member.card_uploaded': { label: 'Card Uploaded',     icon: 'bi-credit-card-fill',   color: 'info'    },
+    'member.doc_uploaded':  { label: 'Doc Uploaded',      icon: 'bi-file-earmark-plus',  color: 'info'    },
+    'member.doc_deleted':   { label: 'Doc Deleted',       icon: 'bi-file-earmark-x',    color: 'danger'  },
+    'member.ocr_applied':   { label: 'OCR Fields Applied','icon': 'bi-scan',             color: 'secondary'},
+    'member.nia_photo_saved':{ label: 'NIA Photo Saved',  icon: 'bi-camera-fill',        color: 'secondary'},
+    'profile.self_updated':  { label: 'Self-Updated Profile', icon: 'bi-person-fill',    color: 'primary' },
+    'member.fee_updated':    { label: 'Fee Updated',          icon: 'bi-cash-stack',      color: 'success' },
+  };
+%>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="fw-bold mb-0"><i class="bi bi-journal-text me-2"></i>Audit Log</h2>
+  <span class="text-muted small"><%= total %> total entr<%= total === 1 ? 'y' : 'ies' %></span>
+</div>
+
+<% if (!logs.length) { %>
+<div class="card shadow-sm">
+  <div class="card-body text-muted">
+    <i class="bi bi-check-circle text-success me-1"></i>No audit entries yet.
+  </div>
+</div>
+<% } else { %>
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:160px">Timestamp</th>
+          <th style="width:200px">Actor</th>
+          <th style="width:200px">Member</th>
+          <th style="width:180px">Action</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% logs.forEach(log => {
+          const meta = ACTION_LABELS[log.action] || { label: log.action, icon: 'bi-circle', color: 'secondary' };
+        %>
+        <tr>
+          <td class="text-muted small text-nowrap"><%= log.created_at ? log.created_at.replace('T',' ').slice(0,19) : '—' %></td>
+          <td>
+            <span class="small"><%= log.actor_email || '—' %></span>
+          </td>
+          <td>
+            <% if (log.member_id) { %>
+            <a href="/admin/members/<%= log.member_id %>" class="small text-decoration-none">
+              <%= log.member_ref || `member #${log.member_id}` %>
+            </a>
+            <% } else { %>
+            <span class="text-muted small"><%= log.member_ref || '—' %></span>
+            <% } %>
+          </td>
+          <td>
+            <span class="badge bg-<%= meta.color %> d-inline-flex align-items-center gap-1">
+              <i class="<%= meta.icon %>"></i>
+              <%= meta.label %>
+            </span>
+          </td>
+          <td class="small text-muted"><%= log.detail || '' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+<% if (totalPages > 1) { %>
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-center">
+    <li class="page-item <%= page <= 1 ? 'disabled' : '' %>">
+      <a class="page-link" href="/admin/audit?page=<%= page - 1 %>">‹ Prev</a>
+    </li>
+    <% for (let p = 1; p <= totalPages; p++) { %>
+    <% if (p === 1 || p === totalPages || Math.abs(p - page) <= 2) { %>
+    <li class="page-item <%= p === page ? 'active' : '' %>">
+      <a class="page-link" href="/admin/audit?page=<%= p %>"><%= p %></a>
+    </li>
+    <% } else if (Math.abs(p - page) === 3) { %>
+    <li class="page-item disabled"><span class="page-link">…</span></li>
+    <% } %>
+    <% } %>
+    <li class="page-item <%= page >= totalPages ? 'disabled' : '' %>">
+      <a class="page-link" href="/admin/audit?page=<%= page + 1 %>">Next ›</a>
+    </li>
+  </ul>
+</nav>
+<% } %>
+
+<% } %>
+
+<%- include('../partials/footer') %>

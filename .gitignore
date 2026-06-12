@@ -1,0 +1,12 @@
+node_modules/
+uploads/
+database/data.db
+database/*.db
+database/*.db-shm
+database/*.db-wal
+tessdata/
+.env
+.env.*
+*.log
+*.log.*
+*.err

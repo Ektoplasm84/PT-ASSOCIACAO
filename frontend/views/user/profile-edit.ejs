@@ -1,0 +1,158 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-3">
+  <div class="col">
+    <h2 class="fw-bold">Edit Profile</h2>
+  </div>
+  <div class="col-auto">
+    <a href="/profile" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Back
+    </a>
+  </div>
+</div>
+
+<% if (errors.length) { %>
+<div class="alert alert-danger">
+  <ul class="mb-0">
+    <% errors.forEach(e => { %><li><%= e %></li><% }) %>
+  </ul>
+</div>
+<% } %>
+
+<form action="/profile" method="POST" enctype="multipart/form-data" novalidate>
+
+  <!-- 1. Personal Info -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Personal Info</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <%
+          const _phoneMatch = (member.phone || '').match(/^(\+\d+)\s(.+)$/);
+          const _phoneDial  = _phoneMatch ? _phoneMatch[1] : '+351';
+          const _phoneNum   = _phoneMatch ? _phoneMatch[2] : (member.phone || '');
+        %>
+        <div class="col-md-6">
+          <label class="form-label">Phone</label>
+          <%- include('../partials/phone-field', { dialCode: _phoneDial, phoneNum: _phoneNum, countries: countries }) %>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Email</label>
+          <input type="text" class="form-control" value="<%= member.email || '' %>" disabled>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Address (Chinese / 中文地址)</label>
+          <input type="text" name="address_zh" class="form-control" value="<%= member.address_zh || '' %>"
+                 placeholder="e.g. 臺北市大安區信義路四段1號">
+          <div class="form-text">As printed on ARC card.</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Address (English)</label>
+          <input type="text" name="address" class="form-control" value="<%= member.address || '' %>">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Profile Photo</label>
+          <% if (member.photo_path) { %>
+          <div class="mb-2">
+            <img src="/<%= member.photo_path.replace(/\\/g, '/') %>" alt="Current photo"
+                 class="rounded" style="height:80px;width:80px;object-fit:cover;">
+            <small class="text-muted ms-2">Upload a new photo to replace</small>
+          </div>
+          <% } %>
+          <input type="file" name="photo" class="form-control" accept="image/jpeg,image/png,image/webp">
+          <div class="form-text">JPEG, PNG or WebP. Max 2 MB.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. ARC Data -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">ARC Data <small class="text-muted fw-normal">(Taiwan)</small></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">ARC Number</label>
+          <input type="text" name="arc_number" class="form-control" value="<%= member.arc_number || '' %>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Chinese Name</label>
+          <input type="text" name="arc_chinese_name" class="form-control" value="<%= member.arc_chinese_name || '' %>">
+        </div>
+        <div class="col-12">
+          <label class="form-label">English Name (ARC)</label>
+          <input type="text" name="arc_name_en" class="form-control" value="<%= member.arc_name_en || '' %>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Date of Issue</label>
+          <input type="date" name="arc_issue_date" class="form-control"
+            value="<%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '' %>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Date of Expiry</label>
+          <input type="date" name="arc_expiry_date" class="form-control"
+            value="<%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '' %>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Passport Number</label>
+          <input type="text" name="passport_number" class="form-control" value="<%= member.passport_number || '' %>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Serial Number</label>
+          <input type="text" name="arc_serial_number" class="form-control" value="<%= member.arc_serial_number || '' %>">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Cartão de Cidadão -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Cartão de Cidadão</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">CC Number</label>
+          <input type="text" name="cc_number" class="form-control" value="<%= member.cc_number || '' %>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Date of Expiry</label>
+          <input type="date" name="cc_expiry_date" class="form-control"
+            value="<%= member.cc_expiry_date ? member.cc_expiry_date.slice(0,10) : '' %>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">NIF</label>
+          <input type="text" name="nif" class="form-control" value="<%= member.nif || '' %>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">NISS</label>
+          <input type="text" name="niss" class="form-control" value="<%= member.niss || '' %>">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Password change -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Change Password</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Current Password</label>
+          <input type="password" name="current_password" class="form-control" autocomplete="current-password">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">New Password</label>
+          <input type="password" name="new_password" class="form-control" minlength="6" autocomplete="new-password">
+          <div class="form-text">Leave blank to keep your current password.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">
+    <i class="bi bi-save"></i> Save Changes
+  </button>
+  <a href="/profile" class="btn btn-outline-secondary ms-2">Cancel</a>
+
+</form>
+
+<%- include('../partials/footer') %>

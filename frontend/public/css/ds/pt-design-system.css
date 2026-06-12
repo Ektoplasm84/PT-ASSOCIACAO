@@ -1,0 +1,903 @@
+/* ============================================================
+   PT Associação — Design System (consolidated drop-in)
+   Generated for the PT-ASSOCIACAO Express/EJS app.
+   Link this AFTER Bootstrap so it wins the cascade.
+
+   Revision 3 — calendar classes now MATCH the app's real markup
+   (.pta-cal-day / .pta-cal-strip, single-dash); cells height-capped;
+   app-compat aliases (--brand, --color-success, --color-danger,
+   --border) so inline var() references resolve to brand colours;
+   .pta-upcoming panel; --event-1..8; .pta-tabs / .pta-invite /
+   .pta-status / .pta-configrow / .pta-btn--gold-soft.
+   ============================================================ */
+
+/* ===== fonts.css ===== */
+/* ============================================================
+   PT Associação — Webfonts
+   Loaded from Google Fonts. The source app shipped no custom
+   typefaces (stock Bootstrap), so these are design-system
+   selections — see README "Font substitution" note.
+
+     Space Grotesk— display / headings (modern geometric sans)
+     Public Sans  — UI & body (government-grade humanist sans)
+     IBM Plex Mono— member IDs, ARC/CC numbers, dates
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+/* ===== colors.css ===== */
+/* ============================================================
+   PT Associação — Colour System
+   A cultural bridge: Portuguese verde + shared vermelho +
+   armillary ouro + azulejo/Taiwan azul, on warm paper stone.
+   ============================================================ */
+
+:root {
+  /* ---- Brand: Verde (Portuguese green — primary) ---- */
+  --green-50:  #E8F2EC;
+  --green-100: #CCE5D6;
+  --green-200: #9DCBAF;
+  --green-300: #66AC85;
+  --green-400: #2E8A5C;
+  --green-500: #0E6B41;   /* primary */
+  --green-600: #0A5836;
+  --green-700: #08462B;
+  --green-800: #06331F;
+  --green-900: #042113;
+
+  /* ---- Brand: Vermelho (shared PT/TW red — accent) ---- */
+  --crimson-50:  #FBEAE7;
+  --crimson-100: #F6CFC8;
+  --crimson-200: #ECA294;
+  --crimson-300: #DF7560;
+  --crimson-400: #CF4F37;
+  --crimson-500: #BE3A2B;  /* accent */
+  --crimson-600: #9F2D21;
+  --crimson-700: #7E231A;
+  --crimson-800: #5C1A13;
+  --crimson-900: #3D110C;
+
+  /* ---- Brand: Ouro (armillary gold — highlight) ---- */
+  --gold-50:  #FBF3E0;
+  --gold-100: #F5E4BC;
+  --gold-200: #EACB85;
+  --gold-300: #DCAF4F;
+  --gold-400: #CB9A35;  /* gold */
+  --gold-500: #AE8128;
+  --gold-600: #8C661F;
+
+  /* ---- Brand: Azul (azulejo tile / Taiwan blue — info) ---- */
+  --azure-50:  #E9EFF6;
+  --azure-100: #C9D8EA;
+  --azure-200: #93B0D4;
+  --azure-300: #5481B4;
+  --azure-400: #2C5E95;
+  --azure-500: #1D4E89;
+  --azure-600: #163C6B;
+  --azure-700: #102B4D;
+
+  /* ---- Neutrals: Stone (warm paper) ---- */
+  --stone-50:  #FAF9F6;
+  --stone-100: #F2F0EA;
+  --stone-150: #EAE6DB;
+  --stone-200: #E6E3DA;
+  --stone-300: #D2CDBF;
+  --stone-400: #B0A993;
+  --stone-500: #8A8270;
+  --stone-600: #645E50;
+  --stone-700: #494538;
+  --stone-800: #2E2B22;
+  --stone-900: #1A180F;
+  --white:     #FFFFFF;
+  --black:     #14130D;
+
+  /* ---- Honorary (distinguishing violet — preserved from app) ---- */
+  --violet-100: #E7DEF3;
+  --violet-500: #6B4BA6;
+  --violet-700: #4A3275;
+
+  /* ============================================================
+     SEMANTIC ALIASES — reference these in product code
+     ============================================================ */
+
+  /* Surfaces */
+  --surface-page:    var(--stone-150);
+  --surface-card:    var(--white);
+  --surface-sunken:  var(--stone-200);
+  --surface-raised:  var(--white);
+  --surface-inverse: var(--green-800);   /* navbar / sidebar */
+  --surface-inverse-hover: var(--green-700);
+  --surface-brand:   var(--green-500);
+  --surface-brand-soft: var(--green-50);
+  --surface-accent-soft: var(--crimson-50);
+  --surface-gold-soft:   var(--gold-50);
+  --surface-info-soft:   var(--azure-50);
+
+  /* Text */
+  --text-strong:   var(--stone-900);
+  --text-body:     var(--stone-700);
+  --text-muted:    var(--stone-500);
+  --text-faint:    var(--stone-400);
+  --text-on-brand: var(--white);
+  --text-on-dark:  var(--stone-50);
+  --text-on-dark-muted: #A9C4B4;
+  --text-link:     var(--green-600);
+  --text-link-hover: var(--green-500);
+
+  /* Borders */
+  --border-subtle:  var(--stone-200);
+  --border-default: var(--stone-300);
+  --border-strong:  var(--stone-400);
+  --border-brand:   var(--green-500);
+  --border-focus:   var(--green-400);
+
+  /* Brand handles */
+  --brand-primary:        var(--green-500);
+  --brand-primary-hover:  var(--green-600);
+  --brand-primary-active: var(--green-700);
+  --brand-accent:         var(--crimson-500);
+  --brand-accent-hover:   var(--crimson-600);
+  --brand-gold:           var(--gold-400);
+  --brand-azure:          var(--azure-500);
+
+  /* ---- Semantic status (maps to fee statuses & alerts) ---- */
+  --success:        var(--green-500);
+  --success-soft:   var(--green-50);
+  --success-border: var(--green-200);
+  --success-text:   var(--green-700);
+
+  --warning:        var(--gold-400);
+  --warning-soft:   var(--gold-50);
+  --warning-border: var(--gold-200);
+  --warning-text:   var(--gold-600);
+
+  --danger:         var(--crimson-500);
+  --danger-soft:    var(--crimson-50);
+  --danger-border:  var(--crimson-200);
+  --danger-text:    var(--crimson-700);
+
+  --info:           var(--azure-500);
+  --info-soft:      var(--azure-50);
+  --info-border:    var(--azure-200);
+  --info-text:      var(--azure-600);
+
+  /* ---- Role / position badge colours ---- */
+  --role-super:    var(--crimson-500);   /* super_admin */
+  --role-admin:    var(--gold-400);      /* admin */
+  --role-gestao:   var(--azure-500);     /* management */
+  --role-honorary: var(--violet-500);    /* honorary title */
+  --role-member:   var(--stone-500);     /* plain member */
+
+  /* ---- Fee status (computed; never set by hand) ---- */
+  --fee-paid:    var(--green-500);
+  --fee-renewal: var(--gold-400);
+  --fee-unpaid:  var(--crimson-500);
+
+  /* ---- Event / categorical palette ----
+  --event-1: oklch(0.52 0.10 155);  /* verde      */
+  --event-2: oklch(0.52 0.12 250);  /* azulejo    */
+  --event-3: oklch(0.55 0.15 30);   /* vermelho   */
+  --event-4: oklch(0.58 0.10 80);   /* ouro/ochre */
+  --event-5: oklch(0.52 0.12 305);  /* violeta    */
+  --event-6: oklch(0.55 0.08 200);  /* teal       */
+  --event-7: oklch(0.56 0.13 45);   /* terracotta */
+  --event-8: oklch(0.50 0.12 350);  /* plum       */
+
+  /* ============================================================
+     APP COMPATIBILITY ALIASES
+     The PT-ASSOCIACAO EJS references these variable names inline
+     (e.g. `style="color:var(--brand,#1a3a6e)"`). They are NOT part
+     of the canonical token set above — they exist only so the app's
+     existing markup resolves to brand colours instead of its
+     hard-coded fallbacks. Prefer the canonical tokens in new code.
+     ============================================================ */
+  --brand:          var(--green-500);
+  --brand-strong:   var(--green-700);
+  --color-success:  var(--green-500);
+  --color-danger:   var(--crimson-500);
+  --color-warning:  var(--gold-400);
+  --border:         var(--border-subtle);
+  /* --surface-raised and --warning are already defined above */
+}
+
+/* ===== typography.css ===== */
+/* ============================================================
+   PT Associação — Typography
+   Space Grotesk (display) · Public Sans (UI) · IBM Plex Mono
+   (IDs, codes, dates). CJK falls back to system Noto/PingFang
+   so Chinese ARC names & addresses render cleanly.
+   ============================================================ */
+
+:root {
+  /* ---- Families ---- */
+  --font-display: "Space Grotesk", system-ui, -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
+  --font-sans: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+               "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ---- Weights ---- */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ---- Type scale (1.200 minor third, 16px base) ---- */
+  --text-2xs: 0.6875rem;  /* 11px — micro labels */
+  --text-xs:  0.75rem;    /* 12px — table headers, captions */
+  --text-sm:  0.8125rem;  /* 13px — secondary, meta */
+  --text-base:0.9375rem;  /* 15px — body / UI default */
+  --text-md:  1.0625rem;  /* 17px — emphasised body */
+  --text-lg:  1.25rem;    /* 20px — card titles */
+  --text-xl:  1.5rem;     /* 24px — section headings */
+  --text-2xl: 1.875rem;   /* 30px — page titles */
+  --text-3xl: 2.375rem;   /* 38px — display */
+  --text-4xl: 3rem;       /* 48px — hero */
+
+  /* ---- Line heights ---- */
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  /* ---- Letter spacing ---- */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.08em;   /* uppercase eyebrows / table headers */
+
+  /* ---- Semantic roles ---- */
+  --type-eyebrow-size: var(--text-xs);
+  --type-eyebrow-tracking: var(--tracking-wider);
+  --type-data-size: var(--text-sm);   /* mono IDs / numbers */
+}
+
+/* Display headings use the serif */
+.ds-display {
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-strong);
+}
+
+/* Eyebrow / uppercase label */
+.ds-eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Monospaced data (member IDs, ARC numbers, NIF/NISS) */
+.ds-data {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== spacing.css ===== */
+/* ============================================================
+   PT Associação — Spacing, Radii, Shadows, Borders, Motion
+   ============================================================ */
+
+:root {
+  /* ---- Spacing scale (4px base) ---- */
+  --space-0: 0;
+  --space-1: 0.25rem;  /* 4 */
+  --space-2: 0.5rem;   /* 8 */
+  --space-3: 0.75rem;  /* 12 */
+  --space-4: 1rem;     /* 16 */
+  --space-5: 1.5rem;   /* 24 */
+  --space-6: 2rem;     /* 32 */
+  --space-7: 2.5rem;   /* 40 */
+  --space-8: 3rem;     /* 48 */
+  --space-9: 4rem;     /* 64 */
+  --space-10: 5rem;    /* 80 */
+
+  /* ---- Radii ---- */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 8px;     /* default card/input */
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 22px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* ---- Borders ---- */
+  --border-width: 1px;
+  --border-width-thick: 2px;
+  --border-hairline: 1px solid var(--border-subtle);
+  --border-card: 1px solid var(--border-subtle);
+
+  /* ---- Shadows (warm, low, institutional — never neon) ---- */
+  --shadow-xs: 0 1px 2px rgba(26, 24, 15, 0.05);
+  --shadow-sm: 0 1px 3px rgba(26, 24, 15, 0.07), 0 1px 2px rgba(26, 24, 15, 0.04);
+  --shadow-md: 0 4px 12px rgba(26, 24, 15, 0.08), 0 1px 3px rgba(26, 24, 15, 0.05);
+  --shadow-lg: 0 12px 28px rgba(26, 24, 15, 0.12), 0 4px 8px rgba(26, 24, 15, 0.06);
+  --shadow-xl: 0 24px 48px rgba(26, 24, 15, 0.16);
+  --shadow-focus: 0 0 0 3px rgba(14, 107, 65, 0.18);   /* green focus ring */
+  --shadow-inset: inset 0 1px 2px rgba(26, 24, 15, 0.06);
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);     /* @kind other */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);  /* @kind other */
+  --duration-fast: 120ms;   /* @kind other */
+  --duration-base: 180ms;   /* @kind other */
+  --duration-slow: 280ms;   /* @kind other */
+
+  /* ---- Z-index ---- */
+  --z-base: 0;        /* @kind other */
+  --z-raised: 10;     /* @kind other */
+  --z-sticky: 100;    /* @kind other */
+  --z-overlay: 1000;  /* @kind other */
+  --z-modal: 1100;    /* @kind other */
+  --z-toast: 1200;    /* @kind other */
+
+  /* ---- Layout ---- */
+  --sidebar-width: 248px;   /* @kind spacing */
+  --content-max: 1180px;    /* @kind spacing */
+}
+
+/* ===== base.css ===== */
+/* ============================================================
+   PT Associação — Base layer
+   Light resets + default element styling bound to tokens.
+   Scoped lightly so it composes with product markup.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--text-body);
+  background-color: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--text-strong);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  margin: 0 0 var(--space-3);
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--text-2xl); }
+h2 { font-size: var(--text-xl); }
+h3 { font-size: var(--text-lg); }
+
+p { margin: 0 0 var(--space-4); text-wrap: pretty; }
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+a:hover { color: var(--text-link-hover); text-decoration: underline; }
+
+code, kbd, samp { font-family: var(--font-mono); font-size: 0.92em; }
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: var(--space-5) 0;
+}
+
+::selection { background: var(--green-100); color: var(--green-800); }
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ===== components.css ===== */
+/* ============================================================
+   PT Associação — Component styles
+   Class-based styling for the React component library. Shipped
+   in the global closure so components only apply classNames
+   (no runtime <style> injection) and hover/focus states are
+   native. Class prefix: .pta-
+   ============================================================ */
+
+/* ---------- Button ---------- */
+.pta-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:0.5em;
+  font-family:var(--font-sans);font-weight:var(--weight-semibold);
+  font-size:var(--text-base);line-height:1;letter-spacing:0.005em;
+  padding:0 1em;height:2.5rem;border-radius:var(--radius-md);
+  border:1px solid transparent;background:var(--green-500);color:#fff;
+  cursor:pointer;white-space:nowrap;text-decoration:none;
+  transition:background var(--duration-fast) var(--ease-out),
+             box-shadow var(--duration-fast) var(--ease-out),
+             transform var(--duration-fast) var(--ease-out);
+  box-shadow:var(--shadow-xs);
+}
+.pta-btn:hover{background:var(--green-600);text-decoration:none;color:#fff;}
+.pta-btn:active{background:var(--green-700);transform:translateY(1px);box-shadow:none;}
+.pta-btn:focus-visible{outline:none;box-shadow:var(--shadow-focus);}
+.pta-btn[disabled],.pta-btn[aria-disabled="true"]{opacity:0.5;cursor:not-allowed;pointer-events:none;box-shadow:none;}
+.pta-btn .bi{font-size:1.05em;}
+.pta-btn--accent,.pta-btn--danger{background:var(--crimson-500);color:#fff;}
+.pta-btn--accent:hover,.pta-btn--danger:hover{background:var(--crimson-600);color:#fff;}
+.pta-btn--accent:active,.pta-btn--danger:active{background:var(--crimson-700);}
+.pta-btn--gold{background:var(--gold-400);color:#3D2E08;}
+.pta-btn--gold:hover{background:var(--gold-500);color:#3D2E08;}
+.pta-btn--gold:active{background:var(--gold-600);}
+.pta-btn--secondary{background:var(--white);color:var(--stone-800);border-color:var(--border-default);}
+.pta-btn--secondary:hover{background:var(--stone-100);color:var(--stone-800);}
+.pta-btn--secondary:active{background:var(--stone-200);box-shadow:var(--shadow-inset);}
+.pta-btn--ghost{background:transparent;color:var(--green-600);box-shadow:none;}
+.pta-btn--ghost:hover{background:var(--stone-100);color:var(--green-600);}
+.pta-btn--ghost:active{background:var(--stone-200);}
+.pta-btn--subtle{background:var(--green-50);color:var(--green-700);box-shadow:none;}
+.pta-btn--subtle:hover{background:var(--green-100);color:var(--green-700);}
+.pta-btn--subtle:active{background:var(--green-200);}
+.pta-btn--gold-soft{background:var(--gold-50);color:var(--gold-600);border-color:var(--gold-200);box-shadow:none;}
+.pta-btn--gold-soft:hover{background:var(--gold-100);color:var(--gold-600);}
+.pta-btn--gold-soft:active{background:var(--gold-200);}
+.pta-btn--sm{height:2rem;font-size:var(--text-sm);padding:0 0.75em;border-radius:var(--radius-sm);}
+.pta-btn--lg{height:2.9rem;font-size:var(--text-md);padding:0 1.35em;}
+.pta-btn--icon{padding:0;width:2.5rem;}
+.pta-btn--icon.pta-btn--sm{width:2rem;}
+.pta-btn--block{width:100%;}
+
+/* ---------- Badge ---------- */
+.pta-badge{
+  display:inline-flex;align-items:center;gap:0.4em;
+  font-family:var(--font-sans);font-weight:var(--weight-semibold);
+  font-size:var(--text-xs);line-height:1;letter-spacing:0.01em;
+  padding:0.34em 0.7em;border-radius:var(--radius-pill);
+  border:1px solid transparent;white-space:nowrap;
+}
+.pta-badge--lg{font-size:var(--text-sm);padding:0.42em 0.85em;}
+.pta-badge .pta-badge__dot{width:0.5em;height:0.5em;border-radius:50%;background:currentColor;flex:none;}
+.pta-badge .bi{font-size:1em;}
+.pta-badge--soft.pta-tone-success{background:var(--success-soft);color:var(--success-text);border-color:var(--success-border);}
+.pta-badge--soft.pta-tone-warning{background:var(--warning-soft);color:var(--warning-text);border-color:var(--warning-border);}
+.pta-badge--soft.pta-tone-danger{background:var(--danger-soft);color:var(--danger-text);border-color:var(--danger-border);}
+.pta-badge--soft.pta-tone-info{background:var(--info-soft);color:var(--info-text);border-color:var(--info-border);}
+.pta-badge--soft.pta-tone-neutral{background:var(--stone-100);color:var(--stone-600);border-color:var(--stone-200);}
+.pta-badge--soft.pta-tone-honorary{background:var(--violet-100);color:var(--violet-700);border-color:#d8c9ee;}
+.pta-badge--soft.pta-tone-gold{background:var(--gold-50);color:var(--gold-600);border-color:var(--gold-200);}
+.pta-badge--solid.pta-tone-success{background:var(--green-500);color:#fff;}
+.pta-badge--solid.pta-tone-warning{background:var(--gold-400);color:#3D2E08;}
+.pta-badge--solid.pta-tone-danger{background:var(--crimson-500);color:#fff;}
+.pta-badge--solid.pta-tone-info{background:var(--azure-500);color:#fff;}
+.pta-badge--solid.pta-tone-neutral{background:var(--stone-500);color:#fff;}
+.pta-badge--solid.pta-tone-honorary{background:var(--violet-500);color:#fff;}
+.pta-badge--solid.pta-tone-gold{background:var(--gold-400);color:#3D2E08;}
+
+/* ---------- Avatar ---------- */
+.pta-avatar{
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:var(--radius-circle);overflow:hidden;flex:none;
+  background:var(--green-100);color:var(--green-700);
+  font-family:var(--font-display);font-weight:var(--weight-semibold);
+  border:2px solid var(--white);box-shadow:0 0 0 1px var(--border-subtle);
+  user-select:none;
+}
+.pta-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+.pta-avatar--sm{width:32px;height:32px;font-size:12px;}
+.pta-avatar--md{width:44px;height:44px;font-size:16px;}
+.pta-avatar--lg{width:64px;height:64px;font-size:22px;}
+.pta-avatar--xl{width:104px;height:104px;font-size:34px;border-width:3px;}
+.pta-avatar--honorary{background:var(--violet-100);color:var(--violet-700);}
+.pta-avatar .pta-avatar__ico{font-family:var(--font-sans);opacity:0.85;}
+
+/* ---------- Card ---------- */
+.pta-card{
+  background:var(--surface-card);border:1px solid var(--border-subtle);
+  border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;
+}
+.pta-card__head{
+  display:flex;align-items:center;gap:0.6rem;padding:0.85rem 1.15rem;
+  border-bottom:1px solid var(--border-subtle);
+  background:linear-gradient(var(--stone-50),var(--white));
+}
+.pta-card__head .bi{color:var(--green-500);font-size:1.05rem;}
+.pta-card__titles{display:flex;flex-direction:column;gap:1px;min-width:0;}
+.pta-card__eyebrow{
+  font-size:var(--text-2xs);font-weight:var(--weight-semibold);
+  letter-spacing:var(--tracking-wider);text-transform:uppercase;color:var(--text-muted);
+}
+.pta-card__title{
+  font-family:var(--font-display);font-weight:var(--weight-semibold);
+  font-size:var(--text-md);color:var(--text-strong);line-height:1.2;
+}
+.pta-card__action{margin-left:auto;display:flex;align-items:center;gap:0.4rem;}
+.pta-card__body{padding:1.15rem;}
+.pta-card--flush .pta-card__body{padding:0;}
+.pta-card--accent{border-top:3px solid var(--green-500);}
+
+/* ---------- Field ---------- */
+.pta-field{display:flex;flex-direction:column;gap:0.32rem;font-family:var(--font-sans);}
+.pta-field__label{
+  font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-strong);
+  display:flex;align-items:center;gap:0.35rem;
+}
+.pta-field__req{color:var(--crimson-500);font-weight:var(--weight-bold);}
+.pta-field__opt{font-weight:var(--weight-regular);color:var(--text-faint);font-size:var(--text-xs);}
+.pta-control{
+  font-family:var(--font-sans);font-size:var(--text-base);color:var(--text-strong);
+  background:var(--white);border:1px solid var(--border-default);
+  border-radius:var(--radius-md);padding:0 0.7rem;height:2.5rem;width:100%;
+  transition:border-color var(--duration-fast) var(--ease-out),
+             box-shadow var(--duration-fast) var(--ease-out);
+  box-shadow:var(--shadow-inset);
+}
+.pta-control::placeholder{color:var(--text-faint);}
+.pta-control:hover{border-color:var(--border-strong);}
+.pta-control:focus{outline:none;border-color:var(--border-focus);box-shadow:var(--shadow-focus);}
+.pta-control:disabled{background:var(--stone-100);color:var(--text-muted);cursor:not-allowed;}
+textarea.pta-control{height:auto;min-height:5rem;padding:0.55rem 0.7rem;line-height:1.5;resize:vertical;}
+select.pta-control{appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%238A8270' stroke-width='1.6'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.7rem center;padding-right:2rem;}
+.pta-control--mono{font-family:var(--font-mono);font-size:var(--text-sm);letter-spacing:0.01em;}
+.pta-field--error .pta-control{border-color:var(--crimson-400);}
+.pta-field--error .pta-control:focus{box-shadow:0 0 0 3px var(--crimson-100);}
+.pta-field__hint{font-size:var(--text-xs);color:var(--text-muted);}
+.pta-field__error{font-size:var(--text-xs);color:var(--danger-text);font-weight:var(--weight-medium);display:flex;align-items:center;gap:0.3rem;}
+
+/* ---------- Alert ---------- */
+.pta-alert{
+  display:flex;align-items:flex-start;gap:0.7rem;
+  font-family:var(--font-sans);font-size:var(--text-base);
+  padding:0.8rem 1rem;border-radius:var(--radius-md);border:1px solid;line-height:1.45;
+}
+.pta-alert__ico{font-size:1.15rem;line-height:1.2;flex:none;}
+.pta-alert__body{flex:1;min-width:0;}
+.pta-alert__title{font-weight:var(--weight-semibold);color:var(--text-strong);}
+.pta-alert__close{
+  background:none;border:none;cursor:pointer;color:inherit;opacity:0.55;
+  font-size:1rem;line-height:1;padding:2px;margin:-2px -2px 0 0;flex:none;
+}
+.pta-alert__close:hover{opacity:1;}
+.pta-alert--success{background:var(--success-soft);border-color:var(--success-border);color:var(--success-text);}
+.pta-alert--success .pta-alert__ico{color:var(--green-500);}
+.pta-alert--danger{background:var(--danger-soft);border-color:var(--danger-border);color:var(--danger-text);}
+.pta-alert--danger .pta-alert__ico{color:var(--crimson-500);}
+.pta-alert--warning{background:var(--warning-soft);border-color:var(--warning-border);color:var(--warning-text);}
+.pta-alert--warning .pta-alert__ico{color:var(--gold-500);}
+.pta-alert--info{background:var(--info-soft);border-color:var(--info-border);color:var(--info-text);}
+.pta-alert--info .pta-alert__ico{color:var(--azure-500);}
+
+/* ---------- StatTile ---------- */
+.pta-stat{display:flex;flex-direction:column;gap:0.15rem;font-family:var(--font-sans);padding:0.2rem 0;}
+.pta-stat__top{display:flex;align-items:center;gap:0.5rem;}
+.pta-stat__ico{
+  width:2rem;height:2rem;border-radius:var(--radius-md);flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:1rem;
+  background:var(--green-50);color:var(--green-600);
+}
+.pta-stat__label{
+  font-size:var(--text-xs);font-weight:var(--weight-semibold);
+  letter-spacing:var(--tracking-wider);text-transform:uppercase;color:var(--text-muted);
+}
+.pta-stat__value{
+  font-family:var(--font-display);font-weight:var(--weight-semibold);
+  font-size:var(--text-3xl);line-height:1;color:var(--text-strong);font-variant-numeric:tabular-nums;
+}
+.pta-stat__sub{font-size:var(--text-sm);color:var(--text-muted);}
+.pta-stat--success .pta-stat__ico{background:var(--success-soft);color:var(--green-600);}
+.pta-stat--success .pta-stat__value{color:var(--green-600);}
+.pta-stat--warning .pta-stat__ico{background:var(--warning-soft);color:var(--gold-600);}
+.pta-stat--danger .pta-stat__ico{background:var(--danger-soft);color:var(--crimson-600);}
+.pta-stat--danger .pta-stat__value{color:var(--crimson-600);}
+.pta-stat--honorary .pta-stat__ico{background:var(--violet-100);color:var(--violet-700);}
+.pta-stat--info .pta-stat__ico{background:var(--info-soft);color:var(--azure-600);}
+
+/* ---------- Calendar ----------
+   Dashboard month grid. Class names match the app's actual markup
+   in dashboard.ejs (single-dash, e.g. .pta-cal-day / .pta-cal-strip).
+   "today" is verde; event-day cells get a soft azulejo tint. Cells
+   are height-capped (no aspect-ratio) so a full-width card stays compact. */
+.pta-cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3);}
+.pta-cal-nav #calTitle,.pta-cal-nav .fw-semibold{font-family:var(--font-display);font-weight:var(--weight-semibold);font-size:var(--text-md);color:var(--text-strong);}
+.pta-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.pta-cal-hd{text-align:center;font-size:var(--text-2xs);font-weight:var(--weight-bold);text-transform:uppercase;letter-spacing:var(--tracking-wide);color:var(--text-muted);padding:var(--space-1) 0;}
+.pta-cal-day{
+  min-height:84px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;
+  padding:5px 6px;border-radius:var(--radius-sm);position:relative;font-size:var(--text-sm);
+  color:var(--text-body);cursor:pointer;user-select:none;border:1px solid transparent;
+  transition:background var(--duration-fast) var(--ease-out);
+}
+.pta-cal-day:hover{background:var(--stone-100);}
+.pta-cal-day.is-other{color:var(--text-faint);opacity:0.45;pointer-events:none;}
+.pta-cal-day.has-events{font-weight:var(--weight-semibold);background:var(--azure-50);border-color:var(--azure-100);}
+.pta-cal-day.has-events:hover{background:var(--azure-100);}
+.pta-cal-day.is-today{background:var(--green-500);color:#fff;font-weight:var(--weight-bold);border-color:var(--green-600);}
+.pta-cal-day.is-today.has-events{background:var(--green-500);color:#fff;}
+.pta-cal-day.is-selected:not(.is-today){outline:2px solid var(--green-500);outline-offset:-2px;}
+.pta-cal-strip{
+  position:absolute;left:3px;right:3px;height:14px;line-height:14px;
+  font-size:9px;font-weight:var(--weight-bold);padding:0 4px;border-radius:var(--radius-xs);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;pointer-events:none;
+  background:var(--event-1);
+}
+.pta-cal-strip--more{background:var(--stone-400)!important;font-weight:var(--weight-semibold);font-style:italic;}
+/* event colour slots — used if the app assigns classes instead of inline bg */
+.pta-cal-strip--e1{background:var(--event-1);} .pta-cal-strip--e2{background:var(--event-2);}
+.pta-cal-strip--e3{background:var(--event-3);} .pta-cal-strip--e4{background:var(--event-4);}
+.pta-cal-strip--e5{background:var(--event-5);} .pta-cal-strip--e6{background:var(--event-6);}
+.pta-cal-strip--e7{background:var(--event-7);} .pta-cal-strip--e8{background:var(--event-8);}
+/* day-detail list under the grid (.pta-cal-events / .pta-cal-ev-item) */
+.pta-cal-events{margin-top:var(--space-4);border-top:1px solid var(--border-subtle);padding-top:var(--space-3);min-height:2.5rem;}
+.pta-cal-ev-item{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-2);padding:var(--space-2) 0;border-bottom:1px solid var(--border-subtle);}
+.pta-cal-ev-item:last-child{border-bottom:none;}
+
+/* ---------- Upcoming events panel ----------
+   The side list beside the calendar (built client-side from the same
+   events the grid fetches). Coloured dot = the event's calendar colour. */
+.pta-upcoming{display:flex;flex-direction:column;}
+.pta-upcoming__item{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) 0;border-bottom:1px solid var(--border-subtle);}
+.pta-upcoming__item:last-child{border-bottom:none;}
+.pta-upcoming__main{display:flex;gap:var(--space-2);min-width:0;}
+.pta-upcoming__dot{width:0.6rem;height:0.6rem;border-radius:var(--radius-xs);flex:none;margin-top:0.3rem;background:var(--event-1);}
+.pta-upcoming__title{color:var(--text-strong);font-weight:var(--weight-medium);font-size:var(--text-sm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pta-upcoming__date{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--text-muted);white-space:nowrap;flex:none;}
+.pta-upcoming__empty{color:var(--text-muted);font-size:var(--text-sm);padding:var(--space-3) 0;}
+
+/* ---------- Tabs ----------
+   In-page tab bar (e.g. member profile: My Profile / Notifications).
+   Flat underline — verde active, one level quieter than the gold
+   topbar nav. Replaces stock Bootstrap .nav-tabs in the app. */
+.pta-tabs{display:flex;gap:var(--space-1);border-bottom:1px solid var(--border-default);}
+.pta-tab{
+  display:inline-flex;align-items:center;gap:0.45rem;
+  padding:0.6rem 0.95rem;font-family:var(--font-sans);font-size:var(--text-base);font-weight:var(--weight-medium);
+  color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:none;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+  transition:color var(--duration-fast) var(--ease-out),border-color var(--duration-fast) var(--ease-out);
+}
+.pta-tab .bi{font-size:1.02em;}
+.pta-tab:hover{color:var(--text-body);}
+.pta-tab.is-active{color:var(--green-600);border-bottom-color:var(--green-500);font-weight:var(--weight-semibold);}
+.pta-tab:focus-visible{outline:none;box-shadow:var(--shadow-focus);border-radius:var(--radius-sm) var(--radius-sm) 0 0;}
+.pta-tab__count{
+  font-size:var(--text-2xs);font-weight:var(--weight-bold);line-height:1;
+  background:var(--crimson-500);color:#fff;border-radius:var(--radius-pill);
+  min-width:1.1rem;height:1.1rem;padding:0 0.32rem;
+  display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;
+}
+
+/* ---------- Invite (RSVP) ----------
+   Event invitation on the member profile Notifications tab. Three
+   states via .is-pending / .is-accepted / .is-declined on the chip;
+   add .is-resolved on the root to quiet answered invites. The rail
+   draws from --event-* so an event reads the same colour as on the
+   calendar. Actions use ordinary .pta-btn variants. */
+.pta-invite{
+  display:grid;grid-template-columns:auto 1fr;gap:0 var(--space-3);
+  background:var(--surface-card);border:1px solid var(--border-subtle);
+  border-radius:var(--radius-lg);box-shadow:var(--shadow-xs);padding:var(--space-4);
+}
+.pta-invite__rail{width:3px;border-radius:var(--radius-pill);background:var(--event-1);grid-row:1 / -1;}
+.pta-invite__body{min-width:0;}
+.pta-invite__top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-3);}
+.pta-invite__title{font-family:var(--font-display);font-weight:var(--weight-semibold);font-size:var(--text-md);color:var(--text-strong);line-height:1.25;}
+.pta-invite__meta{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px;font-size:var(--text-sm);color:var(--text-muted);}
+.pta-invite__meta .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+.pta-invite__meta .bi{color:var(--green-500);margin-right:3px;}
+.pta-invite__desc{margin-top:var(--space-2);font-size:var(--text-sm);color:var(--text-body);line-height:1.5;}
+.pta-invite__actions{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-4);}
+.pta-invite__status{
+  display:inline-flex;align-items:center;gap:0.4em;white-space:nowrap;
+  font-size:var(--text-xs);font-weight:var(--weight-semibold);
+  padding:0.3em 0.65em;border-radius:var(--radius-pill);border:1px solid transparent;
+}
+.pta-invite__status.is-pending{background:var(--gold-50);color:var(--gold-600);border-color:var(--gold-200);}
+.pta-invite__status.is-accepted{background:var(--success-soft);color:var(--success-text);border-color:var(--success-border);}
+.pta-invite__status.is-declined{background:var(--stone-100);color:var(--stone-600);border-color:var(--stone-200);}
+.pta-invite.is-resolved{box-shadow:none;background:var(--stone-50);}
+.pta-invite.is-resolved .pta-invite__title{color:var(--text-body);}
+
+/* ---------- Status indicator ----------
+   Online/offline/idle dot + label. Used by the Vision Model Health
+   and OCR Model Configuration cards (super-admin dashboard). */
+.pta-status{display:inline-flex;align-items:center;gap:0.5em;font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-body);white-space:nowrap;}
+.pta-status__dot{width:0.55em;height:0.55em;border-radius:var(--radius-circle);background:var(--stone-400);flex:none;box-shadow:0 0 0 3px transparent;}
+.pta-status--online{color:var(--success-text);}
+.pta-status--online .pta-status__dot{background:var(--green-500);box-shadow:0 0 0 3px var(--green-100);}
+.pta-status--offline{color:var(--danger-text);}
+.pta-status--offline .pta-status__dot{background:var(--crimson-500);box-shadow:0 0 0 3px var(--crimson-100);}
+.pta-status--idle{color:var(--text-muted);}
+.pta-status--idle .pta-status__dot{background:var(--stone-400);}
+
+/* ---------- Config row ----------
+   Labelled item with a role tag + inline actions. The OCR Model
+   Configuration list (model id · role · Test/Remove) is a stack of
+   these; also fits any add/remove settings list. */
+.pta-configrow{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) 0;border-bottom:1px solid var(--border-subtle);}
+.pta-configrow:last-child{border-bottom:none;}
+.pta-configrow__main{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px;}
+.pta-configrow__id{font-family:var(--font-mono);font-size:var(--text-sm);color:var(--text-strong);overflow-wrap:anywhere;}
+.pta-configrow__role{font-size:var(--text-2xs);color:var(--text-muted);letter-spacing:var(--tracking-wide);text-transform:uppercase;font-weight:var(--weight-semibold);}
+.pta-configrow__actions{display:flex;align-items:center;gap:var(--space-2);flex:none;}
+
+/* ===== kit.css ===== */
+/* ============================================================
+   PT Associação — Admin UI kit styles (kit-local layout only;
+   tokens & components come from the shipped styles.css)
+   ============================================================ */
+.pta-shell{min-height:100vh;background:var(--surface-page);}
+
+/* Topbar */
+.pta-topbar{
+  display:flex;align-items:center;gap:var(--space-6);
+  background:var(--surface-inverse);color:var(--text-on-dark);
+  padding:0 var(--space-6);height:64px;
+  border-bottom:3px solid var(--gold-400);
+  position:sticky;top:0;z-index:var(--z-sticky);
+}
+.pta-brand{display:flex;align-items:center;gap:var(--space-3);cursor:pointer;flex:none;}
+.pta-brand__txt{display:flex;flex-direction:column;line-height:1.1;}
+.pta-brand__name{font-family:var(--font-display);font-weight:var(--weight-semibold);font-size:var(--text-md);color:#fff;}
+.pta-brand__sub{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-300);margin-top:2px;}
+.pta-nav{display:flex;align-items:center;gap:var(--space-1);height:100%;}
+.pta-nav__item{
+  display:flex;align-items:center;gap:var(--space-2);height:100%;
+  background:none;border:none;color:var(--text-on-dark-muted);cursor:pointer;
+  font-family:var(--font-sans);font-size:var(--text-base);font-weight:var(--weight-medium);
+  padding:0 var(--space-3);border-bottom:3px solid transparent;margin-bottom:-3px;
+  transition:color var(--duration-fast) var(--ease-out),border-color var(--duration-fast) var(--ease-out);
+}
+.pta-nav__item:hover{color:#fff;}
+.pta-nav__item.is-active{color:#fff;border-bottom-color:var(--gold-400);}
+.pta-nav__item .bi{font-size:1.05em;}
+.pta-topbar__right{margin-left:auto;display:flex;align-items:center;gap:var(--space-4);}
+/* Notification bell + pending-invite badge.
+   Token-bound replacement for the .pta-topbar__bell / .pta-bell__badge
+   block in the app's custom.css (which used an off-brand #e74c3c). */
+.pta-topbar__bell{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:var(--radius-md);
+  color:var(--text-on-dark-muted);font-size:1.05rem;text-decoration:none;flex:none;
+  transition:background var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out);
+}
+.pta-topbar__bell:hover{background:var(--surface-inverse-hover);color:#fff;}
+.pta-bell__badge{
+  position:absolute;top:-2px;right:-2px;min-width:17px;height:17px;padding:0 4px;
+  border-radius:var(--radius-pill);background:var(--crimson-500);color:#fff;
+  font-size:var(--text-2xs);font-weight:var(--weight-bold);line-height:17px;text-align:center;
+  font-variant-numeric:tabular-nums;pointer-events:none;
+  border:2px solid var(--green-800);   /* seam ring so the count reads on green chrome */
+}
+.pta-user{display:flex;align-items:center;gap:var(--space-2);}
+.pta-user__email{font-size:var(--text-sm);color:var(--text-on-dark-muted);}
+.pta-user__logout{background:none;border:none;color:var(--text-on-dark-muted);cursor:pointer;font-size:1rem;padding:4px;border-radius:var(--radius-sm);}
+.pta-user__logout:hover{color:#fff;background:var(--surface-inverse-hover);}
+
+/* Page frame */
+.pta-main{max-width:var(--content-max);margin:0 auto;padding:var(--space-6) var(--space-6) var(--space-9);}
+.pta-pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-4);margin-bottom:var(--space-5);}
+.pta-pagehead__titles{display:flex;flex-direction:column;gap:var(--space-1);}
+.pta-pagehead h1{margin:0;font-size:var(--text-2xl);}
+.pta-pagehead__sub{color:var(--text-muted);font-size:var(--text-base);}
+.pta-eyebrow{font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-wider);text-transform:uppercase;color:var(--green-600);}
+
+/* Stats bar */
+.pta-statsbar{display:grid;grid-template-columns:repeat(4,1fr);}
+.pta-statsbar > div{padding:var(--space-4) var(--space-5);border-right:1px solid var(--border-subtle);}
+.pta-statsbar > div:last-child{border-right:none;}
+
+/* Generic table */
+.pta-table{width:100%;border-collapse:collapse;font-size:var(--text-base);}
+.pta-table thead th{
+  text-align:left;font-size:var(--text-xs);font-weight:var(--weight-semibold);
+  letter-spacing:var(--tracking-wider);text-transform:uppercase;color:var(--text-muted);
+  padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-default);
+  background:var(--stone-50);white-space:nowrap;
+}
+.pta-table tbody td{padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-subtle);color:var(--text-body);vertical-align:middle;}
+.pta-table tbody tr:last-child td{border-bottom:none;}
+.pta-table tbody tr.is-clickable{cursor:pointer;transition:background var(--duration-fast) var(--ease-out);}
+.pta-table tbody tr.is-clickable:hover{background:var(--green-50);}
+.pta-table .pta-id{font-family:var(--font-mono);font-size:var(--text-sm);color:var(--text-muted);}
+.pta-namecell{display:flex;align-items:center;gap:var(--space-3);}
+.pta-namecell__txt{display:flex;flex-direction:column;line-height:1.25;}
+.pta-namecell__en{font-weight:var(--weight-semibold);color:var(--text-strong);}
+.pta-namecell__zh{font-size:var(--text-sm);color:var(--text-muted);}
+
+/* Toolbar (search + filters) */
+.pta-toolbar{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-4);}
+.pta-search{position:relative;flex:1;max-width:380px;}
+.pta-search .bi{position:absolute;left:var(--space-3);top:50%;transform:translateY(-50%);color:var(--text-faint);pointer-events:none;}
+.pta-search input{padding-left:2.1rem;}
+.pta-filterchips{display:flex;gap:var(--space-2);margin-left:auto;}
+.pta-chip{
+  font-family:var(--font-sans);font-size:var(--text-sm);font-weight:var(--weight-medium);
+  padding:0.4rem 0.85rem;border-radius:var(--radius-pill);cursor:pointer;
+  background:var(--white);border:1px solid var(--border-default);color:var(--text-body);
+  transition:all var(--duration-fast) var(--ease-out);
+}
+.pta-chip:hover{border-color:var(--border-strong);}
+.pta-chip.is-active{background:var(--green-500);border-color:var(--green-500);color:#fff;}
+
+/* Definition list grid for info cards — labels and values in two clean,
+   left-aligned columns (no ragged right-flush gutter). */
+.pta-dl{display:grid;grid-template-columns:max-content 1fr;gap:var(--space-3) var(--space-5);margin:0;align-items:baseline;}
+.pta-dl dt{font-size:var(--text-sm);color:var(--text-muted);font-weight:var(--weight-medium);white-space:nowrap;}
+.pta-dl dd{margin:0;color:var(--text-strong);font-weight:var(--weight-medium);text-align:left;min-width:0;overflow-wrap:anywhere;}
+.pta-dl dd.mono{font-family:var(--font-mono);font-size:var(--text-sm);}
+.pta-dl dd.empty{color:var(--text-faint);font-weight:var(--weight-regular);font-style:italic;}
+
+/* Wide cards: split the field list into two label/value columns so dense
+   cards read short-and-wide instead of long-and-narrow. */
+.pta-dl--split{column-gap:var(--space-7);row-gap:var(--space-4);}
+@media (min-width:640px){
+  .pta-dl--split{grid-template-columns:max-content minmax(0,1fr) max-content minmax(0,1fr);}
+}
+
+/* Stacked long-text fields (addresses): label over value, never crammed
+   into a tight right-flush row. */
+.pta-fieldset{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4) var(--space-7);
+  margin-top:var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--border-subtle);}
+.pta-fieldset__lbl{font-size:var(--text-sm);color:var(--text-muted);font-weight:var(--weight-medium);margin-bottom:3px;}
+.pta-fieldset__val{color:var(--text-strong);font-weight:var(--weight-medium);line-height:1.4;overflow-wrap:anywhere;}
+@media (max-width:520px){ .pta-fieldset{grid-template-columns:1fr;} }
+
+/* Detail layout */
+.pta-detail{display:grid;grid-template-columns:264px 1fr;gap:var(--space-5);align-items:start;}
+.pta-profilecard{display:flex;flex-direction:column;align-items:center;text-align:center;gap:var(--space-3);}
+.pta-profilecard__name{font-family:var(--font-display);font-weight:var(--weight-semibold);font-size:var(--text-lg);color:var(--text-strong);line-height:1.2;}
+.pta-profilecard__zh{font-size:var(--text-base);color:var(--text-muted);margin-top:-6px;}
+.pta-profilecard__meta{font-size:var(--text-sm);color:var(--text-muted);}
+.pta-cardgrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5);}
+.pta-cardgrid .span2{grid-column:1 / -1;}
+
+/* Document slots */
+.pta-docslots{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);}
+.pta-docslot{
+  border:1px solid var(--border-subtle);border-radius:var(--radius-md);overflow:hidden;background:var(--stone-50);
+}
+.pta-docslot__thumb{
+  height:96px;display:flex;align-items:center;justify-content:center;
+  background:var(--stone-100);color:var(--green-500);font-size:1.8rem;border-bottom:1px solid var(--border-subtle);
+  background-image:linear-gradient(135deg,var(--stone-100),var(--stone-200));
+}
+.pta-docslot__thumb.empty{color:var(--stone-300);}
+.pta-docslot__label{padding:var(--space-2) var(--space-3);font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-strong);}
+.pta-docslot__sub{font-size:10px;color:var(--text-faint);}
+
+/* Login */
+.pta-login{min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:
+    url(azulejo-tile.svg) center top / 148px 148px repeat,
+    radial-gradient(120% 80% at 50% -10%, var(--green-700), var(--green-900));
+  background-color:var(--green-900);padding:var(--space-5);}
+/* soft vignette to keep the eye on the card */
+.pta-login::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(70% 55% at 50% 42%, rgba(0,0,0,0) 35%, rgba(4,33,19,0.55) 100%);}
+.pta-login{position:relative;}
+.pta-login__card{position:relative;z-index:1;}
+.pta-login__card{
+  width:100%;max-width:392px;background:var(--surface-card);border-radius:var(--radius-xl);
+  box-shadow:var(--shadow-xl);padding:var(--space-7) var(--space-7) var(--space-6);
+}
+.pta-login__brand{display:flex;flex-direction:column;align-items:center;gap:var(--space-3);margin-bottom:var(--space-6);text-align:center;}
+.pta-login__title{font-family:var(--font-display);font-weight:var(--weight-semibold);font-size:var(--text-xl);line-height:var(--leading-tight);color:var(--text-strong);white-space:nowrap;}
+.pta-login__sub{font-size:var(--text-sm);color:var(--text-muted);letter-spacing:.04em;}
+.pta-login__form{display:flex;flex-direction:column;gap:var(--space-4);}
+.pta-login__hint{margin-top:var(--space-5);padding-top:var(--space-4);border-top:1px solid var(--border-subtle);font-size:var(--text-xs);color:var(--text-faint);text-align:center;line-height:1.6;}
+
+/* Pagination */
+.pta-pager{display:flex;align-items:center;justify-content:space-between;margin-top:var(--space-4);font-size:var(--text-sm);color:var(--text-muted);}
+.pta-pager__btns{display:flex;gap:var(--space-2);}
+
+/* Section divider label inside cards */
+.pta-rolepanel{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;}
+.pta-danger{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);}
+.pta-danger__txt{font-size:var(--text-sm);color:var(--text-muted);}
+
+/* ─── Server log popup button ───────────────────────────────────────── */
+/* No panel CSS needed — logs open in a standalone popup window */

@@ -1,0 +1,67 @@
+<%
+  var _phInit = countries.find(function(c) { return c.dial === dialCode; }) || countries[0];
+%>
+<div class="input-group">
+
+  <div class="dropdown">
+    <button type="button"
+            class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1"
+            data-bs-toggle="dropdown" data-bs-auto-close="outside"
+            id="phoneDial" style="min-width:115px">
+      <span class="fi fi-<%= _phInit.code.toLowerCase() %>" id="phoneFlagIcon"></span>
+      <span id="phoneDialDisplay"><%= _phInit.dial %></span>
+    </button>
+    <input type="hidden" name="phone_dialcode" id="phoneDialVal" value="<%= _phInit.dial %>">
+
+    <div class="dropdown-menu p-2" style="width:270px">
+      <input type="text" class="form-control form-control-sm mb-2"
+             id="phoneDialSearch" placeholder="Search country…" autocomplete="off">
+      <div style="max-height:240px;overflow-y:auto" id="phoneDialItems">
+        <% countries.forEach(function(c) { %>
+        <button type="button"
+                class="dropdown-item d-flex align-items-center gap-2 py-1"
+                data-dial="<%= c.dial %>" data-flag="<%= c.code.toLowerCase() %>">
+          <span class="fi fi-<%= c.code.toLowerCase() %>"></span>
+          <small><%= c.dial %> &nbsp;<%= c.name %></small>
+        </button>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+
+  <input type="tel" name="phone_number" class="form-control"
+         value="<%= phoneNum %>" placeholder="Number">
+</div>
+
+<script>
+(function () {
+  var btn     = document.getElementById('phoneDial');
+  var icon    = document.getElementById('phoneFlagIcon');
+  var display = document.getElementById('phoneDialDisplay');
+  var hidden  = document.getElementById('phoneDialVal');
+  var search  = document.getElementById('phoneDialSearch');
+  var items   = document.getElementById('phoneDialItems');
+
+  items.addEventListener('click', function (e) {
+    var item = e.target.closest('[data-dial]');
+    if (!item) return;
+    hidden.value      = item.dataset.dial;
+    display.textContent = item.dataset.dial;
+    icon.className    = 'fi fi-' + item.dataset.flag;
+    bootstrap.Dropdown.getInstance(btn).hide();
+  });
+
+  search.addEventListener('input', function () {
+    var q = this.value.toLowerCase();
+    items.querySelectorAll('[data-dial]').forEach(function (el) {
+      el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+
+  btn.addEventListener('shown.bs.dropdown', function () {
+    search.value = '';
+    search.dispatchEvent(new Event('input'));
+    search.focus();
+  });
+}());
+</script>

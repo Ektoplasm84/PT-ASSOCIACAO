@@ -1,0 +1,121 @@
+<%- include('../partials/header') %>
+
+<%
+  function feeBadge(status) {
+    if (status === 'paid')
+      return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>Paid</span>';
+    if (status === 'renewal_incoming')
+      return '<span class="pta-badge pta-badge--soft pta-tone-gold"><span class="pta-badge__dot"></span>Renewal incoming</span>';
+    if (status === 'unpaid')
+      return '<span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>Unpaid</span>';
+    return '<span class="pta-badge pta-badge--soft pta-tone-honorary">Honorary Member</span>';
+  }
+%>
+
+<div class="pta-pagehead">
+  <div class="pta-pagehead__titles">
+    <h1>Members <span style="font-size:1rem;font-weight:400;color:var(--text-muted)">(<%= total %>)</span></h1>
+  </div>
+  <% if (canWrite) { %>
+  <a href="/admin/members/new" class="pta-btn"><i class="bi bi-person-plus"></i> New Member</a>
+  <% } %>
+</div>
+
+<div class="pta-toolbar">
+  <form method="GET" action="/admin/members" class="pta-search">
+    <i class="bi bi-search"></i>
+    <input class="pta-control" name="search" placeholder="Search name, ID or email…" value="<%= search %>">
+    <% if (feeFilter) { %><input type="hidden" name="fee" value="<%= feeFilter %>"><% } %>
+  </form>
+  <div class="pta-filterchips">
+    <a href="/admin/members?search=<%= encodeURIComponent(search) %>"
+       class="pta-chip <%= !feeFilter ? 'is-active' : '' %>">All</a>
+    <a href="/admin/members?search=<%= encodeURIComponent(search) %>&fee=paid"
+       class="pta-chip <%= feeFilter === 'paid' ? 'is-active' : '' %>">Paid</a>
+    <a href="/admin/members?search=<%= encodeURIComponent(search) %>&fee=renewal_incoming"
+       class="pta-chip <%= feeFilter === 'renewal_incoming' ? 'is-active' : '' %>">Renewal</a>
+    <a href="/admin/members?search=<%= encodeURIComponent(search) %>&fee=unpaid"
+       class="pta-chip <%= feeFilter === 'unpaid' ? 'is-active' : '' %>">Unpaid</a>
+  </div>
+</div>
+
+<div class="pta-card pta-card--flush">
+  <table class="pta-table">
+    <thead>
+      <tr>
+        <th>Member</th>
+        <th>Member ID</th>
+        <th>Email</th>
+        <th>Position</th>
+        <th>Fee Status</th>
+        <th>Joined</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% members.forEach(function(m) {
+        const _initials = ((m.arc_name_en || (m.first_name + ' ' + m.last_name)) || '?')
+          .trim().split(/\s+/).map(function(s){return s[0]||'';}).slice(0,2).join('').toUpperCase();
+        const _roleLabels = { super_admin: 'Super Admin', admin: 'Admin' };
+        const _posLabels  = { honorary: 'Honorary Member', gestao: 'Gestão',
+                              board: 'Board', president: 'President',
+                              treasurer: 'Treasurer', secretary: 'Secretary', member: 'Member' };
+        const _ptone = m.user_role === 'super_admin' ? 'gold'
+          : m.user_role === 'admin' ? 'info'
+          : m.position === 'honorary' ? 'honorary'
+          : ['gestao','board','president','treasurer','secretary'].includes(m.position) ? 'info'
+          : 'neutral';
+        const _plabel = _roleLabels[m.user_role] || _posLabels[m.position] || 'Member';
+      %>
+      <tr class="is-clickable" onclick="location.href='/admin/members/<%= m.id %>'">
+        <td>
+          <div class="pta-namecell">
+            <span class="pta-avatar pta-avatar--sm"><%= _initials %></span>
+            <span class="pta-namecell__txt">
+              <span class="pta-namecell__en"><%= m.arc_name_en || (m.first_name + ' ' + m.last_name) %></span>
+              <% if (m.arc_chinese_name) { %>
+              <span class="pta-namecell__zh"><%= m.arc_chinese_name %></span>
+              <% } %>
+            </span>
+          </div>
+        </td>
+        <td><span class="pta-id"><%= m.member_id %></span></td>
+        <td><%= m.email %></td>
+        <td><span class="pta-badge pta-badge--soft pta-tone-<%= _ptone %>"><%= _plabel %></span></td>
+        <td>
+          <% if (m.position === 'honorary') { %>
+          <%- feeBadge('honorary') %>
+          <% } else { %>
+          <%- feeBadge(m.fee_status) %>
+          <% } %>
+        </td>
+        <td><span class="pta-id"><%= m.join_date ? m.join_date.slice(0,10) : '—' %></span></td>
+        <td onclick="event.stopPropagation()">
+          <% if (canWrite) { %>
+          <a href="/admin/members/<%= m.id %>/edit" class="pta-btn pta-btn--ghost pta-btn--sm" title="Edit">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <% } %>
+        </td>
+      </tr>
+      <% }); %>
+      <% if (!members.length) { %>
+      <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:3rem">No members found.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<% if (totalPages > 1) { %>
+<nav style="margin-top:1rem">
+  <ul class="pagination">
+    <% for (let p = 1; p <= totalPages; p++) { %>
+    <li class="page-item <%= p === page ? 'active' : '' %>">
+      <a class="page-link" href="/admin/members?page=<%= p %>&search=<%= encodeURIComponent(search) %>&fee=<%= feeFilter %>"><%= p %></a>
+    </li>
+    <% } %>
+  </ul>
+</nav>
+<% } %>
+
+<%- include('../partials/footer') %>

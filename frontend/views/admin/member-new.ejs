@@ -1,0 +1,35 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-3">
+  <div class="col">
+    <h2 class="fw-bold">New Member</h2>
+  </div>
+  <div class="col-auto">
+    <a href="/admin/members" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Back
+    </a>
+  </div>
+</div>
+
+<% if (errors.length) { %>
+<div class="alert alert-danger">
+  <ul class="mb-0">
+    <% errors.forEach(e => { %><li><%= e %></li><% }) %>
+  </ul>
+</div>
+<% } %>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form action="/admin/members" method="POST" enctype="multipart/form-data" novalidate>
+      <%- include('../partials/member-form', { data: data, countries: countries, taiwanLocations: taiwanLocations }) %>
+      <hr>
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-person-check"></i> Create Member
+      </button>
+      <a href="/admin/members" class="btn btn-outline-secondary ms-2">Cancel</a>
+    </form>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

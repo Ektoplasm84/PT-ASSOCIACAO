@@ -1,0 +1,139 @@
+/* ============================================================
+   PT Associação — Bootstrap 5.3 Bridge
+   Maps the design-system tokens onto Bootstrap's CSS variables
+   and components, so your EXISTING markup reskins with ZERO
+   structural changes. Link this AFTER bootstrap.min.css AND
+   after pt-design-system.css.
+
+   This is the "fast path." For pixel-perfect parity with the
+   approved mockups (topbar, stat tiles, member-detail cards),
+   migrate those views to the .pta-* classes — see HANDOFF.md.
+   ============================================================ */
+
+/* ---------- Global Bootstrap variables ---------- */
+:root {
+  --bs-primary:        #0E6B41;            /* green-500 */
+  --bs-primary-rgb:    14, 107, 65;
+  --bs-secondary:      #645E50;            /* stone-600 */
+  --bs-secondary-rgb:  100, 94, 80;
+  --bs-success:        #0E6B41;
+  --bs-success-rgb:    14, 107, 65;
+  --bs-danger:         #BE3A2B;            /* crimson-500 */
+  --bs-danger-rgb:     190, 58, 43;
+  --bs-warning:        #CB9A35;            /* gold-400 */
+  --bs-warning-rgb:    203, 154, 53;
+  --bs-info:           #1D4E89;            /* azure-500 */
+  --bs-info-rgb:       29, 78, 137;
+
+  --bs-body-bg:        var(--surface-page);     /* deeper putty */
+  --bs-body-color:     var(--text-body);
+  --bs-body-font-family: var(--font-sans);      /* Public Sans */
+  --bs-body-font-size: var(--text-base);
+  --bs-emphasis-color: var(--text-strong);
+  --bs-border-color:   var(--border-default);
+  --bs-border-radius:  var(--radius-md);
+  --bs-border-radius-lg: var(--radius-lg);
+  --bs-link-color:     var(--text-link);
+  --bs-link-color-rgb: 10, 88, 54;
+  --bs-link-hover-color: var(--text-link-hover);
+}
+
+/* Headings → Space Grotesk display */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-strong);
+}
+
+/* The login screen uses bg-light — make it the warm paper, not grey */
+.bg-light { background-color: var(--surface-page) !important; }
+
+/* ---------- Buttons (Bootstrap 5.3 uses --bs-btn-* locals) ---------- */
+.btn { --bs-btn-font-family: var(--font-sans); --bs-btn-font-weight: var(--weight-semibold); --bs-btn-border-radius: var(--radius-md); }
+.btn-primary {
+  --bs-btn-bg: var(--green-500); --bs-btn-border-color: var(--green-500);
+  --bs-btn-hover-bg: var(--green-600); --bs-btn-hover-border-color: var(--green-600);
+  --bs-btn-active-bg: var(--green-700); --bs-btn-active-border-color: var(--green-700);
+  --bs-btn-disabled-bg: var(--green-500); --bs-btn-disabled-border-color: var(--green-500);
+}
+.btn-danger {
+  --bs-btn-bg: var(--crimson-500); --bs-btn-border-color: var(--crimson-500);
+  --bs-btn-hover-bg: var(--crimson-600); --bs-btn-hover-border-color: var(--crimson-600);
+  --bs-btn-active-bg: var(--crimson-700); --bs-btn-active-border-color: var(--crimson-700);
+}
+.btn-warning {
+  --bs-btn-color: #3D2E08; --bs-btn-bg: var(--gold-400); --bs-btn-border-color: var(--gold-400);
+  --bs-btn-hover-color: #3D2E08; --bs-btn-hover-bg: var(--gold-500); --bs-btn-hover-border-color: var(--gold-500);
+  --bs-btn-active-bg: var(--gold-600);
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--green-600); --bs-btn-border-color: var(--green-500);
+  --bs-btn-hover-bg: var(--green-500); --bs-btn-hover-border-color: var(--green-500);
+  --bs-btn-active-bg: var(--green-600);
+}
+.btn-secondary {
+  --bs-btn-color: var(--stone-800); --bs-btn-bg: var(--white); --bs-btn-border-color: var(--border-default);
+  --bs-btn-hover-color: var(--stone-800); --bs-btn-hover-bg: var(--stone-100); --bs-btn-hover-border-color: var(--border-strong);
+  --bs-btn-active-bg: var(--stone-200);
+}
+
+/* ---------- Navbar (your .navbar.bg-dark) ---------- */
+.navbar.bg-dark {
+  background-color: var(--green-800) !important;
+  border-bottom: 3px solid var(--gold-400);
+}
+.navbar-dark .navbar-brand { font-family: var(--font-display); color: #fff; }
+.navbar-dark .navbar-nav .nav-link { color: var(--text-on-dark-muted); }
+.navbar-dark .navbar-nav .nav-link:hover,
+.navbar-dark .navbar-nav .nav-link.active { color: #fff; }
+
+/* ---------- Cards ---------- */
+.card {
+  --bs-card-bg: var(--surface-card);
+  --bs-card-border-color: var(--border-subtle);
+  --bs-card-border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.card-title { font-family: var(--font-display); color: var(--text-strong); }
+
+/* ---------- Badges ---------- */
+.badge { font-family: var(--font-sans); font-weight: var(--weight-semibold); letter-spacing: .01em; }
+.badge.bg-success { background-color: var(--green-500) !important; }
+.badge.bg-danger  { background-color: var(--crimson-500) !important; }
+.badge.bg-warning { background-color: var(--gold-400) !important; color: #3D2E08 !important; }
+.badge.bg-info    { background-color: var(--azure-500) !important; color: #fff !important; }
+.badge.bg-secondary { background-color: var(--stone-500) !important; }
+
+/* ---------- Tables ---------- */
+.table { --bs-table-bg: var(--surface-card); }
+.table > thead th, .table > thead td {
+  font-size: var(--text-xs); font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wider); text-transform: uppercase;
+  color: var(--text-muted); background: var(--stone-50);
+}
+.table-hover > tbody > tr:hover > * { --bs-table-bg-state: var(--green-50); }
+
+/* ---------- Forms ---------- */
+.form-label { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-strong); }
+.form-control, .form-select {
+  border-color: var(--border-default); border-radius: var(--radius-md); color: var(--text-strong);
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--border-focus); box-shadow: var(--shadow-focus);
+}
+
+/* ---------- Alerts (your flash messages) ---------- */
+.alert { border-radius: var(--radius-md); font-family: var(--font-sans); }
+.alert-success { --bs-alert-bg: var(--success-soft); --bs-alert-border-color: var(--success-border); --bs-alert-color: var(--success-text); }
+.alert-danger  { --bs-alert-bg: var(--danger-soft);  --bs-alert-border-color: var(--danger-border);  --bs-alert-color: var(--danger-text); }
+.alert-warning { --bs-alert-bg: var(--warning-soft); --bs-alert-border-color: var(--warning-border); --bs-alert-color: var(--warning-text); }
+.alert-info    { --bs-alert-bg: var(--info-soft);    --bs-alert-border-color: var(--info-border);    --bs-alert-color: var(--info-text); }
+
+/* ---------- Dropdown (user menu) ---------- */
+.dropdown-menu { --bs-dropdown-border-color: var(--border-subtle); --bs-dropdown-border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+
+/* Honorary accent already defined in your custom.css; align it to the token */
+.bg-honorary  { background-color: var(--violet-500) !important; }
+.text-honorary { color: var(--violet-500) !important; }

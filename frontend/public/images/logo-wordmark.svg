@@ -1,0 +1,8 @@
+<svg width="340" height="64" viewBox="0 0 340 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PT Associação">
+  <circle cx="32" cy="32" r="31" fill="#06331F"></circle>
+  <ellipse cx="32" cy="32" rx="25" ry="9" fill="none" stroke="#0E6B41" stroke-width="1.5"></ellipse>
+  <circle cx="32" cy="32" r="27.5" fill="none" stroke="#CB9A35" stroke-width="1"></circle>
+  <text x="32" y="38" text-anchor="middle" font-family="Space Grotesk, system-ui, sans-serif" font-weight="700" font-size="20" fill="#FAF9F6">PT</text>
+  <text x="74" y="29" font-family="Space Grotesk, system-ui, sans-serif" font-weight="600" font-size="23" fill="#1A180F">PT Associação</text>
+  <text x="75" y="46" font-family="Public Sans, sans-serif" font-weight="600" font-size="9.5" fill="#8A8270" letter-spacing="2">PORTUGUESE–TAIWANESE ASSOCIATION</text>
+</svg>

@@ -1,0 +1,17 @@
+/* ============================================================
+   custom.css — app-specific overrides only.
+
+   Revision 2: the design system (pt-design-system.css) now owns the
+   calendar, the topbar notification bell, the page background, card
+   radius, and table-header styling — so the old rules for those were
+   removed from here. What's left is a single honorary colour utility,
+   now bound to the brand token (--violet-500) instead of Bootstrap's
+   #6f42c1. Keep this file linked AFTER Bootstrap and BEFORE the design
+   system, exactly as before.
+   ============================================================ */
+
+/* Honorary colour utility — used by EJS templates as bg-/text-honorary.
+   Bound to the design-system violet so it matches the honorary badge,
+   avatar tint, and stat tile. */
+.bg-honorary  { background-color: var(--violet-500) !important; }
+.text-honorary { color: var(--violet-500) !important; }

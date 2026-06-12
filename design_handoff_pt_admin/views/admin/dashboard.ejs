@@ -1,0 +1,1020 @@
+<%- include('../partials/header') %>
+
+<%
+  function daysLabel(dateStr) {
+    if (!dateStr) return null;
+    const days = Math.floor((new Date(dateStr) - new Date()) / 86400000);
+    if (days < 0)   return { text: `Expired ${Math.abs(days)}d ago`, tone: 'danger'  };
+    if (days === 0) return { text: 'Expires today',                  tone: 'danger'  };
+    if (days <= 60) return { text: `Expires in ${days}d`,           tone: 'warning' };
+    return null;
+  }
+
+  function feeBadge(status) {
+    if (status === 'paid')
+      return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>Paid</span>';
+    if (status === 'renewal_incoming')
+      return '<span class="pta-badge pta-badge--soft pta-tone-gold"><span class="pta-badge__dot"></span>Renewal incoming</span>';
+    if (status === 'unpaid')
+      return '<span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>Unpaid</span>';
+    return '<span class="pta-badge pta-badge--soft pta-tone-honorary">Honorary Member</span>';
+  }
+%>
+
+<div class="pta-pagehead">
+  <div class="pta-pagehead__titles">
+    <h1>Dashboard</h1>
+  </div>
+  <% if (canWrite) { %>
+  <a href="/admin/members/new" class="pta-btn"><i class="bi bi-person-plus"></i> New Member</a>
+  <% } %>
+</div>
+
+<!-- Stat tiles -->
+<div class="pta-card pta-card--flush" style="margin-bottom:1.5rem">
+  <div class="pta-statsbar">
+    <div class="pta-stat">
+      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-people-fill"></i></span><span class="pta-stat__label">Total Members</span></div>
+      <span class="pta-stat__value"><%= stats.total %></span>
+    </div>
+    <div class="pta-stat pta-stat--success">
+      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-check2-circle"></i></span><span class="pta-stat__label">Fee Paid</span></div>
+      <span class="pta-stat__value"><%= stats.paid %></span>
+    </div>
+    <div class="pta-stat pta-stat--danger">
+      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-exclamation-circle"></i></span><span class="pta-stat__label">Unpaid</span></div>
+      <span class="pta-stat__value"><%= stats.unpaid %></span>
+      <span class="pta-stat__sub">incl. expired</span>
+    </div>
+    <div class="pta-stat pta-stat--honorary">
+      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-award"></i></span><span class="pta-stat__label">Honorary</span></div>
+      <span class="pta-stat__value"><%= stats.honorary %></span>
+      <span class="pta-stat__sub">fee exempt</span>
+    </div>
+  </div>
+</div>
+
+<!-- Warnings & Advisories -->
+<div class="pta-card" style="margin-bottom:1.5rem">
+  <header class="pta-card__head">
+    <i class="bi bi-exclamation-triangle-fill" style="color:var(--gold-400)"></i>
+    <div class="pta-card__titles"><span class="pta-card__title">Warnings &amp; Advisories</span></div>
+    <% if (warnings.length) { %><span class="pta-badge pta-badge--solid pta-tone-danger"><%= warnings.length %></span><% } %>
+  </header>
+  <% if (!warnings.length) { %>
+  <div class="pta-card__body" style="color:var(--text-muted)">
+    <i class="bi bi-check-circle" style="color:var(--success)"></i> No active warnings.
+  </div>
+  <% } else { %>
+  <div class="pta-card__body" style="padding:0">
+    <table class="pta-table">
+      <thead><tr><th>Member</th><th>Fee</th><th>ARC</th><th>CC</th><th></th></tr></thead>
+      <tbody>
+        <% warnings.forEach(function(w) {
+          const arcLbl = daysLabel(w.arc_expiry_date);
+          const ccLbl  = daysLabel(w.cc_expiry_date);
+        %>
+        <tr>
+          <td>
+            <div style="font-weight:600"><%= w.arc_name_en || (w.first_name + ' ' + w.last_name) %></div>
+            <span class="pta-id"><%= w.member_id %></span>
+          </td>
+          <td>
+            <% if (w.warn_fee) { %>
+            <span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>Unpaid</span>
+            <% } else { %><span style="color:var(--text-muted)">—</span><% } %>
+          </td>
+          <td>
+            <% if (arcLbl) { %>
+            <span class="pta-badge pta-badge--soft pta-tone-<%= arcLbl.tone %>"><span class="pta-badge__dot"></span><%= arcLbl.text %></span>
+            <% } else { %><span style="color:var(--text-muted)">—</span><% } %>
+          </td>
+          <td>
+            <% if (ccLbl) { %>
+            <span class="pta-badge pta-badge--soft pta-tone-<%= ccLbl.tone %>"><span class="pta-badge__dot"></span><%= ccLbl.text %></span>
+            <% } else { %><span style="color:var(--text-muted)">—</span><% } %>
+          </td>
+          <td><a href="/admin/members/<%= w.id %>" class="pta-btn pta-btn--secondary pta-btn--sm">View</a></td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+
+<!-- Vision Model Health (super_admin only) -->
+<% if (isSuperAdmin) { %>
+<div class="pta-card" style="margin-bottom:1.5rem" id="modelHealthCard">
+  <header class="pta-card__head">
+    <i class="bi bi-cpu" style="color:var(--text-muted)"></i>
+    <div class="pta-card__titles"><span class="pta-card__title">Vision Model Health</span></div>
+    <% if (modelWarnings.length) { %>
+    <span class="pta-badge pta-badge--solid pta-tone-danger" id="modelWarnBadge"><%= modelWarnings.length %></span>
+    <% } else { %>
+    <span class="pta-badge pta-badge--soft pta-tone-success" id="modelWarnBadge" style="display:none"></span>
+    <% } %>
+    <button class="pta-btn pta-btn--ghost pta-btn--sm" id="runModelCheckBtn">
+      <i class="bi bi-arrow-repeat" id="checkSpinnerIcon"></i> Run Check
+    </button>
+  </header>
+  <div id="modelHealthBody">
+    <% if (!modelWarnings.length) { %>
+    <div class="pta-card__body" style="color:var(--text-muted)" id="modelHealthOk">
+      <i class="bi bi-check-circle" style="color:var(--success)"></i> All models OK — run a check to verify.
+    </div>
+    <% } else { %>
+    <div class="pta-card__body" style="padding:0" id="modelHealthTable">
+      <table class="pta-table">
+        <thead><tr><th>Model</th><th>Status</th><th>Error</th><th>Detected</th><th></th></tr></thead>
+        <tbody id="modelHealthRows">
+          <% modelWarnings.forEach(function(w) { %>
+          <tr data-model-row="<%= encodeURIComponent(w.model) %>">
+            <td class="fw-semibold"><%= w.display %></td>
+            <td>
+              <% if (w.status === 'offline') { %>
+              <span class="pta-badge pta-badge--soft pta-tone-danger">Offline</span>
+              <% } else { %>
+              <span class="pta-badge pta-badge--soft pta-tone-gold">Rate limited</span>
+              <% } %>
+            </td>
+            <td class="small" style="color:var(--text-muted);font-family:monospace"><%= w.error %></td>
+            <td class="small pta-id"><%= w.detectedAt ? w.detectedAt.slice(0,16).replace('T',' ') : '' %></td>
+            <td>
+              <button class="pta-btn pta-btn--ghost pta-btn--sm js-dismiss-model"
+                      data-model="<%= encodeURIComponent(w.model) %>">
+                <i class="bi bi-x-lg"></i> Dismiss
+              </button>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+(function () {
+
+  // ── OCR Model Configuration ───────────────────────────────────────────────
+
+  var modelList = <%- JSON.stringify(activeModels) %>;
+
+  function roleLabel(i) {
+    if (i === 0) return 'Primary';
+    if (i === 1) return 'Secondary';
+    return 'Fallback';
+  }
+  function roleTone(i) { return i < 2 ? 'pta-tone-success' : 'pta-tone-neutral'; }
+
+  function renderModelList() {
+    var tbody = document.getElementById('modelConfigRows');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    modelList.forEach(function (model, idx) {
+      var tr = document.createElement('tr');
+
+      var tdNum = document.createElement('td');
+      tdNum.className = 'pta-id'; tdNum.textContent = String(idx + 1);
+
+      var tdId = document.createElement('td');
+      tdId.style.fontFamily = 'monospace'; tdId.textContent = model;
+
+      var tdRole = document.createElement('td');
+      var badge = document.createElement('span');
+      badge.className = 'pta-badge pta-badge--soft ' + roleTone(idx);
+      badge.textContent = roleLabel(idx);
+      tdRole.appendChild(badge);
+
+      var tdAct = document.createElement('td');
+      tdAct.style.whiteSpace = 'nowrap';
+
+      var testBtn = document.createElement('button');
+      testBtn.type = 'button';
+      testBtn.className = 'pta-btn pta-btn--ghost pta-btn--sm me-1';
+      testBtn.title = 'Test this model';
+      testBtn.innerHTML = '<i class="bi bi-wifi"></i>';
+      (function (m, btn) {
+        btn.addEventListener('click', function () { testExistingModel(m, btn); });
+      }(model, testBtn));
+
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'pta-btn pta-btn--ghost pta-btn--sm';
+      removeBtn.title = 'Remove';
+      removeBtn.innerHTML = '<i class="bi bi-trash"></i>';
+      (function (i) {
+        removeBtn.addEventListener('click', function () {
+          modelList.splice(i, 1);
+          renderModelList();
+          updateSaveInputs();
+        });
+      }(idx));
+
+      tdAct.appendChild(testBtn); tdAct.appendChild(removeBtn);
+      tr.appendChild(tdNum); tr.appendChild(tdId); tr.appendChild(tdRole); tr.appendChild(tdAct);
+      tbody.appendChild(tr);
+    });
+    updateSaveInputs();
+  }
+
+  function updateSaveInputs() {
+    var container = document.getElementById('saveModelsInputs');
+    if (!container) return;
+    container.innerHTML = '';
+    modelList.forEach(function (m) {
+      var inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'models'; inp.value = m;
+      container.appendChild(inp);
+    });
+  }
+
+  function testExistingModel(model, btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i>';
+    fetch('/admin/ocr-test-model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: model }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        btn.disabled = false;
+        btn.innerHTML = d.ok
+          ? '<i class="bi bi-wifi" style="color:var(--color-success,#3E9B6E)"></i>'
+          : '<i class="bi bi-wifi-off" style="color:var(--color-danger,#C0392B)"></i>';
+        btn.title = d.ok ? 'Online' : (d.error || 'Offline');
+      })
+      .catch(function () { btn.disabled = false; btn.innerHTML = '<i class="bi bi-wifi"></i>'; });
+  }
+
+  window._testNewModel = function () {
+    var model = document.getElementById('newModelInput').value.trim();
+    if (!model) return;
+    var btn = document.getElementById('testNewModelBtn');
+    var result = document.getElementById('testNewModelResult');
+    btn.disabled = true; btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Testing…';
+    result.style.display = 'none';
+    fetch('/admin/ocr-test-model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: model }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-wifi"></i> Test';
+        result.style.display = '';
+        result.innerHTML = '';
+        var ico = document.createElement('i');
+        ico.className = d.ok ? 'bi bi-check-circle' : 'bi bi-x-circle';
+        ico.style.color = d.ok ? 'var(--color-success,#3E9B6E)' : 'var(--color-danger,#C0392B)';
+        result.appendChild(ico);
+        result.appendChild(document.createTextNode(d.ok ? ' Model is responding.' : ' ' + (d.error || 'Unavailable')));
+        result.style.color = d.ok ? 'var(--color-success,#3E9B6E)' : 'var(--color-danger,#C0392B)';
+      })
+      .catch(function () { btn.disabled = false; btn.innerHTML = '<i class="bi bi-wifi"></i> Test'; });
+  };
+
+  window._addModel = function () {
+    var inp = document.getElementById('newModelInput');
+    var m = inp.value.trim();
+    if (!m || modelList.indexOf(m) !== -1) return;
+    modelList.push(m);
+    inp.value = '';
+    document.getElementById('testNewModelResult').style.display = 'none';
+    renderModelList();
+  };
+
+  // Defer until DOM is ready — model config HTML is below this script block
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderModelList);
+  } else {
+    renderModelList();
+  }
+
+  // ── Vision Model Health ───────────────────────────────────────────────────
+
+  function buildRow(w) {
+    var tr = document.createElement('tr');
+    tr.dataset.modelRow = encodeURIComponent(w.model);
+
+    var tdName = document.createElement('td');
+    tdName.className = 'fw-semibold';
+    tdName.textContent = w.display;
+
+    var tdStatus = document.createElement('td');
+    var badge = document.createElement('span');
+    badge.className = w.status === 'offline'
+      ? 'pta-badge pta-badge--soft pta-tone-danger'
+      : 'pta-badge pta-badge--soft pta-tone-gold';
+    badge.textContent = w.status === 'offline' ? 'Offline' : 'Rate limited';
+    tdStatus.appendChild(badge);
+
+    var tdErr = document.createElement('td');
+    tdErr.className = 'small';
+    tdErr.style.cssText = 'color:var(--text-muted);font-family:monospace';
+    tdErr.textContent = w.error;
+
+    var tdTs = document.createElement('td');
+    tdTs.className = 'small pta-id';
+    tdTs.textContent = w.detectedAt ? w.detectedAt.slice(0, 16).replace('T', ' ') : '';
+
+    var tdBtn = document.createElement('td');
+    var btn = document.createElement('button');
+    btn.className = 'pta-btn pta-btn--ghost pta-btn--sm js-dismiss-model';
+    btn.dataset.model = encodeURIComponent(w.model);
+    btn.innerHTML = '<i class="bi bi-x-lg"></i> Dismiss';
+    tdBtn.appendChild(btn);
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdStatus);
+    tr.appendChild(tdErr);
+    tr.appendChild(tdTs);
+    tr.appendChild(tdBtn);
+    return tr;
+  }
+
+  function renderWarnings(warnings) {
+    var badge = document.getElementById('modelWarnBadge');
+    var body  = document.getElementById('modelHealthBody');
+
+    if (!warnings.length) {
+      badge.className = 'pta-badge pta-badge--soft pta-tone-success';
+      badge.style.display = '';
+      badge.textContent = 'OK';
+      var okDiv = document.createElement('div');
+      okDiv.className = 'pta-card__body';
+      okDiv.style.color = 'var(--text-muted)';
+      okDiv.innerHTML = '<i class="bi bi-check-circle" style="color:var(--success)"></i> ';
+      okDiv.appendChild(document.createTextNode('All models responding.'));
+      body.replaceChildren(okDiv);
+      return;
+    }
+
+    badge.className = 'pta-badge pta-badge--solid pta-tone-danger';
+    badge.style.display = '';
+    badge.textContent = String(warnings.length);
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'pta-card__body';
+    wrapper.style.padding = '0';
+
+    var table = document.createElement('table');
+    table.className = 'pta-table';
+    table.innerHTML = '<thead><tr><th>Model</th><th>Status</th><th>Error</th><th>Detected</th><th></th></tr></thead>';
+
+    var tbody = document.createElement('tbody');
+    tbody.id = 'modelHealthRows';
+    warnings.forEach(function (w) { tbody.appendChild(buildRow(w)); });
+    table.appendChild(tbody);
+    wrapper.appendChild(table);
+    body.replaceChildren(wrapper);
+  }
+
+  document.getElementById('modelHealthBody').addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-dismiss-model');
+    if (!btn) return;
+    var model = decodeURIComponent(btn.dataset.model);
+    btn.disabled = true;
+    fetch('/admin/ocr-dismiss-warning', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: model }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { btn.disabled = false; return; }
+        var row = btn.closest('tr');
+        if (row) row.remove();
+        var tbody = document.getElementById('modelHealthRows');
+        if (!tbody || !tbody.rows.length) {
+          renderWarnings([]);
+        } else {
+          var badge = document.getElementById('modelWarnBadge');
+          if (badge) badge.textContent = String(tbody.rows.length);
+        }
+      })
+      .catch(function () { btn.disabled = false; });
+  });
+
+  document.getElementById('runModelCheckBtn').addEventListener('click', function () {
+    var btn  = this;
+    var icon = document.getElementById('checkSpinnerIcon');
+    btn.disabled = true;
+    icon.className = 'bi bi-arrow-repeat spin';
+    fetch('/admin/ocr-health-check', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d.ok) renderWarnings(d.warnings); })
+      .catch(function () {})
+      .finally(function () { btn.disabled = false; icon.className = 'bi bi-arrow-repeat'; });
+  });
+
+})();
+</script>
+<style>.spin { animation: spin .7s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }</style>
+
+<!-- ===== OCR Model Configuration + Default Annual Fee — side by side ===== -->
+<div class="row g-4" style="margin-bottom:1.5rem">
+
+  <!-- OCR Model Configuration -->
+  <div class="col-12 col-lg-7">
+    <div class="pta-card h-100" id="modelConfigCard">
+      <header class="pta-card__head">
+        <i class="bi bi-cpu-fill" style="color:var(--text-muted)"></i>
+        <div class="pta-card__titles">
+          <span class="pta-card__title">OCR Model Configuration</span>
+        </div>
+      </header>
+      <div class="pta-card__body">
+        <p class="small mb-3" style="color:var(--text-muted)">
+          Models 1 and 2 run in parallel. Model 3 is a fallback when either parallel model is rate-limited.
+        </p>
+
+        <table class="pta-table" style="margin-bottom:1rem">
+          <thead><tr><th>#</th><th>Model ID</th><th>Role</th><th></th></tr></thead>
+          <tbody id="modelConfigRows"></tbody>
+        </table>
+
+        <div style="display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:.5rem">
+          <div style="flex:1;min-width:240px">
+            <label class="pta-field__label" style="margin-bottom:.25rem">Add Model ID</label>
+            <input type="text" id="newModelInput" class="pta-control"
+                   placeholder="e.g. provider/model-name:free" style="width:100%">
+          </div>
+          <button type="button" class="pta-btn pta-btn--secondary pta-btn--sm" id="testNewModelBtn"
+                  onclick="_testNewModel()">
+            <i class="bi bi-wifi"></i> Test
+          </button>
+          <button type="button" class="pta-btn pta-btn--sm" onclick="_addModel()">
+            <i class="bi bi-plus-lg"></i> Add to list
+          </button>
+        </div>
+        <div id="testNewModelResult" class="small mb-3" style="display:none"></div>
+
+        <form method="POST" action="/admin/settings/models">
+          <div id="saveModelsInputs"></div>
+          <button type="submit" class="pta-btn pta-btn--sm">
+            <i class="bi bi-floppy"></i> Save Model List
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Default Annual Fee -->
+  <div class="col-12 col-lg-5">
+    <div class="pta-card h-100">
+      <header class="pta-card__head">
+        <i class="bi bi-cash-coin" style="color:var(--text-muted)"></i>
+        <div class="pta-card__titles">
+          <span class="pta-card__title">Default Annual Fee</span>
+        </div>
+      </header>
+      <div class="pta-card__body">
+        <form method="POST" action="/admin/settings/fee"
+              style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <label class="pta-field__label" style="margin-bottom:.25rem">Amount (TWD)</label>
+            <input type="number" name="fee_amount" class="pta-control pta-control--mono"
+                   style="width:130px" value="<%= defaultFee %>" min="0" step="50" required>
+          </div>
+          <button type="submit" class="pta-btn pta-btn--sm">
+            <i class="bi bi-floppy"></i> Save
+          </button>
+        </form>
+        <p class="small mt-3 mb-0" style="color:var(--text-muted)">
+          Sets the default fee for new members only — does not retroactively change existing member fees.
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+<% } %>
+
+<!-- ===== Association Calendar + Upcoming Events — side by side ===== -->
+<div class="row g-4" style="margin-bottom:1.5rem">
+
+  <!-- Calendar -->
+  <div class="col-12 col-lg-8">
+    <div class="pta-card h-100">
+      <header class="pta-card__head">
+        <i class="bi bi-calendar3" style="color:var(--green-500)"></i>
+        <div class="pta-card__titles"><span class="pta-card__title">Association Calendar</span></div>
+        <button class="pta-btn pta-btn--ghost pta-btn--sm" id="calToday">Today</button>
+        <% if (canWrite || ['gestao','board','president','treasurer','secretary'].includes(currentUser.position)) { %>
+        <button class="pta-btn pta-btn--sm" id="openNewEvent"
+                data-bs-toggle="modal" data-bs-target="#newEventModal">
+          <i class="bi bi-plus-lg"></i> New Event
+        </button>
+        <% } %>
+      </header>
+      <div class="pta-card__body">
+        <div class="pta-cal">
+          <div class="pta-cal-nav">
+            <button class="pta-btn pta-btn--ghost pta-btn--sm" id="calPrev"><i class="bi bi-chevron-left"></i></button>
+            <span class="fw-semibold" id="calTitle" style="min-width:160px;text-align:center">…</span>
+            <button class="pta-btn pta-btn--ghost pta-btn--sm" id="calNext"><i class="bi bi-chevron-right"></i></button>
+          </div>
+          <div class="pta-cal-grid" id="calGrid"></div>
+          <div class="pta-cal-events" id="calEventsPanel">
+            <div class="small" style="color:var(--text-muted)">Select a day to view events.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upcoming Events -->
+  <div class="col-12 col-lg-4">
+    <div class="pta-card h-100">
+      <header class="pta-card__head">
+        <i class="bi bi-megaphone" style="color:var(--green-500)"></i>
+        <div class="pta-card__titles"><span class="pta-card__title">Upcoming Events</span></div>
+      </header>
+      <div class="pta-card__body">
+        <div class="pta-upcoming" id="calUpcoming">
+          <div class="pta-upcoming__empty">Loading…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- New Event Modal -->
+<div class="modal fade" id="newEventModal" tabindex="-1" aria-labelledby="newEventModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="newEventModalLabel"><i class="bi bi-calendar-plus me-2"></i>New Event</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="newEventForm">
+          <div class="mb-3">
+            <label class="pta-field__label" style="margin-bottom:.25rem">Title <span class="text-danger">*</span></label>
+            <input type="text" id="evTitle" class="pta-control" placeholder="e.g. Annual Meeting" required style="width:100%">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col">
+              <label class="pta-field__label" style="margin-bottom:.25rem">Start Date <span class="text-danger">*</span></label>
+              <input type="date" id="evStartDate" class="pta-control" required style="width:100%">
+            </div>
+            <div class="col">
+              <label class="pta-field__label" style="margin-bottom:.25rem">End Date</label>
+              <input type="date" id="evEndDate" class="pta-control" style="width:100%">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="pta-field__label" style="margin-bottom:.25rem">Location</label>
+            <input type="text" id="evLocation" class="pta-control" placeholder="e.g. Taipei, AIT" style="width:100%">
+          </div>
+          <div class="mb-3">
+            <label class="pta-field__label" style="margin-bottom:.25rem">Description</label>
+            <textarea id="evDescription" class="pta-control" rows="2" style="width:100%"></textarea>
+          </div>
+          <div class="mb-0">
+            <label class="pta-field__label" style="margin-bottom:.25rem">Invite</label>
+            <div class="d-flex flex-wrap gap-3 mt-1">
+              <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
+                <input type="checkbox" id="audAll" value="all" class="form-check-input mt-0"> All Members
+              </label>
+              <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
+                <input type="checkbox" value="paid" class="form-check-input mt-0 aud-filter"> Paid
+              </label>
+              <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
+                <input type="checkbox" value="unpaid" class="form-check-input mt-0 aud-filter"> Unpaid
+              </label>
+              <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
+                <input type="checkbox" value="honorary" class="form-check-input mt-0 aud-filter"> Honorary
+              </label>
+              <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
+                <input type="checkbox" value="non_honorary" class="form-check-input mt-0 aud-filter"> Non-Honorary
+              </label>
+            </div>
+            <div class="small mt-2" style="color:var(--text-muted)">
+              Leave all unchecked to create an event without invites (visible on calendar only).
+            </div>
+          </div>
+        </form>
+        <div id="evResult" class="small mt-3" style="display:none"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="pta-btn pta-btn--secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="pta-btn" id="evSubmitBtn">
+          <i class="bi bi-send"></i> Create &amp; Send Invites
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var _calYear    = new Date().getFullYear();
+  var _calMonth   = new Date().getMonth() + 1;
+  var _calEvents  = [];
+  var _calSel     = null;
+  var _currentUid = <%- currentUser.id %>;
+
+  // Brand event palette (matches --event-1..8 in the design system).
+  var CAL_COLORS = ['#307A4F','#286CAB','#B94739','#99732B','#7955A0','#298084','#B1582B','#94436D'];
+
+  var MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                     'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var DAY_NAMES   = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function escH(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fetchAndRender(y, m) {
+    fetch('/admin/events/data?year=' + y + '&month=' + m)
+      .then(function(r) { return r.json(); })
+      .then(function(ev) { _calEvents = ev; renderGrid(y, m); })
+      .catch(function()  { _calEvents = []; renderGrid(y, m); });
+  }
+
+  function renderGrid(y, m) {
+    _calYear = y; _calMonth = m;
+    document.getElementById('calTitle').textContent = MONTH_NAMES[m - 1] + ' ' + y;
+
+    var grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+
+    DAY_NAMES.forEach(function(d) {
+      var hd = document.createElement('div');
+      hd.className = 'pta-cal-hd';
+      hd.textContent = d;
+      grid.appendChild(hd);
+    });
+
+    var firstDow   = new Date(y, m - 1, 1).getDay();
+    var startOff   = firstDow === 0 ? 6 : firstDow - 1;
+    var daysInMon  = new Date(y, m, 0).getDate();
+    var todayStr   = new Date().toISOString().slice(0, 10);
+
+    var evMap = {};
+    _calEvents.forEach(function(e) {
+      var d = e.start_date ? e.start_date.slice(0, 10) : null;
+      if (d) { if (!evMap[d]) evMap[d] = []; evMap[d].push(e); }
+    });
+
+    for (var i = 0; i < startOff; i++) {
+      var blank = document.createElement('div');
+      blank.className = 'pta-cal-day is-other';
+      grid.appendChild(blank);
+    }
+
+    for (var day = 1; day <= daysInMon; day++) {
+      var ds   = y + '-' + pad(m) + '-' + pad(day);
+      var cell = document.createElement('div');
+      cell.className = 'pta-cal-day';
+      cell.dataset.date = ds;
+      if (ds === todayStr) cell.classList.add('is-today');
+      if (evMap[ds])       cell.classList.add('has-events');
+      if (_calSel === ds)  cell.classList.add('is-selected');
+
+      var num = document.createElement('span');
+      num.textContent = String(day);
+      cell.appendChild(num);
+
+      if (evMap[ds]) {
+        var dayEvs = evMap[ds];
+        var rows = [];
+        if (dayEvs.length >= 3) {
+          rows = [{ more: dayEvs.length - 1 }, { ev: dayEvs[0] }];
+        } else if (dayEvs.length === 2) {
+          rows = [{ ev: dayEvs[1] }, { ev: dayEvs[0] }];
+        } else {
+          rows = [{ ev: dayEvs[0] }];
+        }
+        rows.forEach(function(row, i) {
+          var strip = document.createElement('div');
+          strip.className = 'pta-cal-strip';
+          strip.style.bottom = (i * 16) + 'px';
+          if (row.more) {
+            strip.classList.add('pta-cal-strip--more');
+            strip.textContent = '+' + row.more + ' more';
+          } else {
+            strip.style.background = CAL_COLORS[row.ev.id % CAL_COLORS.length];
+            strip.textContent = row.ev.title;
+          }
+          cell.appendChild(strip);
+        });
+      }
+
+      cell.addEventListener('click', (function(d) {
+        return function() { selectDay(d); };
+      }(ds)));
+
+      grid.appendChild(cell);
+    }
+
+    if (_calSel) showDayEvents(_calSel);
+    renderUpcoming();
+  }
+
+  // Upcoming-events side panel — built from the same events the grid fetched,
+  // filtered to today-or-later and sorted ascending.
+  function renderUpcoming() {
+    var panel = document.getElementById('calUpcoming');
+    if (!panel) return;
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var up = _calEvents
+      .filter(function(e) { return e.start_date && e.start_date.slice(0, 10) >= todayStr; })
+      .sort(function(a, b) { return a.start_date.localeCompare(b.start_date); });
+
+    if (!up.length) {
+      panel.innerHTML = '';
+      var empty = document.createElement('div');
+      empty.className = 'pta-upcoming__empty';
+      empty.textContent = 'No upcoming events this month.';
+      panel.appendChild(empty);
+      return;
+    }
+
+    panel.innerHTML = '';
+    up.forEach(function(e) {
+      var d = e.start_date.slice(0, 10).split('-');
+      var item = document.createElement('div');
+      item.className = 'pta-upcoming__item';
+
+      var main = document.createElement('div');
+      main.className = 'pta-upcoming__main';
+      var dot = document.createElement('span');
+      dot.className = 'pta-upcoming__dot';
+      dot.style.background = CAL_COLORS[e.id % CAL_COLORS.length];
+      var title = document.createElement('span');
+      title.className = 'pta-upcoming__title';
+      title.textContent = e.title;
+      main.appendChild(dot); main.appendChild(title);
+
+      var date = document.createElement('span');
+      date.className = 'pta-upcoming__date';
+      date.textContent = d[2] + ' ' + MONTH_NAMES[parseInt(d[1], 10) - 1].slice(0, 3);
+
+      item.appendChild(main); item.appendChild(date);
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', (function(ds) {
+        return function() { selectDay(ds); };
+      }(e.start_date.slice(0, 10))));
+      panel.appendChild(item);
+    });
+  }
+
+  function selectDay(ds) {
+    _calSel = ds;
+    document.querySelectorAll('.pta-cal-day').forEach(function(c) {
+      c.classList.toggle('is-selected', c.dataset.date === ds);
+    });
+    showDayEvents(ds);
+    var inp = document.getElementById('evStartDate');
+    if (inp && !inp.value) inp.value = ds;
+  }
+
+  function showDayEvents(ds) {
+    var panel = document.getElementById('calEventsPanel');
+    if (!panel) return;
+
+    var events = _calEvents.filter(function(e) { return e.start_date && e.start_date.slice(0, 10) === ds; });
+    var parts   = ds.split('-');
+    var label   = parseInt(parts[2], 10) + ' ' + MONTH_NAMES[parseInt(parts[1], 10) - 1] + ' ' + parts[0];
+
+    var html = '<div class="small fw-semibold mb-2" style="color:var(--text-muted)">' + escH(label) + '</div>';
+
+    if (!events.length) {
+      html += '<div class="small" style="color:var(--text-muted)">No events on this day.</div>';
+    } else {
+      events.forEach(function(e) {
+        var declined_count = e.declined_count || 0;
+        var pending_count  = e.invite_count - e.accepted_count - declined_count;
+        html += '<div class="pta-cal-ev-item">';
+        html += '<div style="flex:1;min-width:0">';
+        html += '<div class="fw-semibold">' + escH(e.title) + '</div>';
+        if (e.location)    html += '<div class="small" style="color:var(--text-muted)"><i class="bi bi-geo-alt"></i> ' + escH(e.location) + '</div>';
+        if (e.description) html += '<div class="small" style="color:var(--text-muted)">' + escH(e.description) + '</div>';
+        html += '<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.3rem">';
+        html += '<span class="small" style="color:var(--text-muted)">';
+        html += '<i class="bi bi-people"></i> ' + e.invite_count + ' invited';
+        if (e.accepted_count) html += ' &nbsp;<span style="color:var(--color-success,#3E9B6E)">&#10003; ' + e.accepted_count + '</span>';
+        if (declined_count)   html += ' &nbsp;<span style="color:var(--color-danger,#C0392B)">&#10007; ' + declined_count + '</span>';
+        if (pending_count > 0)html += ' &nbsp;<span style="opacity:.6">&#183; ' + pending_count + ' pending</span>';
+        html += '</span>';
+        if (e.invite_count > 0) {
+          html += '<button class="pta-btn pta-btn--ghost pta-btn--sm js-show-invites" data-id="' + e.id + '" data-open="0" style="padding:1px 6px;font-size:.75rem">';
+          html += '<i class="bi bi-chevron-down"></i> Attendees</button>';
+        }
+        html += '</div>';
+        html += '<div class="js-invites-list" id="invlist-' + e.id + '" style="display:none"></div>';
+        html += '</div>';
+        html += '<div style="flex-shrink:0;padding-left:.5rem">';
+        html += '<button class="pta-btn pta-btn--ghost pta-btn--sm js-del-event" data-id="' + e.id + '" title="Delete event"><i class="bi bi-trash"></i></button>';
+        html += '</div>';
+        html += '</div>';
+      });
+    }
+
+    panel.innerHTML = html;
+  }
+
+  function renderInviteeList(invitees, container) {
+    var accepted = invitees.filter(function(i) { return i.status === 'accepted'; });
+    var pending  = invitees.filter(function(i) { return i.status === 'pending'; });
+    var declined = invitees.filter(function(i) { return i.status === 'declined'; });
+
+    function group(label, color, people) {
+      if (!people.length) return '';
+      var out = '<div style="margin-bottom:.35rem"><span style="font-weight:600;color:' + color + '">' + label + ' (' + people.length + ')</span>';
+      out += '<div style="margin-top:.15rem;display:flex;flex-direction:column;gap:.1rem">';
+      people.forEach(function(p) {
+        out += '<span>' + escH(p.display_name || p.email);
+        if (p.display_name) out += ' <span style="opacity:.55">(' + escH(p.email) + ')</span>';
+        out += '</span>';
+      });
+      out += '</div></div>';
+      return out;
+    }
+
+    var html = '<div style="font-size:.78rem;margin-top:.4rem;padding:.5rem .6rem;background:var(--surface-raised,#f8f8f8);border-radius:6px;border:1px solid var(--border,#e5e5e5)">';
+    if (!invitees.length) {
+      html += '<span style="color:var(--text-muted)">No invitees.</span>';
+    } else {
+      html += group('Accepted', 'var(--color-success,#3E9B6E)', accepted);
+      html += group('Pending',  'var(--text-muted,#888)',       pending);
+      html += group('Declined', 'var(--color-danger,#C0392B)',  declined);
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  document.getElementById('calPrev').addEventListener('click', function() {
+    _calSel = null;
+    var m = _calMonth - 1, y = _calYear;
+    if (m < 1) { m = 12; y--; }
+    fetchAndRender(y, m);
+  });
+
+  document.getElementById('calNext').addEventListener('click', function() {
+    _calSel = null;
+    var m = _calMonth + 1, y = _calYear;
+    if (m > 12) { m = 1; y++; }
+    fetchAndRender(y, m);
+  });
+
+  document.getElementById('calToday').addEventListener('click', function() {
+    _calSel = null;
+    var now = new Date();
+    fetchAndRender(now.getFullYear(), now.getMonth() + 1);
+  });
+
+  document.getElementById('calEventsPanel').addEventListener('click', function(e) {
+    var delBtn = e.target.closest('.js-del-event');
+    if (delBtn) {
+      if (!confirm('Delete this event and all its invites?')) return;
+      delBtn.disabled = true;
+      fetch('/admin/events/' + delBtn.dataset.id + '/delete', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.ok) { fetchAndRender(_calYear, _calMonth); }
+          else { alert(d.error || 'Error deleting event.'); delBtn.disabled = false; }
+        })
+        .catch(function() { delBtn.disabled = false; });
+      return;
+    }
+
+    var invBtn = e.target.closest('.js-show-invites');
+    if (invBtn) {
+      var listEl = document.getElementById('invlist-' + invBtn.dataset.id);
+      if (!listEl) return;
+      var isOpen = invBtn.dataset.open === '1';
+      if (isOpen) {
+        listEl.style.display = 'none';
+        invBtn.dataset.open  = '0';
+        invBtn.innerHTML     = '<i class="bi bi-chevron-down"></i> Attendees';
+        return;
+      }
+      invBtn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Loading…';
+      invBtn.disabled  = true;
+      fetch('/admin/events/' + invBtn.dataset.id + '/invites')
+        .then(function(r) { return r.json(); })
+        .then(function(invitees) {
+          renderInviteeList(invitees, listEl);
+          listEl.style.display = 'block';
+          invBtn.dataset.open  = '1';
+          invBtn.innerHTML     = '<i class="bi bi-chevron-up"></i> Attendees';
+          invBtn.disabled      = false;
+        })
+        .catch(function() {
+          invBtn.innerHTML = '<i class="bi bi-chevron-down"></i> Attendees';
+          invBtn.disabled  = false;
+        });
+    }
+  });
+
+  document.getElementById('audAll').addEventListener('change', function() {
+    document.querySelectorAll('.aud-filter').forEach(function(cb) {
+      cb.disabled = document.getElementById('audAll').checked;
+      if (document.getElementById('audAll').checked) cb.checked = false;
+    });
+  });
+
+  document.getElementById('evSubmitBtn').addEventListener('click', function() {
+    var title     = document.getElementById('evTitle').value.trim();
+    var startDate = document.getElementById('evStartDate').value;
+    var endDate   = document.getElementById('evEndDate').value;
+    var location  = document.getElementById('evLocation').value.trim();
+    var desc      = document.getElementById('evDescription').value.trim();
+
+    if (!title || !startDate) { alert('Title and start date are required.'); return; }
+
+    var audience = [];
+    if (document.getElementById('audAll').checked) {
+      audience.push('all');
+    } else {
+      document.querySelectorAll('.aud-filter:checked').forEach(function(cb) { audience.push(cb.value); });
+    }
+
+    var btn = document.getElementById('evSubmitBtn');
+    var res = document.getElementById('evResult');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Sending…';
+    res.style.display = 'none';
+
+    fetch('/admin/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: title, description: desc, location: location, start_date: startDate, end_date: endDate || null, audience: audience }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-send"></i> Create &amp; Send Invites';
+        if (d.ok) {
+          document.getElementById('newEventForm').reset();
+          document.querySelectorAll('.aud-filter').forEach(function(cb) { cb.disabled = false; });
+          res.style.display = 'none';
+          bootstrap.Modal.getOrCreateInstance(document.getElementById('newEventModal')).hide();
+          fetchAndRender(_calYear, _calMonth);
+        } else {
+          res.style.display = '';
+          res.style.color = 'var(--color-danger,#C0392B)';
+          res.innerHTML = '<i class="bi bi-x-circle"></i> ' + escH(d.error || 'Unknown error.');
+        }
+      })
+      .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-send"></i> Create &amp; Send Invites';
+      });
+  });
+
+  fetchAndRender(_calYear, _calMonth);
+}());
+</script>
+
+<!-- Recent Members -->
+<div class="pta-card">
+  <header class="pta-card__head">
+    <i class="bi bi-clock-history"></i>
+    <div class="pta-card__titles"><span class="pta-card__title">Recent Members</span></div>
+  </header>
+  <div class="pta-card__body" style="padding:0">
+    <table class="pta-table">
+      <thead><tr><th>Member</th><th>Email</th><th>Fee Status</th><th>Joined</th><th></th></tr></thead>
+      <tbody>
+        <% recent.forEach(function(m) { %>
+        <tr>
+          <td>
+            <div style="font-weight:600"><%= m.arc_name_en || (m.first_name + ' ' + m.last_name) %></div>
+            <span class="pta-id"><%= m.member_id %></span>
+          </td>
+          <td><%= m.email %></td>
+          <td>
+            <% if (m.position === 'honorary') { %>
+            <%- feeBadge('honorary') %>
+            <% } else { %>
+            <%- feeBadge(m.fee_status) %>
+            <% } %>
+          </td>
+          <td><span class="pta-id"><%= m.join_date ? m.join_date.slice(0,10) : '—' %></span></td>
+          <td><a href="/admin/members/<%= m.id %>" class="pta-btn pta-btn--ghost pta-btn--sm"><i class="bi bi-arrow-right"></i></a></td>
+        </tr>
+        <% }); %>
+        <% if (!recent.length) { %>
+        <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">No members yet.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div style="margin-top:1rem">
+  <a href="/admin/members" class="pta-btn pta-btn--secondary pta-btn--sm">View All Members <i class="bi bi-arrow-right"></i></a>
+</div>
+
+<%- include('../partials/footer') %>

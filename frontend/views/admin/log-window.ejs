@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Server Logs — PT Associação</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'Cascadia Code', 'Consolas', 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 12px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      flex-shrink: 0;
+    }
+    #toolbar h1 {
+      font-size: 11px;
+      font-weight: 600;
+      color: #8b949e;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    #status {
+      font-size: 10px;
+      color: #3fb950;
+      margin-left: auto;
+    }
+    #status.err { color: #f85149; }
+    button {
+      background: none;
+      border: 1px solid #30363d;
+      color: #8b949e;
+      font-family: inherit;
+      font-size: 10px;
+      padding: 2px 9px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: border-color .12s, color .12s;
+    }
+    button:hover { border-color: #8b949e; color: #c9d1d9; }
+    #wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+      scroll-behavior: smooth;
+    }
+    .line {
+      white-space: pre-wrap;
+      word-break: break-all;
+      padding: 0;
+    }
+    .line + .line { margin-top: 1px; }
+    .ts {
+      color: #484f58;
+      margin-right: 10px;
+      user-select: none;
+    }
+    .line.warn  .ts, .line.warn  .msg { color: #d29922; }
+    .line.error .ts, .line.error .msg { color: #f85149; }
+    #sep {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 9px;
+      color: #30363d;
+      margin: 4px 0 2px;
+    }
+    #sep::before, #sep::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #21262d;
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <h1>&#x2B22; Server Logs</h1>
+    <button id="btn-clear">Clear</button>
+    <button id="btn-scroll">Pause scroll</button>
+    <span id="status">connecting…</span>
+  </div>
+  <div id="wrap">
+    <div id="sep">— history —</div>
+    <div id="log"></div>
+  </div>
+
+  <script>
+  (function () {
+    var log      = document.getElementById('log');
+    var wrap     = document.getElementById('wrap');
+    var status   = document.getElementById('status');
+    var btnClear = document.getElementById('btn-clear');
+    var btnScrl  = document.getElementById('btn-scroll');
+    var autoScroll = true;
+
+    function appendLine(entry) {
+      var line = document.createElement('div');
+      line.className = 'line ' + entry.level;
+      var ts = document.createElement('span');
+      ts.className   = 'ts';
+      ts.textContent = entry.ts;
+      var msg = document.createElement('span');
+      msg.className  = 'msg';
+      msg.textContent = entry.msg;
+      line.appendChild(ts);
+      line.appendChild(msg);
+      log.appendChild(line);
+      if (autoScroll) wrap.scrollTop = wrap.scrollHeight;
+    }
+
+    var es = new EventSource('/admin/logs/stream');
+    es.onopen = function () {
+      status.textContent = 'live';
+      status.className   = '';
+    };
+    es.onmessage = function (e) {
+      try { appendLine(JSON.parse(e.data)); } catch (_) {}
+    };
+    es.onerror = function () {
+      status.textContent = 'reconnecting…';
+      status.className   = 'err';
+    };
+
+    btnClear.addEventListener('click', function () {
+      log.innerHTML = '';
+    });
+
+    btnScrl.addEventListener('click', function () {
+      autoScroll = !autoScroll;
+      btnScrl.textContent = autoScroll ? 'Pause scroll' : 'Resume scroll';
+    });
+  }());
+  </script>
+</body>
+</html>

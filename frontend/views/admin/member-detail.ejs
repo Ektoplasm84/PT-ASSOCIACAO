@@ -1,0 +1,1001 @@
+<%- include('../partials/header') %>
+
+<%
+  // --- Helpers ---
+  function feeBadge(status) {
+    if (status === 'paid')
+      return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>Paid</span>';
+    if (status === 'renewal_incoming')
+      return '<span class="pta-badge pta-badge--soft pta-tone-gold"><span class="pta-badge__dot"></span>Renewal incoming</span>';
+    if (status === 'unpaid')
+      return '<span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>Unpaid</span>';
+    return '<span class="pta-badge pta-badge--soft pta-tone-honorary">Honorary Member</span>';
+  }
+
+  function docValidity(dateStr) {
+    if (!dateStr) return null;
+    const daysLeft = Math.floor((new Date(dateStr) - new Date()) / 86400000);
+    if (daysLeft < 0)   return { label: 'EXPIRED',       tone: 'danger'  };
+    if (daysLeft <= 60) return { label: 'EXPIRING SOON', tone: 'warning' };
+    return                     { label: 'VALID',          tone: 'success' };
+  }
+
+  const arcValidity = docValidity(member.arc_expiry_date);
+  const ccValidity  = docValidity(member.cc_expiry_date);
+  const isHonorary  = member.user_position === 'honorary';
+
+  const _displayName = member.arc_name_en || (member.first_name + ' ' + member.last_name);
+  const _delName     = _displayName;
+  const initials     = _displayName.trim().split(/\s+/).map(function(s){return s[0]||'';}).slice(0,2).join('').toUpperCase();
+
+  const CARD_LABELS  = { arc_front: 'ARC Front', arc_back: 'ARC Back', cc_front: 'CC Front', cc_back: 'CC Back' };
+  const cardDocs     = {};
+  documents.forEach(function(d){ if (d.doc_type && d.doc_type !== 'misc') cardDocs[d.doc_type] = d; });
+  const miscDocs     = documents.filter(function(d){ return !d.doc_type || d.doc_type === 'misc'; });
+%>
+
+<!-- Page head -->
+<div class="pta-pagehead">
+  <div class="pta-pagehead__titles">
+    <a class="pta-chip" style="align-self:flex-start" href="/admin/members"><i class="bi bi-arrow-left"></i> Members</a>
+    <h1><%= _displayName %></h1>
+    <% if (member.arc_chinese_name) { %>
+    <span class="pta-pagehead__sub"><%= member.arc_chinese_name %> · <span class="pta-id"><%= member.member_id %></span></span>
+    <% } else { %>
+    <span class="pta-pagehead__sub"><span class="pta-id"><%= member.member_id %></span></span>
+    <% } %>
+  </div>
+  <div style="display:flex;gap:.5rem;align-items:flex-start">
+    <% if (canWrite) { %>
+    <a class="pta-btn pta-btn--secondary" href="/admin/members/<%= member.id %>/edit"><i class="bi bi-pencil"></i> Edit</a>
+    <% } %>
+  </div>
+</div>
+
+<!-- Two-column detail layout -->
+<div class="pta-detail">
+
+  <!-- ── Sidebar ── -->
+  <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+    <!-- Profile card -->
+    <div class="pta-card">
+      <div class="pta-card__body">
+        <div class="pta-profilecard">
+          <span class="pta-avatar pta-avatar--xl<%= isHonorary ? ' pta-avatar--honorary' : '' %>">
+            <% if (member.photo_path) { %>
+            <img src="/<%= member.photo_path.replace(/\\/g, '/') %>" alt=""
+                 style="width:100%;height:100%;object-fit:cover;border-radius:inherit">
+            <% } else { %>
+            <%= initials %>
+            <% } %>
+          </span>
+          <div>
+            <div class="pta-profilecard__name"><%= _displayName %></div>
+            <% if (member.arc_chinese_name) { %>
+            <div class="pta-profilecard__zh"><%= member.arc_chinese_name %></div>
+            <% } %>
+          </div>
+          <% if (isHonorary) { %>
+          <span class="pta-badge pta-badge--soft pta-tone-honorary">Honorary Member</span>
+          <% } else { %>
+          <%- feeBadge(member.fee_status) %>
+          <% } %>
+          <div class="pta-profilecard__meta">
+            Joined <%= member.join_date ? member.join_date.slice(0,10) : '—' %><br>
+            Account created <%= member.account_created ? member.account_created.slice(0,10) : '—' %>
+          </div>
+          <% if (canWrite) { %>
+          <button class="pta-btn pta-btn--secondary pta-btn--block" id="fetchArcPhotoBtn">
+            <i class="bi bi-camera"></i> Fetch NIA Photo
+          </button>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account Settings (super_admin only) -->
+    <% if (isSuperAdmin) { %>
+    <div class="pta-card">
+      <header class="pta-card__head">
+        <i class="bi bi-shield-lock"></i>
+        <div class="pta-card__titles"><span class="pta-card__title">Account Settings</span></div>
+      </header>
+      <div class="pta-card__body">
+        <form action="/admin/members/<%= member.id %>/change-role" method="POST">
+          <div class="pta-field">
+            <label class="pta-field__label">Permission Role</label>
+            <select name="role" class="pta-control">
+              <% [
+                { val: 'super_admin', label: 'Super Admin' },
+                { val: 'admin',       label: 'Admin' },
+                { val: 'member',      label: 'Member' },
+              ].forEach(function(r) { %>
+              <option value="<%= r.val %>" <%= member.user_role === r.val ? 'selected' : '' %>><%= r.label %></option>
+              <% }); %>
+            </select>
+            <span class="pta-field__hint">Controls what they can do in the system.</span>
+          </div>
+          <div class="pta-field">
+            <label class="pta-field__label">Association Position</label>
+            <select name="position" class="pta-control">
+              <% [
+                { val: 'member',    label: 'Member' },
+                { val: 'honorary',  label: 'Honorary Member' },
+                { val: 'gestao',    label: 'Gestão' },
+                { val: 'board',     label: 'Board' },
+                { val: 'president', label: 'President' },
+                { val: 'treasurer', label: 'Treasurer' },
+                { val: 'secretary', label: 'Secretary' },
+              ].forEach(function(p) { %>
+              <option value="<%= p.val %>" <%= member.user_position === p.val ? 'selected' : '' %>><%= p.label %></option>
+              <% }); %>
+            </select>
+            <span class="pta-field__hint">Gestão grants view-all access.</span>
+          </div>
+          <button type="submit" class="pta-btn pta-btn--secondary pta-btn--block"
+                  onclick="return confirm('Update account settings for <%= _delName.replace(/'/g, '\\\'') %>?')">
+            <i class="bi bi-arrow-repeat"></i> Save Changes
+          </button>
+        </form>
+
+        <hr style="margin:1.25rem 0">
+
+        <form action="/admin/members/<%= member.id %>/set-password" method="POST"
+              id="resetPwForm" onsubmit="return validatePwReset()">
+          <p class="pta-field__hint" style="margin-bottom:.75rem">Reset this member's login password.</p>
+          <div class="pta-field">
+            <label class="pta-field__label">New Password</label>
+            <input type="password" name="new_password" id="rpNewPw" class="pta-control"
+                   minlength="6" autocomplete="new-password" required>
+            <span class="pta-field__hint">Minimum 6 characters.</span>
+          </div>
+          <div class="pta-field" style="margin-bottom:.75rem">
+            <label class="pta-field__label">Confirm Password</label>
+            <input type="password" name="confirm_password" id="rpConfirmPw" class="pta-control"
+                   minlength="6" autocomplete="new-password" required>
+          </div>
+          <button type="submit" class="pta-btn pta-btn--danger pta-btn--block">
+            <i class="bi bi-key"></i> Set New Password
+          </button>
+        </form>
+      </div>
+    </div>
+    <% } %>
+
+<script>
+function validatePwReset() {
+  const p = document.getElementById('rpNewPw').value;
+  const c = document.getElementById('rpConfirmPw').value;
+  if (p !== c) { alert('Passwords do not match.'); return false; }
+  return confirm('Set a new password for <%= _delName.replace(/'/g, '\\\'') %>?');
+}
+</script>
+
+    <!-- Danger Zone -->
+    <% if (canWrite) { %>
+    <div class="pta-card">
+      <header class="pta-card__head" style="color:var(--vermelho-500,#BE3A2B)">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="pta-card__titles"><span class="pta-card__title">Danger Zone</span></div>
+      </header>
+      <div class="pta-card__body">
+        <form action="/admin/members/<%= member.id %>/delete" method="POST"
+              onsubmit="return confirm('Permanently delete <%= _delName.replace(/'/g, '\\\'') %> and all their data?')">
+          <button type="submit" class="pta-btn pta-btn--danger pta-btn--block">
+            <i class="bi bi-trash"></i> Delete Member
+          </button>
+        </form>
+      </div>
+    </div>
+    <% } %>
+
+  </div><!-- /sidebar -->
+
+  <!-- ── Content column ── -->
+  <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+    <!-- Contact -->
+    <div class="pta-card">
+      <header class="pta-card__head">
+        <i class="bi bi-person-lines-fill"></i>
+        <div class="pta-card__titles"><span class="pta-card__title">Contact</span></div>
+      </header>
+      <div class="pta-card__body">
+        <dl class="pta-dl pta-dl--split">
+          <dt>Phone</dt><dd class="mono"><%= member.phone || '—' %></dd>
+          <dt>Email</dt><dd><%= member.email || '—' %></dd>
+        </dl>
+        <div class="pta-fieldset">
+          <div>
+            <div class="pta-fieldset__lbl">Address · 中文</div>
+            <div class="pta-fieldset__val"><%= member.address_zh || '—' %></div>
+          </div>
+          <div>
+            <div class="pta-fieldset__lbl">Address · EN</div>
+            <div class="pta-fieldset__val"><%= member.address || '—' %></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Membership & Fees -->
+    <div class="pta-card">
+      <header class="pta-card__head">
+        <i class="bi bi-card-checklist"></i>
+        <div class="pta-card__titles"><span class="pta-card__title">Membership &amp; Fees</span></div>
+      </header>
+      <div class="pta-card__body">
+        <dl class="pta-dl pta-dl--split">
+          <dt>Member ID</dt><dd class="mono"><%= member.member_id %></dd>
+          <dt>Join date</dt><dd class="mono"><%= member.join_date ? member.join_date.slice(0,10) : '—' %></dd>
+          <% if (isHonorary) { %>
+          <dt>Fee Status</dt><dd><span class="pta-badge pta-badge--soft pta-tone-honorary">Honorary Member</span></dd>
+          <% } else { %>
+          <dt>Annual fee</dt><dd>
+            <% if (member.fee_amount === 0) { %>Honorary Member<% } else { %>
+            <span data-esc-twd="<%= member.fee_amount || 300 %>"><span class="esc-amt"><%= member.fee_amount || 300 %></span> <span class="js-esc-twd">TWD</span></span>
+            <% } %>
+          </dd>
+          <dt>Last paid</dt><dd class="mono"><%= member.fee_last_paid ? member.fee_last_paid.slice(0,10) : '—' %></dd>
+          <dt>Valid until</dt><dd class="mono"><%= member.fee_valid_until ? member.fee_valid_until.slice(0,10) : '—' %></dd>
+          <dt>Status</dt><dd><%- feeBadge(member.fee_status) %></dd>
+          <% } %>
+        </dl>
+
+        <% if (canViewAll && !isHonorary) { %>
+        <hr style="margin:1rem 0;border-color:var(--surface-sunken,#d6d1c4)">
+        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em">Update Payment</p>
+        <form action="/admin/members/<%= member.id %>/fee" method="POST">
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;align-items:end">
+            <div class="pta-field">
+              <label class="pta-field__label">Annual Fee</label>
+              <select name="fee_amount" class="pta-control">
+                <option value="300" <%= (member.fee_amount || 300) === 300 ? 'selected' : '' %>>300 TWD</option>
+                <option value="0"   <%= member.fee_amount === 0 ? 'selected' : '' %>>0 TWD — Honorary Member</option>
+              </select>
+            </div>
+            <div class="pta-field">
+              <label class="pta-field__label">Date Last Paid</label>
+              <input type="date" name="fee_last_paid" class="pta-control"
+                     value="<%= member.fee_last_paid ? member.fee_last_paid.slice(0,10) : '' %>">
+            </div>
+            <button type="submit" class="pta-btn pta-btn--secondary">
+              <i class="bi bi-check-circle"></i> Save
+            </button>
+          </div>
+        </form>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Residence — ARC -->
+    <div class="pta-card">
+      <header class="pta-card__head">
+        <i class="bi bi-person-vcard"></i>
+        <div class="pta-card__titles">
+          <span class="pta-card__eyebrow">Alien Resident Certificate</span>
+          <span class="pta-card__title">Residence — ARC</span>
+        </div>
+      </header>
+      <div class="pta-card__body">
+        <dl class="pta-dl pta-dl--split">
+          <dt>ARC Number</dt><dd class="mono"><%= member.arc_number || '—' %></dd>
+          <dt>Serial No.</dt><dd class="mono"><%= member.arc_serial_number || '—' %></dd>
+          <dt>English Name</dt><dd><%= member.arc_name_en || '—' %></dd>
+          <dt>Chinese Name</dt><dd><%= member.arc_chinese_name || '—' %></dd>
+          <dt>Passport No.</dt><dd class="mono"><%= member.passport_number || '—' %></dd>
+          <dt>Issue date</dt><dd class="mono"><%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '—' %></dd>
+          <dt>Expiry date</dt>
+          <dd class="mono">
+            <%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %>
+            <% if (arcValidity) { %>
+            <span class="pta-badge pta-badge--soft pta-tone-<%= arcValidity.tone %>" style="margin-left:.4rem"><%= arcValidity.label %></span>
+            <% } %>
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Cartão de Cidadão -->
+    <div class="pta-card">
+      <header class="pta-card__head">
+        <i class="bi bi-credit-card"></i>
+        <div class="pta-card__titles">
+          <span class="pta-card__eyebrow">Portuguese ID</span>
+          <span class="pta-card__title">Cartão de Cidadão</span>
+        </div>
+      </header>
+      <div class="pta-card__body">
+        <dl class="pta-dl pta-dl--split">
+          <dt>CC Number</dt><dd class="mono"><%= member.cc_number || '—' %></dd>
+          <dt>NIF</dt><dd class="mono"><%= member.nif || '—' %></dd>
+          <dt>NISS</dt><dd class="mono"><%= member.niss || '—' %></dd>
+          <dt>Expiry date</dt>
+          <dd class="mono">
+            <%= member.cc_expiry_date ? member.cc_expiry_date.slice(0,10) : '—' %>
+            <% if (ccValidity) { %>
+            <span class="pta-badge pta-badge--soft pta-tone-<%= ccValidity.tone %>" style="margin-left:.4rem"><%= ccValidity.label %></span>
+            <% } %>
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="pta-card">
+      <header class="pta-card__head">
+        <i class="bi bi-chat-left-text"></i>
+        <div class="pta-card__titles"><span class="pta-card__title">Notes</span></div>
+      </header>
+      <div class="pta-card__body">
+        <% if (member.notes) { %>
+        <p class="mb-0" style="white-space:pre-wrap"><%= member.notes %></p>
+        <% } else { %>
+        <p class="mb-0" style="color:var(--text-muted)">No notes.</p>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Documents -->
+    <div class="pta-card">
+      <header class="pta-card__head">
+        <i class="bi bi-folder2-open"></i>
+        <div class="pta-card__titles"><span class="pta-card__title">Documents</span></div>
+      </header>
+      <div class="pta-card__body">
+
+        <!-- Identity card slots -->
+        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em">Identity Cards</p>
+        <div class="pta-docslots">
+          <% for (const [type, label] of Object.entries(CARD_LABELS)) { %>
+          <%   const doc = cardDocs[type]; %>
+          <div class="pta-docslot">
+            <div class="small fw-semibold" style="color:var(--text-muted);margin-bottom:.4rem"><%= label %></div>
+            <% if (doc) { %>
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;margin-bottom:.5rem">
+                <% if (doc.thumb_path) { %>
+                <img src="/<%= doc.thumb_path.replace(/\\/g, '/') %>"
+                     class="img-fluid rounded" style="max-height:75px;max-width:100%;object-fit:contain;cursor:pointer"
+                     onclick="openImageModal('/admin/members/<%= member.id %>/documents/<%= doc.id %>/view','/admin/members/<%= member.id %>/documents/<%= doc.id %>/download','<%= label %>')"
+                     title="Click to view">
+                <% } else { %>
+                <i class="bi bi-file-image" style="font-size:2.2rem;color:var(--text-muted)"></i>
+                <% } %>
+              </div>
+              <div style="display:flex;gap:.25rem;flex-wrap:wrap;justify-content:center;margin-bottom:.25rem">
+                <% if (canWrite) { %>
+                <button class="pta-btn pta-btn--ghost pta-btn--sm"
+                        onclick="ocrExtract('<%= type %>', '<%= doc.id %>')">
+                  <i class="bi bi-cpu"></i> Extract
+                </button>
+                <% } %>
+                <a href="/admin/members/<%= member.id %>/documents/<%= doc.id %>/download"
+                   class="pta-btn pta-btn--ghost pta-btn--sm">
+                  <i class="bi bi-download"></i>
+                </a>
+                <% if (canWrite) { %>
+                <form method="POST"
+                      action="/admin/members/<%= member.id %>/documents/<%= doc.id %>/delete"
+                      onsubmit="return confirm('Delete this card image?')" class="d-inline">
+                  <button type="submit" class="pta-btn pta-btn--ghost pta-btn--sm" style="color:var(--vermelho-500,#BE3A2B)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+                <% } %>
+              </div>
+              <% if (canWrite) { %>
+              <label class="pta-btn pta-btn--secondary pta-btn--sm pta-btn--block" style="cursor:pointer">
+                <i class="bi bi-arrow-repeat"></i> Replace
+                <input type="file" accept="image/*" style="display:none"
+                       onchange="uploadCard('<%= type %>', this)">
+              </label>
+              <% } %>
+            <% } else { %>
+              <div style="flex:1;display:flex;align-items:center;justify-content:center">
+                <i class="bi bi-card-image" style="font-size:2.5rem;color:var(--text-muted)"></i>
+              </div>
+              <% if (canWrite) { %>
+              <label class="pta-btn pta-btn--secondary pta-btn--sm pta-btn--block" style="cursor:pointer">
+                <i class="bi bi-upload"></i> Upload
+                <input type="file" accept="image/*" style="display:none"
+                       onchange="uploadCard('<%= type %>', this)">
+              </label>
+              <% } %>
+            <% } %>
+          </div>
+          <% } %>
+        </div>
+
+        <hr style="margin:1.25rem 0;border-color:var(--surface-sunken,#d6d1c4)">
+
+        <!-- Miscellaneous documents -->
+        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em">Miscellaneous</p>
+        <% if (miscDocs.length) { %>
+        <ul class="list-group list-group-flush mb-3">
+          <% miscDocs.forEach(function(doc) { %>
+          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+            <span class="d-flex align-items-center gap-2">
+              <% if (doc.thumb_path) { %>
+              <img src="/<%= doc.thumb_path.replace(/\\/g, '/') %>"
+                   style="height:40px;width:40px;object-fit:cover;cursor:pointer" class="rounded border"
+                   onclick="openImageModal('/admin/members/<%= member.id %>/documents/<%= doc.id %>/view','/admin/members/<%= member.id %>/documents/<%= doc.id %>/download','<%= doc.original_name %>')"
+                   title="Click to view">
+              <% } else { %>
+              <i class="bi bi-file-earmark text-secondary fs-4"></i>
+              <% } %>
+              <span>
+                <div class="small fw-semibold"><%= doc.original_name %></div>
+                <div class="pta-id" style="font-size:.75rem"><%= doc.uploaded_at.slice(0,10) %></div>
+              </span>
+            </span>
+            <div class="d-flex gap-2">
+              <a href="/admin/members/<%= member.id %>/documents/<%= doc.id %>/download"
+                 class="pta-btn pta-btn--secondary pta-btn--sm"><i class="bi bi-download"></i></a>
+              <% if (canWrite) { %>
+              <form action="/admin/members/<%= member.id %>/documents/<%= doc.id %>/delete"
+                    method="POST" onsubmit="return confirm('Delete this document?')">
+                <button class="pta-btn pta-btn--ghost pta-btn--sm" type="submit"
+                        style="color:var(--vermelho-500,#BE3A2B)"><i class="bi bi-trash"></i></button>
+              </form>
+              <% } %>
+            </div>
+          </li>
+          <% }); %>
+        </ul>
+        <% } else { %>
+        <p class="text-muted small mb-3">No miscellaneous documents.</p>
+        <% } %>
+
+        <% if (canWrite) { %>
+        <form action="/admin/members/<%= member.id %>/documents" method="POST" enctype="multipart/form-data">
+          <div class="input-group">
+            <input type="file" name="documents" class="form-control" multiple
+                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
+            <button class="pta-btn" type="submit">
+              <i class="bi bi-upload"></i> Upload
+            </button>
+          </div>
+          <div class="form-text">PDF, Word, images or text. Max 10 MB each. Up to 5 files.</div>
+        </form>
+        <% } %>
+
+      </div>
+    </div>
+
+  </div><!-- /content column -->
+</div><!-- /pta-detail -->
+
+
+<!-- ─────────────────────────────────────────────── -->
+<!-- Image Lightbox Modal                           -->
+<!-- ─────────────────────────────────────────────── -->
+<div class="modal fade" id="imageViewModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title mb-0" id="imageViewModalTitle"></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center p-2">
+        <img id="imageViewModalImg" src="" alt="" class="img-fluid rounded" style="max-height:75vh">
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <a id="imageViewModalDownload" href="#" class="btn btn-primary btn-sm">
+          <i class="bi bi-download"></i> Download
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var _imgModal = null;
+  function imgModal() {
+    if (!_imgModal) _imgModal = new bootstrap.Modal(document.getElementById('imageViewModal'));
+    return _imgModal;
+  }
+  window.openImageModal = function (viewUrl, downloadUrl, label) {
+    document.getElementById('imageViewModalTitle').textContent = label;
+    document.getElementById('imageViewModalImg').src = viewUrl;
+    document.getElementById('imageViewModalDownload').href = downloadUrl;
+    imgModal().show();
+  };
+})();
+</script>
+
+<!-- ─────────────────────────────────────────────── -->
+<!-- OCR Review Modal                               -->
+<!-- ─────────────────────────────────────────────── -->
+<div class="modal fade" id="ocrModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ocrModalTitle">Extracted Fields</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="ocrSpinner" class="text-center py-3">
+          <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+          <p class="mt-2 mb-0 small text-muted">
+            Sending image to vision model&hellip; usually takes 5&ndash;15&nbsp;s.
+          </p>
+        </div>
+        <div id="ocrResults" style="display:none">
+          <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+            <span class="small text-muted">
+              <span class="badge bg-success">+</span> new &nbsp;
+              <span class="badge bg-warning text-dark">!</span> differs from saved &nbsp;
+              <span class="badge bg-info text-dark">?</span> models disagree — pick one.
+              Uncheck any row to keep its current value.
+            </span>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-success btn-sm" id="ocrAcceptAll">
+                <i class="bi bi-check-all"></i> Accept All
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="ocrRejectAll">
+                <i class="bi bi-x-lg"></i> Reject All
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:22%">Field</th>
+                  <th style="width:34%">Current Value</th>
+                  <th style="width:34%">OCR Result</th>
+                  <th style="width:10%" class="text-center">Apply?</th>
+                </tr>
+              </thead>
+              <tbody id="ocrFieldsContainer"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="ocrErr" style="display:none">
+          <div class="alert alert-danger py-2 small mb-0">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <span id="ocrErrMsg"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" id="ocrFooter" style="display:none">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-success btn-sm" id="ocrApplyBtn">
+          <i class="bi bi-check-circle"></i> Apply Selected
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var MEMBER_ID = <%= member.id %>;
+  var CURRENT_MEMBER = <%- JSON.stringify({
+    arc_number:        member.arc_number        || '',
+    arc_name_en:       member.arc_name_en       || '',
+    arc_chinese_name:  member.arc_chinese_name  || '',
+    arc_issue_date:    member.arc_issue_date    ? member.arc_issue_date.slice(0,10)    : '',
+    arc_expiry_date:   member.arc_expiry_date   ? member.arc_expiry_date.slice(0,10)   : '',
+    passport_number:   member.passport_number   || '',
+    arc_serial_number: member.arc_serial_number || '',
+    address_zh:        member.address_zh        || '',
+    cc_number:         member.cc_number         || '',
+    cc_expiry_date:    member.cc_expiry_date    ? member.cc_expiry_date.slice(0,10)    : '',
+    nif:               member.nif               || '',
+    niss:              member.niss              || '',
+  }) %>;
+
+  var _ocrModal = null;
+  function ocrModal() {
+    if (!_ocrModal) _ocrModal = new bootstrap.Modal(document.getElementById('ocrModal'));
+    return _ocrModal;
+  }
+  var elTitle     = document.getElementById('ocrModalTitle');
+  var elSpinner   = document.getElementById('ocrSpinner');
+  var elResults   = document.getElementById('ocrResults');
+  var elContainer = document.getElementById('ocrFieldsContainer');
+  var elErr       = document.getElementById('ocrErr');
+  var elErrMsg    = document.getElementById('ocrErrMsg');
+  var elFooter    = document.getElementById('ocrFooter');
+  var elApply     = document.getElementById('ocrApplyBtn');
+
+  var CARD_LABELS = {
+    arc_front: 'ARC Front', arc_back: 'ARC Back',
+    cc_front: 'CC Front',   cc_back:  'CC Back',
+  };
+  var CARD_FIELDS = {
+    arc_front: ['arc_number', 'arc_name_en', 'arc_chinese_name', 'arc_issue_date', 'arc_expiry_date', 'passport_number', 'address_zh'],
+    arc_back:  ['arc_serial_number'],
+    cc_front:  ['cc_number', 'cc_expiry_date'],
+    cc_back:   ['nif', 'niss'],
+  };
+  var FIELD_LABELS = {
+    arc_number: 'ARC Number',           arc_name_en: 'English Name (ARC)',
+    arc_chinese_name: 'Chinese Name',   arc_issue_date: 'Issue Date',
+    arc_expiry_date: 'Expiry Date',     passport_number: 'Passport Number',
+    arc_serial_number: 'Serial Number', address_zh: 'Address (ZH)',
+    cc_number: 'CC Number',             cc_expiry_date: 'Expiry Date',
+    nif: 'NIF', niss: 'NISS',
+  };
+
+  function setOcrState(state) {
+    elSpinner.style.display = state === 'loading' ? '' : 'none';
+    elResults.style.display = state === 'results' ? '' : 'none';
+    elErr.style.display     = state === 'error'   ? '' : 'none';
+    elFooter.style.display  = state === 'results' ? '' : 'none';
+  }
+
+  // modelConflict = [valA, valB] when both models returned different non-empty values
+  function buildFieldRow(key, ocrVal, modelConflict) {
+    var currentVal    = CURRENT_MEMBER[key] || '';
+    var hasOcr        = !!(ocrVal && ocrVal.trim());
+    var isNew         = hasOcr && !currentVal;
+    var isDbConflict  = hasOcr && !!currentVal && currentVal !== ocrVal;
+    var isModelConflict = !!(modelConflict && modelConflict.length === 2);
+
+    var tr = document.createElement('tr');
+    if      (isModelConflict) tr.className = 'table-info';
+    else if (isDbConflict)    tr.className = 'table-warning';
+    else if (isNew)           tr.className = 'table-success';
+
+    // Field name
+    var tdField = document.createElement('td');
+    tdField.className = 'fw-semibold small align-middle';
+    tdField.textContent = FIELD_LABELS[key] || key;
+    if (isModelConflict) {
+      var badge = document.createElement('span');
+      badge.className = 'badge bg-info text-dark ms-1';
+      badge.textContent = '?';
+      tdField.appendChild(badge);
+    }
+    tr.appendChild(tdField);
+
+    // Current (saved) value
+    var tdCurrent = document.createElement('td');
+    tdCurrent.className = 'small align-middle font-monospace';
+    if (currentVal) {
+      tdCurrent.textContent = currentVal;
+      if (isDbConflict && !isModelConflict) tdCurrent.className += ' text-danger text-decoration-line-through';
+    } else {
+      var emC = document.createElement('em');
+      emC.className = 'text-muted fw-normal';
+      emC.textContent = 'empty';
+      tdCurrent.appendChild(emC);
+    }
+    tr.appendChild(tdCurrent);
+
+    // OCR result — dropdown when models disagree, plain text otherwise
+    var tdOcr = document.createElement('td');
+    tdOcr.className = 'small align-middle';
+    var cb = document.createElement('input'); // declared here so select can reference it
+    cb.type = 'checkbox';
+    cb.className = 'form-check-input';
+    cb.dataset.field = key;
+
+    if (isModelConflict) {
+      var sel = document.createElement('select');
+      sel.className = 'form-select form-select-sm font-monospace fw-semibold';
+      modelConflict.forEach(function (v, i) {
+        var opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = (i === 0 ? 'Model A: ' : 'Model B: ') + v;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', function () { cb.dataset.value = sel.value; });
+      cb.dataset.value = modelConflict[0];
+      tdOcr.appendChild(sel);
+    } else if (hasOcr) {
+      tdOcr.className += ' font-monospace fw-semibold';
+      tdOcr.textContent = ocrVal;
+      if (isNew)          tdOcr.className += ' text-success';
+      else if (isDbConflict) tdOcr.className += ' text-dark';
+      cb.dataset.value = ocrVal;
+    } else {
+      var emO = document.createElement('em');
+      emO.className = 'text-muted fw-normal';
+      emO.textContent = 'not found';
+      tdOcr.appendChild(emO);
+      cb.dataset.value = '';
+    }
+    tr.appendChild(tdOcr);
+
+    // Apply checkbox
+    var tdCheck = document.createElement('td');
+    tdCheck.className = 'text-center align-middle';
+    cb.checked  = hasOcr || isModelConflict;
+    cb.disabled = !hasOcr && !isModelConflict;
+    tdCheck.appendChild(cb);
+    tr.appendChild(tdCheck);
+
+    return tr;
+  }
+
+  function showResults(type, extracted) {
+    elTitle.textContent = (CARD_LABELS[type] || type) + ' — Review Extracted Fields';
+    while (elContainer.firstChild) elContainer.removeChild(elContainer.firstChild);
+    var conflicts      = extracted._conflicts || {};
+    var expectedFields = CARD_FIELDS[type] || Object.keys(extracted).filter(function(k) { return k.charAt(0) !== '_'; });
+    expectedFields.forEach(function (key) {
+      elContainer.appendChild(buildFieldRow(key, extracted[key] || '', conflicts[key] || null));
+    });
+    Object.keys(extracted).forEach(function (key) {
+      if (key.charAt(0) === '_') return;
+      if (expectedFields.indexOf(key) === -1 && (extracted[key] || conflicts[key])) {
+        elContainer.appendChild(buildFieldRow(key, extracted[key] || '', conflicts[key] || null));
+      }
+    });
+    setOcrState('results');
+  }
+
+  document.getElementById('ocrAcceptAll').addEventListener('click', function () {
+    elContainer.querySelectorAll('input[type=checkbox][data-field]').forEach(function (cb) {
+      if (!cb.disabled) cb.checked = true;
+    });
+  });
+
+  document.getElementById('ocrRejectAll').addEventListener('click', function () {
+    elContainer.querySelectorAll('input[type=checkbox][data-field]').forEach(function (cb) {
+      cb.checked = false;
+    });
+  });
+
+  // OCR now runs in the background on the server; client polls until done.
+  var OCR_POLL_INTERVAL = 3000;  // ms between polls
+  var OCR_POLL_MAX      = 40;    // 40 × 3s = 2 min max wait
+
+  function pollOcr(docId, type, attempt) {
+    if (attempt >= OCR_POLL_MAX) {
+      elErrMsg.textContent = 'Vision model took too long — please use the Extract button to retry.';
+      setOcrState('error');
+      return;
+    }
+    var elapsed = Math.round(attempt * OCR_POLL_INTERVAL / 1000);
+    elTitle.textContent = 'Scanning ' + (CARD_LABELS[type] || type) + '… (' + elapsed + 's)';
+    setTimeout(function () {
+      fetch('/admin/members/' + MEMBER_ID + '/documents/' + docId + '/ocr-status')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.done) {
+            showResults(type, d.extracted || {});
+          } else {
+            pollOcr(docId, type, attempt + 1);
+          }
+        })
+        .catch(function () { pollOcr(docId, type, attempt + 1); });
+    }, OCR_POLL_INTERVAL);
+  }
+
+  window.uploadCard = function (type, inputEl) {
+    if (!inputEl.files || !inputEl.files[0]) return;
+    elTitle.textContent = 'Uploading ' + (CARD_LABELS[type] || type) + '…';
+    setOcrState('loading');
+    ocrModal().show();
+    var fd = new FormData();
+    fd.append('image', inputEl.files[0]);
+    fd.append('doc_type', type);
+    fetch('/admin/members/' + MEMBER_ID + '/documents/card', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { elErrMsg.textContent = d.error || 'Upload failed.'; setOcrState('error'); return; }
+        elTitle.textContent = 'Scanning ' + (CARD_LABELS[type] || type) + '… (0s)';
+        pollOcr(d.docId, type, 0);
+      })
+      .catch(function (e) { elErrMsg.textContent = 'Network error: ' + e.message; setOcrState('error'); })
+      .finally(function () { inputEl.value = ''; });
+  };
+
+  window.ocrExtract = function (type, docId) {
+    elTitle.textContent = 'Scanning ' + (CARD_LABELS[type] || type) + '… (0s)';
+    setOcrState('loading');
+    ocrModal().show();
+    fetch('/admin/members/' + MEMBER_ID + '/documents/' + docId + '/ocr', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { elErrMsg.textContent = d.error || 'OCR failed.'; setOcrState('error'); return; }
+        pollOcr(d.docId, type, 0);
+      })
+      .catch(function (e) { elErrMsg.textContent = 'Network error: ' + e.message; setOcrState('error'); });
+  };
+
+  elApply.addEventListener('click', function () {
+    var body = {};
+    elContainer.querySelectorAll('input[type=checkbox][data-field]:checked').forEach(function (cb) {
+      body[cb.dataset.field] = cb.dataset.value;
+    });
+    if (!Object.keys(body).length) { ocrModal().hide(); return; }
+    elApply.disabled = true;
+    elApply.textContent = 'Saving…';
+    fetch('/admin/members/' + MEMBER_ID + '/apply-card-fields', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) { ocrModal().hide(); window.location.reload(); }
+        else { elErrMsg.textContent = d.error || 'Save failed.'; setOcrState('error'); }
+      })
+      .catch(function (e) { elErrMsg.textContent = 'Network error: ' + e.message; setOcrState('error'); })
+      .finally(function () { elApply.disabled = false; elApply.textContent = 'Apply Selected'; });
+  });
+})();
+</script>
+
+<!-- ─────────────────────────────────────────────── -->
+<!-- NIA Photo Modal                                -->
+<!-- ─────────────────────────────────────────────── -->
+<div class="modal fade" id="arcPhotoModal" tabindex="-1" aria-labelledby="arcPhotoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="arcPhotoModalLabel">Fetch Official NIA Photo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="arcSpinner" class="text-center py-3">
+          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          <p class="small text-muted mt-2 mb-0" id="arcSpinnerMsg">Contacting NIA&hellip;</p>
+        </div>
+        <div id="arcFetchError" style="display:none" class="text-center py-2">
+          <p class="small text-danger mb-2" id="arcFetchErrMsg"></p>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="arcRetryBtn">
+            <i class="bi bi-arrow-clockwise"></i> Try again
+          </button>
+        </div>
+        <div id="arcCaptchaArea" style="display:none">
+          <p class="small text-muted mb-2">
+            Enter the code shown below. NIA returns the official photo when all ARC fields match exactly.
+          </p>
+          <div class="text-center mb-3">
+            <img id="arcCaptchaImg" src="" alt="CAPTCHA" class="border rounded"
+                 style="height:52px;cursor:pointer" title="Click to reload">
+            <div>
+              <button type="button" class="btn btn-link btn-sm p-0 mt-1" id="reloadCaptchaBtn">
+                <i class="bi bi-arrow-clockwise"></i> New code
+              </button>
+            </div>
+          </div>
+          <input type="text" id="arcCaptchaInput" class="form-control text-center fw-bold"
+                 placeholder="Type code here" maxlength="12" autocomplete="off" spellcheck="false">
+          <p class="text-danger small mt-2 mb-0" id="arcError" style="display:none"></p>
+        </div>
+        <div id="arcSuccess" class="text-center py-3" style="display:none">
+          <i class="bi bi-check-circle-fill text-success" style="font-size:2rem"></i>
+          <p class="mt-2 mb-0">Photo saved &mdash; reloading&hellip;</p>
+        </div>
+      </div>
+      <div class="modal-footer" id="arcFooter" style="display:none">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="submitCaptchaBtn">
+          <i class="bi bi-download"></i> Fetch Photo
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var MEMBER_ID    = <%= member.id %>;
+  var currentToken = null;
+
+  var elSpinner    = document.getElementById('arcSpinner');
+  var elSpinnerMsg = document.getElementById('arcSpinnerMsg');
+  var elFetchErr   = document.getElementById('arcFetchError');
+  var elFetchErrMsg= document.getElementById('arcFetchErrMsg');
+  var elCaptcha    = document.getElementById('arcCaptchaArea');
+  var elSuccess    = document.getElementById('arcSuccess');
+  var elFooter     = document.getElementById('arcFooter');
+  var elError      = document.getElementById('arcError');
+  var elInput      = document.getElementById('arcCaptchaInput');
+  var elImg        = document.getElementById('arcCaptchaImg');
+  var elSubmit     = document.getElementById('submitCaptchaBtn');
+
+  function setState(s) {
+    elSpinner.style.display  = s === 'loading'  ? 'block' : 'none';
+    elFetchErr.style.display = s === 'fetcherr' ? 'block' : 'none';
+    elCaptcha.style.display  = s === 'captcha'  ? 'block' : 'none';
+    elSuccess.style.display  = s === 'success'  ? 'block' : 'none';
+    elFooter.style.display   = s === 'captcha'  ? 'flex'  : 'none';
+  }
+
+  function loadCaptcha() {
+    setState('loading');
+    elSpinnerMsg.textContent = 'Contacting NIA…';
+    currentToken = null;
+    elError.style.display = 'none';
+
+    fetch('/admin/members/' + MEMBER_ID + '/arc-captcha')
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (!res.ok || res.d.error) {
+          elFetchErrMsg.textContent = res.d.error || 'Failed to load captcha';
+          setState('fetcherr');
+          return;
+        }
+        currentToken = res.d.token;
+        elImg.src = res.d.captchaImage;
+        setState('captcha');
+        elInput.value = '';
+        elInput.focus();
+      })
+      .catch(function (e) {
+        elFetchErrMsg.textContent = 'Network error: ' + e.message;
+        setState('fetcherr');
+      });
+  }
+
+  function silentRefreshCaptcha() {
+    currentToken = null;
+    elImg.style.opacity = '0.4';
+    fetch('/admin/members/' + MEMBER_ID + '/arc-captcha')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.error) return;
+        currentToken = d.token;
+        elImg.src = d.captchaImage;
+        elInput.value = '';
+      })
+      .finally(function () { elImg.style.opacity = '1'; });
+  }
+
+  <% if (canWrite) { %>
+  document.getElementById('fetchArcPhotoBtn').addEventListener('click', function () {
+    new bootstrap.Modal(document.getElementById('arcPhotoModal')).show();
+    loadCaptcha();
+  });
+  <% } %>
+
+  document.getElementById('reloadCaptchaBtn').addEventListener('click', loadCaptcha);
+  elImg.addEventListener('click', loadCaptcha);
+
+  elSubmit.addEventListener('click', function () {
+    var answer = elInput.value.trim();
+    if (!answer) { elInput.focus(); return; }
+    if (!currentToken) { loadCaptcha(); return; }
+
+    elSubmit.disabled = true;
+    elError.style.display = 'none';
+    setState('loading');
+    elSpinnerMsg.textContent = 'Verifying with NIA…';
+
+    fetch('/admin/members/' + MEMBER_ID + '/arc-fetch-photo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: currentToken, captchaAnswer: answer }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.success) {
+          setState('success');
+          setTimeout(function () { window.location.reload(); }, 1200);
+        } else {
+          setState('captcha');
+          elError.textContent = d.error || 'Unknown error';
+          elError.style.display = 'block';
+          if (d.refreshCaptcha) silentRefreshCaptcha();
+        }
+      })
+      .catch(function (e) {
+        setState('captcha');
+        elError.textContent = 'Network error: ' + e.message;
+        elError.style.display = 'block';
+      })
+      .finally(function () {
+        elSubmit.disabled = false;
+      });
+  });
+
+  elInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') elSubmit.click();
+  });
+
+  document.getElementById('arcRetryBtn').addEventListener('click', loadCaptcha);
+})();
+</script>
+
+<%- include('../partials/footer') %>

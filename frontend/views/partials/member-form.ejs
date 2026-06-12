@@ -1,0 +1,203 @@
+<%
+  const v = data || {};
+  const isEdit = !!v.id;
+%>
+
+<!-- ── 1. Personal Info ──────────────────────────────────────── -->
+<div class="card mb-3">
+  <div class="card-header fw-semibold">Personal Info</div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">First Name *</label>
+        <input type="text" name="first_name" class="form-control" value="<%= v.first_name || '' %>" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Last Name *</label>
+        <input type="text" name="last_name" class="form-control" value="<%= v.last_name || '' %>" required>
+      </div>
+      <%
+        const _phoneMatch = (v.phone || '').match(/^(\+\d+)\s(.+)$/);
+        const _phoneDial  = _phoneMatch ? _phoneMatch[1] : '+351';
+        const _phoneNum   = _phoneMatch ? _phoneMatch[2] : (v.phone || '');
+      %>
+      <div class="col-md-6">
+        <label class="form-label">Phone</label>
+        <%- include('phone-field', { dialCode: _phoneDial, phoneNum: _phoneNum, countries: countries }) %>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Email *</label>
+        <input type="email" name="email" class="form-control" value="<%= v.email || '' %>" required>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Address (Chinese / 中文地址)</label>
+        <input type="text" name="address_zh" class="form-control" value="<%= v.address_zh || '' %>"
+               placeholder="e.g. 臺北市大安區信義路四段1號">
+        <div class="form-text">As printed on ARC card. Filled automatically by OCR scan.</div>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Address (English)</label>
+        <input type="text" name="address" class="form-control" value="<%= v.address || '' %>">
+      </div>
+      <div class="col-12">
+        <label class="form-label">Profile Photo</label>
+        <% if (isEdit && v.photo_path) { %>
+        <div class="mb-2">
+          <img src="/<%= v.photo_path.replace(/\\/g, '/') %>" alt="Current photo"
+               class="rounded" style="height:80px;width:80px;object-fit:cover;">
+          <small class="text-muted ms-2">Upload a new photo to replace</small>
+        </div>
+        <% } %>
+        <input type="file" name="photo" class="form-control" accept="image/jpeg,image/png,image/webp">
+        <div class="form-text">JPEG, PNG or WebP. Max 2 MB.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 2. Membership Info ────────────────────────────────────── -->
+<%
+  const feeStatusLabels = { paid: 'Paid', unpaid: 'Unpaid', renewal_incoming: 'Renewal Incoming' };
+  const feeStatusColors = { paid: 'success', unpaid: 'danger', renewal_incoming: 'warning' };
+  const currentFeeStatus = v.fee_status || 'unpaid';
+  const isHonoraryForm = v.user_position === 'honorary';
+%>
+<div class="card mb-3">
+  <div class="card-header fw-semibold">Membership Info</div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label"><%= isEdit ? 'New Password (leave blank to keep)' : 'Password *' %></label>
+        <input type="password" name="<%= isEdit ? 'new_password' : 'password' %>" class="form-control"
+          <% if (!isEdit) { %>required<% } %> minlength="6" autocomplete="new-password">
+      </div>
+      <% if (isEdit) { %>
+      <div class="col-md-4">
+        <label class="form-label">Member ID</label>
+        <input type="text" class="form-control" value="<%= v.member_id %>" disabled>
+      </div>
+      <% } %>
+      <div class="col-md-4">
+        <label class="form-label">Join Date</label>
+        <input type="date" name="join_date" class="form-control"
+          value="<%= v.join_date ? v.join_date.slice(0,10) : new Date().toISOString().slice(0,10) %>">
+      </div>
+
+      <!-- Fee fields -->
+      <% if (isHonoraryForm) { %>
+      <div class="col-12">
+        <div class="alert alert-secondary py-2 mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-star-fill text-honorary"></i>
+          <span><strong>Honorary Member</strong> — annual fees are not applicable for this member.</span>
+        </div>
+      </div>
+      <% } else { %>
+      <div class="col-md-4">
+        <label class="form-label">Annual Fee</label>
+        <%
+          const _feeRaw   = parseInt(v.fee_amount);
+          const _stdFee   = (typeof defaultFee !== 'undefined' && !isNaN(parseInt(defaultFee))) ? parseInt(defaultFee) : 300;
+          const _feeIsZero = !isNaN(_feeRaw) && _feeRaw === 0;
+          const _feeDisplay = (!isNaN(_feeRaw) && _feeRaw > 0) ? _feeRaw : _stdFee;
+        %>
+        <select name="fee_amount" class="form-select">
+          <option value="<%= _feeDisplay %>" <%= !_feeIsZero ? 'selected' : '' %>><%= _feeDisplay %> TWD</option>
+          <option value="0" <%= _feeIsZero ? 'selected' : '' %>>0 TWD — Honorary Member</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Date Last Paid</label>
+        <input type="date" name="fee_last_paid" class="form-control"
+          value="<%= v.fee_last_paid ? v.fee_last_paid.slice(0,10) : '' %>">
+        <div class="form-text">Leave blank if not yet paid.</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Valid Until <small class="text-muted">(auto)</small></label>
+        <input type="text" class="form-control"
+          value="<%= v.fee_valid_until ? v.fee_valid_until.slice(0,10) : '—' %>" disabled>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Fee Status <small class="text-muted">(auto)</small></label>
+        <div class="mt-1">
+          <span class="badge fs-6 bg-<%= feeStatusColors[currentFeeStatus] || 'secondary' %>">
+            <%= feeStatusLabels[currentFeeStatus] || currentFeeStatus %>
+          </span>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- ── 3. ARC Data (Taiwan) ──────────────────────────────────── -->
+<div class="card mb-3">
+  <div class="card-header fw-semibold">ARC Data <small class="text-muted fw-normal">(Taiwan Alien Resident Certificate)</small></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">ARC Number</label>
+        <input type="text" name="arc_number" class="form-control" value="<%= v.arc_number || '' %>">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Chinese Name</label>
+        <input type="text" name="arc_chinese_name" class="form-control" value="<%= v.arc_chinese_name || '' %>">
+      </div>
+      <div class="col-12">
+        <label class="form-label">English Name (ARC)</label>
+        <input type="text" name="arc_name_en" class="form-control" value="<%= v.arc_name_en || '' %>">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Date of Issue</label>
+        <input type="date" name="arc_issue_date" class="form-control"
+          value="<%= v.arc_issue_date ? v.arc_issue_date.slice(0,10) : '' %>">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Date of Expiry</label>
+        <input type="date" name="arc_expiry_date" class="form-control"
+          value="<%= v.arc_expiry_date ? v.arc_expiry_date.slice(0,10) : '' %>">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Passport Number</label>
+        <input type="text" name="passport_number" class="form-control" value="<%= v.passport_number || '' %>">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Serial Number</label>
+        <input type="text" name="arc_serial_number" class="form-control" value="<%= v.arc_serial_number || '' %>">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 4. Cartão de Cidadão ──────────────────────────────────── -->
+<div class="card mb-3">
+  <div class="card-header fw-semibold">Cartão de Cidadão <small class="text-muted fw-normal">(Portuguese Citizen Card)</small></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">CC Number</label>
+        <input type="text" name="cc_number" class="form-control" value="<%= v.cc_number || '' %>">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Date of Expiry</label>
+        <input type="date" name="cc_expiry_date" class="form-control"
+          value="<%= v.cc_expiry_date ? v.cc_expiry_date.slice(0,10) : '' %>">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">NIF <small class="text-muted">(Número de Identificação Fiscal)</small></label>
+        <input type="text" name="nif" class="form-control" value="<%= v.nif || '' %>">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">NISS <small class="text-muted">(Número de Identificação de Segurança Social)</small></label>
+        <input type="text" name="niss" class="form-control" value="<%= v.niss || '' %>">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 5. Notes ──────────────────────────────────────────────── -->
+<div class="card mb-3">
+  <div class="card-header fw-semibold">Notes</div>
+  <div class="card-body">
+    <textarea name="notes" class="form-control" rows="4" placeholder="Internal notes (visible to admins only)…"><%= v.notes || '' %></textarea>
+  </div>
+</div>
