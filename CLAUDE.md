@@ -27,6 +27,17 @@ npm install
 
 Server runs on `http://localhost:3000`. Default login: `admin@associacao.pt` / `admin1234` (role: `super_admin`).
 
+### cPanel deploy workflow (HostArmada / LiteSpeed)
+
+LiteSpeed's `lsnode` process manager does not always terminate cleanly when you click "Stop" — the old process can be orphaned (PPID=1) and keep serving stale code. Always kill it explicitly:
+
+1. `git pull` in the app directory on the server
+2. Check PID: `https://associacao.poetico.co/node-check.php?token=ptassoc-diag-2024`
+3. Kill it: `https://associacao.poetico.co/node-kill.php?token=ptassoc-diag-2024&pid=XXXX`
+4. cPanel → Node.js Selector → **Start**
+
+`node-check.php` and `node-kill.php` are gitignored — upload manually to `public_html/` only when needed, delete after use. The PID changes on every restart; always check before killing.
+
 ---
 
 ## File Map
@@ -182,6 +193,7 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - **Notes card on member profile** — gated by `canWrite && member.notes` (not `currentUser.role === 'admin'`); super_admin users also see notes.
 - **Calendar event indicators** — dashboard calendar cells use `.pta-cal-strip` (colored titled strips, not dots); up to 2 strips stacked per day; colors assigned by `CAL_COLORS[event.id % 8]`; "+N more" strip when >2 events. Cells with events get `.has-events` class (light blue tint, bold number). "New Event" button in dashboard is guarded for `canWrite` OR management positions.
 - **NIA fetch-error retry** — when the NIA photo fetch fails, a "Try again" button is shown in `member-detail.ejs` that re-runs `loadCaptcha()` without a page reload.
+- **ARC name hint on edit form** — `member-form.ejs` shows a blue info banner with a "Use ARC name" button when `arc_name_en` differs from `first_name + last_name`; values are in `data-arc-first`/`data-arc-last` HTML attributes (EJS HTML-escapes them); JS reads via `this.dataset.*` — never interpolated into JS source. Splits on last whitespace: last word → Last Name, remainder → First Name.
 
 ---
 
@@ -280,14 +292,14 @@ setSetting('default_fee_amount', '400')   // → upserts row
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `default_fee_amount` | integer string | `'300'` | Annual fee (TWD) pre-filled on new member forms |
+| `default_fee_amount` | integer string | `'300'` | Annual fee (TWD) pre-filled on new member forms; saving also retroactively updates all unpaid non-honorary members |
 | `ocr_models` | JSON array string | (none — uses hardcoded) | Active OCR model list |
 
 Super-admin dashboard cards for both settings:
 - **Default Annual Fee** card — number input + Save → `POST /admin/settings/fee`
 - **OCR Model Configuration** card — ordered list, add/remove/test → `POST /admin/settings/models`
 
-Changing the fee applies to **new members only** — does not retroactively update existing member fees.
+Changing the fee also retroactively updates `fee_amount` for all members where `fee_status = 'unpaid'` and `position != 'honorary'`.
 
 See PROJECT.md § Card OCR Feature for full details including prompt notes.
 

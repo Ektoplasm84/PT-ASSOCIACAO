@@ -1,4 +1,6 @@
 node_modules/
+node-check.php
+node-kill.php
 uploads/
 database/data.db
 database/*.db

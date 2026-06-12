@@ -6,7 +6,7 @@ A membership management web application for a Portuguese-Taiwanese association. 
 
 ---
 
-## Current Status (as of 2026-06-11)
+## Current Status (as of 2026-06-12)
 
 ### Done
 - Full Node.js + Express backend with SQLite embedded database
@@ -25,7 +25,7 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - **Dashboard warnings** — compact stats bar + Warnings & Advisories table (unpaid fees + expiring ARC/CC within 60 days)
 - **Vision Model Health** — super_admin dashboard card; on-demand model ping; passive offline detection during scans; dismiss individual warnings
 - **OCR Model Configuration** — super_admin dashboard card; live list of active models with role labels; add/remove/test any model ID; saved to `settings` table, persists across restarts
-- **Default Annual Fee** — super_admin dashboard card; configurable fee amount stored in `settings` table; pre-fills new member form; does not retroactively change existing members
+- **Default Annual Fee** — super_admin dashboard card; configurable fee amount stored in `settings` table; pre-fills new member form; saving also retroactively updates `fee_amount` for all currently-unpaid non-honorary members
 - **Placeholder credentials** — new member form pre-fills a random `membro.XXXX@associacao.pt` email and placeholder name; email is the login credential so changing it changes login immediately
 - **Login brute-force protection** — in-memory rate limiter: 5 failures/15 min → 15-min IP block
 - **Audit log** — append-only `audit_log` table (cap 2000 rows); every write action on any member records actor + target + changed fields; visible at `/admin/audit` to admin+ only
@@ -52,6 +52,8 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - **Notes card for super_admin** — Notes card on member profile gated by `canWrite && member.notes`; was previously admin-role-only
 - **NIA fetch-error retry** — "Try again" button shown when NIA photo fetch fails; re-invokes `loadCaptcha()` without a page reload
 - **Invite respond error handling** — `profile.ejs` fetch checks `r.ok` before parsing JSON; alerts user on error with session-expiry hint
+- **ARC name hint on edit form** — `member-form.ejs` shows a blue info banner with a "Use ARC name" button when `arc_name_en` differs from stored `first_name`/`last_name`; values passed via `data-arc-first`/`data-arc-last` attributes (no JS injection); splits on last word (last word → Last Name, remainder → First Name)
+- **Version v1.3** — login page subtitle + Super Admin topbar badge
 
 ### Not Yet Built
 - Email notifications to members
@@ -576,13 +578,25 @@ Format: `ASSOC-XXXX` (zero-padded 4 digits). `nextMemberId()` called **inside** 
 ### Flash Messages
 `req.session.flash = { type: 'success'|'danger', message }` before redirect. Consumed once, rendered by `partials/flash.ejs`.
 
-### cPanel Deployment
+### cPanel Deployment (HostArmada / LiteSpeed)
 - Entry point: `app.js`. Port: `process.env.PORT`.
 - All file paths use `process.cwd()`.
-- Run `npm install` on server after uploading.
 - Do NOT upload `node_modules/`, `uploads/`, `database/data.db`, or `.env`.
 - Set `OPENROUTER_API_KEY`, `SESSION_SECRET`, and **`NODE_ENV=production`** as environment variables in the Node.js App panel.
 - `NODE_ENV=production` is required for `cookie.secure: true`; combined with `app.set('trust proxy', 1)` this enables HTTPS-only session cookies behind cPanel's nginx reverse proxy.
+
+**Deploy workflow (after every git push):**
+1. cPanel Terminal (or Git panel): `git pull` in `/home/chiangly/repositories/PT-ASSOCIACAO/`
+2. `npm install` (only needed when `package.json` changes)
+3. Find the running process PID: open `https://associacao.poetico.co/node-check.php?token=ptassoc-diag-2024`
+4. Kill it: `https://associacao.poetico.co/node-kill.php?token=ptassoc-diag-2024&pid=XXXX`
+5. cPanel → Node.js Selector → **Start**
+
+**Why this is needed:** HostArmada runs Node via LiteSpeed's `lsnode` process manager. The "Stop" button in the Node.js panel does not always terminate the running process — it can be orphaned (PPID=1). The kill step ensures the stale process is gone before starting fresh.
+
+**PID changes every restart** — always check before killing. `node-kill.php` and `node-check.php` are gitignored and must be uploaded manually to `public_html/` (not to the app directory). Delete them from the server when not actively debugging.
+
+**`database/data.db` survives normal deploys** (it is gitignored and `git pull` does not touch it). It is only lost if the entire application directory is deleted from cPanel. Back up `data.db` via cPanel File Manager periodically.
 
 ---
 
@@ -644,7 +658,7 @@ Variables: `stats { total, honorary, paid, unpaid }`, `warnings[]`, `recent[]`, 
 - **Warnings & Advisories** card — `.pta-table` with fee/ARC/CC columns; count badge
 - **Vision Model Health** card (isSuperAdmin) — model status table; "Run Check" AJAX; per-row dismiss. All DOM uses `createElement`/`textContent` — no innerHTML with untrusted data.
 - **OCR Model Configuration** card (isSuperAdmin) — JS-rendered model list (`modelConfigRows` tbody populated by `renderModelList()` via `DOMContentLoaded`); per-model Test (AJAX) + Remove; Add Model input + Test + Add; Save button → `POST /admin/settings/models`.
-- **Default Annual Fee** card (isSuperAdmin) — number input pre-filled with `defaultFee`; Save → `POST /admin/settings/fee`.
+- **Default Annual Fee** card (isSuperAdmin) — number input pre-filled with `defaultFee`; Save → `POST /admin/settings/fee`; also retroactively updates `fee_amount` for all `fee_status='unpaid'` non-honorary members; flash message reports how many were updated.
 - **Association Calendar** card (all canViewAll) — month grid (Mon–Sun, EU week); AJAX loads `/admin/events/data`; today highlighted; cells with events get `.has-events` class (light blue tint + bold date number); per-day up to 2 colored `.pta-cal-strip` title strips stacked from bottom (color = `CAL_COLORS[event.id % 8]`); "+N more" strip when >2 events; click day → event panel below grid; "New Event" button (canWrite or management position) opens modal; per-event attendee toggle (fetches `/admin/events/:id/invites`); delete button (ownership enforced server-side).
   - **New Event modal** — title, start/end date, location, description, audience checkboxes (All / Paid / Unpaid / Honorary / Non-Honorary); closes automatically on success via `bootstrap.Modal.getOrCreateInstance(...).hide()`.
 - **Recent Members** card — last 5 joins
