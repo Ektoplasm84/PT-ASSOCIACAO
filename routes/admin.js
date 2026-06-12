@@ -763,7 +763,7 @@ router.post('/members/:id/documents/:docId/delete', adminOnly, (req, res) => {
 
 // --- View document inline (for lightbox preview) ---
 
-router.get('/members/:id/documents/:docId/view', (req, res) => {
+router.get('/members/:id/documents/:docId/view', adminOnly, (req, res) => {
   const doc = db.prepare(
     `SELECT * FROM documents WHERE id = ? AND member_id = ?`
   ).get(req.params.docId, req.params.id);
@@ -773,13 +773,15 @@ router.get('/members/:id/documents/:docId/view', (req, res) => {
   const filePath = path.join(process.cwd(), doc.file_path);
   if (!fs.existsSync(filePath)) return res.status(404).send('File missing from server.');
 
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', 'sandbox');
   res.setHeader('Content-Disposition', contentDispositionFilename('inline', doc.original_name));
   res.sendFile(filePath);
 });
 
 // --- Download document ---
 
-router.get('/members/:id/documents/:docId/download', (req, res) => {
+router.get('/members/:id/documents/:docId/download', adminOnly, (req, res) => {
   const doc = db.prepare(
     `SELECT * FROM documents WHERE id = ? AND member_id = ?`
   ).get(req.params.docId, req.params.id);
