@@ -900,4 +900,5 @@ select.pta-control{appearance:none;background-image:url("data:image/svg+xml;char
 .pta-danger__txt{font-size:var(--text-sm);color:var(--text-muted);}
 
 /* ─── Server log popup button ───────────────────────────────────────── */
-/* No panel CSS needed — logs open in a standalone popup window */
+/* .pta-topbar__bell is designed for <a> tags; reset browser defaults when used on <button> */
+button.pta-topbar__bell{background:none;border:none;padding:0;cursor:pointer;}
