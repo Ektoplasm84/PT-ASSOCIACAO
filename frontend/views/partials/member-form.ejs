@@ -148,29 +148,36 @@
   </div>
 </div>
 
-<!-- ── 3. ARC Data (Taiwan) ──────────────────────────────────── -->
-<% const _isAprc = !!(v.is_aprc && v.is_aprc != '0'); %>
+<!-- ── 3. ARC / APRC / Taiwan Passport ───────────────────────── -->
+<%
+  const _isAprc       = !!(v.is_aprc       && v.is_aprc       != '0');
+  const _isTwPassport = !!(v.is_tw_passport && v.is_tw_passport != '0');
+  const _docType      = _isAprc ? 'aprc' : _isTwPassport ? 'tw_passport' : 'arc';
+%>
 <div class="card mb-3">
   <div class="card-header fw-semibold">
-    ARC / APRC Data
-    <small class="text-muted fw-normal">(Taiwan Resident Certificate)</small>
+    ARC / APRC / Taiwan Passport
+    <small class="text-muted fw-normal">(Taiwan Residence Document)</small>
   </div>
   <div class="card-body">
     <div class="row g-3">
-      <!-- APRC toggle -->
+      <!-- Document type selector -->
       <div class="col-12">
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" role="switch"
-                 name="is_aprc" id="isAprcCheck" value="1"
-                 <%= _isAprc ? 'checked' : '' %>
-                 onchange="arcToggleAprc(this.checked)">
-          <label class="form-check-label" for="isAprcCheck">
-            <strong>APRC</strong> — Alien Permanent Resident Certificate (no expiry date)
-          </label>
+        <label class="form-label fw-semibold mb-1">Document Type</label>
+        <div class="btn-group w-100" role="group">
+          <input type="radio" class="btn-check" name="residence_doc_type" id="docTypeArc"
+                 value="arc" <%= _docType === 'arc' ? 'checked' : '' %> onchange="arcDocTypeChanged()">
+          <label class="btn btn-outline-secondary" for="docTypeArc">ARC</label>
+          <input type="radio" class="btn-check" name="residence_doc_type" id="docTypeAprc"
+                 value="aprc" <%= _docType === 'aprc' ? 'checked' : '' %> onchange="arcDocTypeChanged()">
+          <label class="btn btn-outline-secondary" for="docTypeAprc">APRC <small class="text-muted">(Permanent)</small></label>
+          <input type="radio" class="btn-check" name="residence_doc_type" id="docTypeTwPassport"
+                 value="tw_passport" <%= _docType === 'tw_passport' ? 'checked' : '' %> onchange="arcDocTypeChanged()">
+          <label class="btn btn-outline-secondary" for="docTypeTwPassport">TW Passport</label>
         </div>
       </div>
       <div class="col-md-6">
-        <label class="form-label">ARC / APRC Number</label>
+        <label class="form-label" id="arcNumberLabel"><%= _docType === 'tw_passport' ? 'ARC / APRC Number' : 'ARC / APRC Number' %></label>
         <input type="text" name="arc_number" class="form-control" value="<%= v.arc_number || '' %>">
       </div>
       <div class="col-md-6">
@@ -178,7 +185,7 @@
         <input type="text" name="arc_chinese_name" class="form-control" value="<%= v.arc_chinese_name || '' %>">
       </div>
       <div class="col-12">
-        <label class="form-label">English Name (ARC / APRC)</label>
+        <label class="form-label">English Name</label>
         <input type="text" name="arc_name_en" class="form-control" value="<%= v.arc_name_en || '' %>">
       </div>
       <div class="col-md-4">
@@ -186,18 +193,18 @@
         <input type="date" name="arc_issue_date" class="form-control"
           value="<%= v.arc_issue_date ? v.arc_issue_date.slice(0,10) : '' %>">
       </div>
-      <div class="col-md-4" id="arcExpiryCol">
-        <label class="form-label">Date of Expiry</label>
-        <div id="arcExpiryInput" class="<%= _isAprc ? 'd-none' : '' %>">
+      <div class="col-md-4">
+        <label class="form-label" id="arcExpiryLabel"><%= _docType === 'tw_passport' ? 'Passport Expiry Date' : 'Date of Expiry' %></label>
+        <div id="arcExpiryInput" class="<%= _docType === 'aprc' ? 'd-none' : '' %>">
           <input type="date" name="arc_expiry_date" id="arcExpiryDate" class="form-control"
-            value="<%= !_isAprc && v.arc_expiry_date ? v.arc_expiry_date.slice(0,10) : '' %>">
+            value="<%= _docType !== 'aprc' && v.arc_expiry_date ? v.arc_expiry_date.slice(0,10) : '' %>">
         </div>
-        <div id="arcExpiryPermanent" class="<%= _isAprc ? '' : 'd-none' %>">
+        <div id="arcExpiryPermanent" class="<%= _docType === 'aprc' ? '' : 'd-none' %>">
           <span class="badge bg-info text-dark px-3 py-2 fs-6">Permanent — APRC</span>
         </div>
       </div>
       <div class="col-md-4">
-        <label class="form-label">Passport Number</label>
+        <label class="form-label" id="passportLabel"><%= _docType === 'tw_passport' ? 'Taiwan Passport No.' : 'Passport Number' %></label>
         <input type="text" name="passport_number" class="form-control" value="<%= v.passport_number || '' %>">
       </div>
       <div class="col-md-6">
@@ -208,11 +215,14 @@
   </div>
 </div>
 <script>
-function arcToggleAprc(checked) {
+function arcDocTypeChanged() {
+  var type       = document.querySelector('input[name="residence_doc_type"]:checked').value;
   var dateInput  = document.getElementById('arcExpiryDate');
   var inputWrap  = document.getElementById('arcExpiryInput');
   var permBadge  = document.getElementById('arcExpiryPermanent');
-  if (checked) {
+  var expiryLbl  = document.getElementById('arcExpiryLabel');
+  var passLbl    = document.getElementById('passportLabel');
+  if (type === 'aprc') {
     inputWrap.classList.add('d-none');
     permBadge.classList.remove('d-none');
     dateInput.disabled = true;
@@ -221,6 +231,8 @@ function arcToggleAprc(checked) {
     permBadge.classList.add('d-none');
     dateInput.disabled = false;
   }
+  expiryLbl.textContent = type === 'tw_passport' ? 'Passport Expiry Date' : 'Date of Expiry';
+  passLbl.textContent   = type === 'tw_passport' ? 'Taiwan Passport No.'  : 'Passport Number';
 }
 </script>
 

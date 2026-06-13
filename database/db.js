@@ -252,6 +252,12 @@ if (!memberCols3.includes('is_aprc')) {
   db.prepare('ALTER TABLE members ADD COLUMN is_aprc INTEGER NOT NULL DEFAULT 0').run();
 }
 
+// --- Migration: add is_tw_passport flag to members ---
+const memberCols4 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols4.includes('is_tw_passport')) {
+  db.prepare('ALTER TABLE members ADD COLUMN is_tw_passport INTEGER NOT NULL DEFAULT 0').run();
+}
+
 // --- Migration: add doc_type and thumb_path to documents ---
 const docCols = db.prepare('PRAGMA table_info(documents)').all().map(c => c.name);
 if (!docCols.includes('doc_type')) {

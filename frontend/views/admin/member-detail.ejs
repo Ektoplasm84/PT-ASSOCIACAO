@@ -88,10 +88,10 @@
             Account created <%= member.account_created ? member.account_created.slice(0,10) : '—' %>
           </div>
           <% if (canWrite) { %>
-          <% if (member.is_aprc) { %>
+          <% if (member.is_aprc || member.is_tw_passport) { %>
           <div class="small text-muted mt-1 d-flex align-items-center gap-1">
             <i class="bi bi-info-circle"></i>
-            NIA photo fetch is not available for APRC holders.
+            NIA photo fetch is not available for <%= member.is_aprc ? 'APRC' : 'Taiwan Passport' %> holders.
           </div>
           <% } else { %>
           <button class="pta-btn pta-btn--secondary pta-btn--block" id="fetchArcPhotoBtn">
@@ -283,8 +283,8 @@ function validatePwReset() {
       <header class="pta-card__head">
         <i class="bi bi-person-vcard"></i>
         <div class="pta-card__titles">
-          <span class="pta-card__eyebrow"><%= member.is_aprc ? 'Alien Permanent Resident Certificate' : 'Alien Resident Certificate' %></span>
-          <span class="pta-card__title">Residence — <%= member.is_aprc ? 'APRC' : 'ARC' %></span>
+          <span class="pta-card__eyebrow"><%= member.is_aprc ? 'Alien Permanent Resident Certificate' : member.is_tw_passport ? 'Taiwan Passport' : 'Alien Resident Certificate' %></span>
+          <span class="pta-card__title">Residence — <%= member.is_aprc ? 'APRC' : member.is_tw_passport ? 'TW Passport' : 'ARC' %></span>
         </div>
       </header>
       <div class="pta-card__body">
@@ -295,7 +295,7 @@ function validatePwReset() {
           <dt>Chinese Name</dt><dd><%= member.arc_chinese_name || '—' %></dd>
           <dt>Passport No.</dt><dd class="mono"><%= member.passport_number || '—' %></dd>
           <dt>Issue date</dt><dd class="mono"><%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '—' %></dd>
-          <dt>Expiry date</dt>
+          <dt><%= member.is_tw_passport ? 'Passport Expiry' : 'Expiry date' %></dt>
           <dd class="mono">
             <% if (member.is_aprc) { %>Permanent<% } else { %><%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %><% } %>
             <% if (arcValidity) { %>

@@ -305,11 +305,22 @@ router.post('/events/:id/delete', calendarWriteGuard, (req, res) => {
 // --- Member list ---
 
 router.get('/members', (req, res) => {
-  const search = req.query.search || '';
-  const feeFilter = req.query.fee || '';
-  const page = Math.max(1, parseInt(req.query.page) || 1);
-  const perPage = 20;
-  const offset = (page - 1) * perPage;
+  const search    = req.query.search || '';
+  const feeFilter = req.query.fee    || '';
+  const sort      = req.query.sort   || 'name_az';
+  const page      = Math.max(1, parseInt(req.query.page) || 1);
+  const perPage   = 20;
+  const offset    = (page - 1) * perPage;
+
+  const SORT_MAP = {
+    name_az:     "COALESCE(m.arc_name_en, m.first_name || ' ' || m.last_name) ASC",
+    name_za:     "COALESCE(m.arc_name_en, m.first_name || ' ' || m.last_name) DESC",
+    newest:      'm.id DESC',
+    oldest:      'm.id ASC',
+    joined_desc: 'm.join_date DESC, m.id DESC',
+    joined_asc:  'm.join_date ASC, m.id ASC',
+  };
+  const orderBy = SORT_MAP[sort] || SORT_MAP.name_az;
 
   let where = 'WHERE 1=1';
   const params = [];
@@ -329,7 +340,7 @@ router.get('/members', (req, res) => {
   ).get(...params).cnt;
 
   const members = db.prepare(
-    `SELECT m.*, u.email, u.position, u.role as user_role FROM members m JOIN users u ON u.id = m.user_id ${where} ORDER BY m.last_name, m.first_name LIMIT ? OFFSET ?`
+    `SELECT m.*, u.email, u.position, u.role as user_role FROM members m JOIN users u ON u.id = m.user_id ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
   ).all(...params, perPage, offset);
 
   const totalPages = Math.ceil(total / perPage);
@@ -339,6 +350,7 @@ router.get('/members', (req, res) => {
     members,
     search,
     feeFilter,
+    sort,
     page,
     totalPages,
     total,
@@ -373,8 +385,11 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number,
     cc_number, cc_expiry_date, nif, niss,
-    is_aprc,
+    residence_doc_type,
   } = req.body;
+
+  const is_aprc       = residence_doc_type === 'aprc'       ? 1 : 0;
+  const is_tw_passport = residence_doc_type === 'tw_passport' ? 1 : 0;
 
   const errors = [];
   if (!first_name) errors.push('First name is required.');
@@ -418,8 +433,8 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
          notes, photo_path,
          arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
          passport_number, arc_serial_number,
-         cc_number, cc_expiry_date, nif, niss, is_aprc)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         cc_number, cc_expiry_date, nif, niss, is_aprc, is_tw_passport)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       userRes.lastInsertRowid, memberId,
       first_name, last_name, phone,
@@ -433,7 +448,7 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
       arc_issue_date || null, is_aprc ? null : (arc_expiry_date || null),
       passport_number || null, arc_serial_number || null,
       cc_number || null, cc_expiry_date || null, nif || null, niss || null,
-      is_aprc ? 1 : 0
+      is_aprc, is_tw_passport
     );
 
   });
@@ -499,8 +514,11 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number,
     cc_number, cc_expiry_date, nif, niss,
-    is_aprc,
+    residence_doc_type,
   } = req.body;
+
+  const is_aprc        = residence_doc_type === 'aprc'        ? 1 : 0;
+  const is_tw_passport = residence_doc_type === 'tw_passport' ? 1 : 0;
 
   const errors = [];
   if (!first_name) errors.push('First name is required.');
@@ -557,7 +575,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
         arc_number=?, arc_name_en=?, arc_chinese_name=?, arc_issue_date=?, arc_expiry_date=?,
         passport_number=?, arc_serial_number=?,
         cc_number=?, cc_expiry_date=?, nif=?, niss=?,
-        is_aprc=?,
+        is_aprc=?, is_tw_passport=?,
         updated_at=datetime('now')
       WHERE id=?
     `).run(
@@ -571,7 +589,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
       arc_issue_date || null, is_aprc ? null : (arc_expiry_date || null),
       passport_number || null, arc_serial_number || null,
       cc_number || null, cc_expiry_date || null, nif || null, niss || null,
-      is_aprc ? 1 : 0,
+      is_aprc, is_tw_passport,
       member.id
     );
   });
@@ -865,13 +883,18 @@ router.post('/members/:id/apply-card-fields', adminOnly, (req, res) => {
 
 router.get('/members/:id/arc-captcha', adminOnly, async (req, res) => {
   const member = db.prepare(
-    'SELECT arc_number, arc_issue_date, arc_expiry_date, arc_serial_number, is_aprc FROM members WHERE id = ?'
+    'SELECT arc_number, arc_issue_date, arc_expiry_date, arc_serial_number, is_aprc, is_tw_passport FROM members WHERE id = ?'
   ).get(req.params.id);
   if (!member) return res.status(404).json({ error: 'Member not found.' });
 
   if (member.is_aprc) {
     return res.status(400).json({
       error: 'APRC holders are not supported by the NIA photo fetch — the NIA system requires an expiry date, which APRC cards do not have.'
+    });
+  }
+  if (member.is_tw_passport) {
+    return res.status(400).json({
+      error: 'Taiwan Passport holders are not supported by the NIA photo fetch.'
     });
   }
 

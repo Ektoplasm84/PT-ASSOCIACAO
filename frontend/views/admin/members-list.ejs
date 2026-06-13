@@ -21,20 +21,46 @@
   <% } %>
 </div>
 
+<%
+  function memberListUrl(overrides) {
+    var p = { search: search, fee: feeFilter, sort: sort };
+    Object.assign(p, overrides);
+    var qs = [];
+    if (p.search) qs.push('search=' + encodeURIComponent(p.search));
+    if (p.fee)    qs.push('fee='    + encodeURIComponent(p.fee));
+    if (p.sort && p.sort !== 'name_az') qs.push('sort=' + p.sort);
+    return '/admin/members' + (qs.length ? '?' + qs.join('&') : '');
+  }
+%>
 <div class="pta-toolbar">
   <form method="GET" action="/admin/members" class="pta-search">
     <i class="bi bi-search"></i>
     <input class="pta-control" name="search" placeholder="Search name, ID or email…" value="<%= search %>">
     <% if (feeFilter) { %><input type="hidden" name="fee" value="<%= feeFilter %>"><% } %>
+    <% if (sort && sort !== 'name_az') { %><input type="hidden" name="sort" value="<%= sort %>"><% } %>
   </form>
+  <select class="form-select form-select-sm" style="width:auto;min-width:9rem"
+          onchange="location.href=this.value" aria-label="Sort order">
+    <% [
+      ['name_az',     'Name A → Z'],
+      ['name_za',     'Name Z → A'],
+      ['newest',      'Recently Added'],
+      ['oldest',      'Oldest First'],
+      ['joined_desc', 'Join Date ↓'],
+      ['joined_asc',  'Join Date ↑'],
+    ].forEach(function(opt) { %>
+    <option value="<%= memberListUrl({ sort: opt[0] }) %>"
+            <%= sort === opt[0] ? 'selected' : '' %>><%= opt[1] %></option>
+    <% }); %>
+  </select>
   <div class="pta-filterchips">
-    <a href="/admin/members?search=<%= encodeURIComponent(search) %>"
+    <a href="<%= memberListUrl({ fee: '' }) %>"
        class="pta-chip <%= !feeFilter ? 'is-active' : '' %>">All</a>
-    <a href="/admin/members?search=<%= encodeURIComponent(search) %>&fee=paid"
+    <a href="<%= memberListUrl({ fee: 'paid' }) %>"
        class="pta-chip <%= feeFilter === 'paid' ? 'is-active' : '' %>">Paid</a>
-    <a href="/admin/members?search=<%= encodeURIComponent(search) %>&fee=renewal_incoming"
+    <a href="<%= memberListUrl({ fee: 'renewal_incoming' }) %>"
        class="pta-chip <%= feeFilter === 'renewal_incoming' ? 'is-active' : '' %>">Renewal</a>
-    <a href="/admin/members?search=<%= encodeURIComponent(search) %>&fee=unpaid"
+    <a href="<%= memberListUrl({ fee: 'unpaid' }) %>"
        class="pta-chip <%= feeFilter === 'unpaid' ? 'is-active' : '' %>">Unpaid</a>
   </div>
 </div>
@@ -48,6 +74,7 @@
         <th>Email</th>
         <th>Position</th>
         <th>Fee Status</th>
+        <th>Warnings</th>
         <th>Joined</th>
         <th></th>
       </tr>
@@ -66,11 +93,32 @@
           : ['gestao','board','president','treasurer','secretary'].includes(m.position) ? 'info'
           : 'neutral';
         const _plabel = _roleLabels[m.user_role] || _posLabels[m.position] || 'Member';
+
+        const _today = new Date(); _today.setHours(0,0,0,0);
+        const _docWarnings = [];
+        if (!m.is_aprc && m.arc_expiry_date) {
+          const _arcExp  = new Date(m.arc_expiry_date);
+          const _arcDays = Math.floor((_arcExp - _today) / 86400000);
+          const _arcLbl  = m.is_tw_passport ? 'Passport' : 'ARC';
+          if      (_arcDays < 0)   _docWarnings.push({ label: _arcLbl + ' Expired',       tone: 'danger'  });
+          else if (_arcDays <= 60) _docWarnings.push({ label: _arcLbl + ' Expiring Soon', tone: 'warning' });
+        }
+        if (m.cc_expiry_date) {
+          const _ccExp  = new Date(m.cc_expiry_date);
+          const _ccDays = Math.floor((_ccExp - _today) / 86400000);
+          if      (_ccDays < 0)   _docWarnings.push({ label: 'CC Expired',       tone: 'danger'  });
+          else if (_ccDays <= 60) _docWarnings.push({ label: 'CC Expiring Soon', tone: 'warning' });
+        }
       %>
       <tr class="is-clickable" onclick="location.href='/admin/members/<%= m.id %>'">
         <td>
           <div class="pta-namecell">
-            <span class="pta-avatar pta-avatar--sm"><%= _initials %></span>
+            <span class="pta-avatar pta-avatar--sm">
+              <% if (m.photo_path) { %>
+              <img src="/<%= m.photo_path.replace(/\\/g, '/') %>" alt=""
+                   style="width:100%;height:100%;object-fit:cover;border-radius:inherit">
+              <% } else { %><%= _initials %><% } %>
+            </span>
             <span class="pta-namecell__txt">
               <span class="pta-namecell__en"><%= m.arc_name_en || (m.first_name + ' ' + m.last_name) %></span>
               <% if (m.arc_chinese_name) { %>
@@ -89,6 +137,13 @@
           <%- feeBadge(m.fee_status) %>
           <% } %>
         </td>
+        <td>
+          <% if (_docWarnings.length === 0) { %>
+          <span class="pta-badge pta-badge--soft pta-tone-success">No Warning</span>
+          <% } else { _docWarnings.forEach(function(w) { %>
+          <span class="pta-badge pta-badge--soft pta-tone-<%= w.tone %>" style="margin:.1rem .2rem .1rem 0;display:inline-block"><%= w.label %></span>
+          <% }); } %>
+        </td>
         <td><span class="pta-id"><%= m.join_date ? m.join_date.slice(0,10) : '—' %></span></td>
         <td onclick="event.stopPropagation()">
           <% if (canWrite) { %>
@@ -100,7 +155,7 @@
       </tr>
       <% }); %>
       <% if (!members.length) { %>
-      <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:3rem">No members found.</td></tr>
+      <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:3rem">No members found.</td></tr>
       <% } %>
     </tbody>
   </table>

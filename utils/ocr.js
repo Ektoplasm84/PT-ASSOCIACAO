@@ -168,7 +168,7 @@ async function checkModels() {
 
 // ── Single-model vision call ───────────────────────────────────────────────────
 
-const MODEL_TIMEOUT_MS = 60_000; // 60s per model call
+const MODEL_TIMEOUT_MS = 45_000; // 45s per model call — keeps total scan under proxy timeout
 
 async function callVisionModel(model, prompt, b64, mime) {
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -202,11 +202,12 @@ async function callVisionModel(model, prompt, b64, mime) {
       }),
     });
 
-    clearTimeout(timer);
-    const elapsed = `${Date.now() - t0}ms`;
+    // Do NOT clearTimeout here — headers have arrived but the body may still be streaming.
+    // The abort signal must stay active through res.json() so a hung body is cancelled too.
 
     if (res.status === 429) {
-      console.warn(`[ocr] ${model} rate-limited (429) after ${elapsed}`);
+      clearTimeout(timer);
+      console.warn(`[ocr] ${model} rate-limited (429) after ${Date.now() - t0}ms`);
       const err = new Error(`${model} rate-limited`);
       err.status = 429;
       throw err;
@@ -214,6 +215,8 @@ async function callVisionModel(model, prompt, b64, mime) {
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
+      clearTimeout(timer);
+      const elapsed = `${Date.now() - t0}ms`;
       console.error(`[ocr] ${model} HTTP ${res.status} after ${elapsed}: ${body.slice(0, 120)}`);
       modelStatus[model] = {
         status: 'offline',
@@ -225,7 +228,9 @@ async function callVisionModel(model, prompt, b64, mime) {
 
     if (modelStatus[model]) delete modelStatus[model];
 
-    const json   = await res.json();
+    const json = await res.json(); // abort signal still live — fires if body read exceeds total timeout
+    clearTimeout(timer);
+    const elapsed = `${Date.now() - t0}ms`;
     const raw    = (json.choices?.[0]?.message?.content || '').trim();
     const preview = raw.slice(0, 80).replace(/\n/g, ' ');
     console.log(`[ocr] ✓ ${model} responded in ${elapsed} — ${preview}`);
