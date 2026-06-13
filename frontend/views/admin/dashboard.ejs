@@ -1107,7 +1107,7 @@
                   <a href="/admin/vault/files/<%= f.id %>" class="pta-btn pta-btn--ghost pta-btn--sm" title="Download"><i class="bi bi-download"></i></a>
                   <% if (canWrite) { %>
                   <form method="POST" action="/admin/vault/files/<%= f.id %>/delete" class="d-inline"
-                        onsubmit="return confirm('Delete <%= f.original_name %>?')">
+                        onsubmit="return confirm('Delete ' + <%- JSON.stringify(f.original_name) %> + '?')">
                     <button class="pta-btn pta-btn--ghost pta-btn--sm pta-tone-danger" title="Delete"><i class="bi bi-trash"></i></button>
                   </form>
                   <% } %>
@@ -1166,7 +1166,7 @@
                 <td style="white-space:nowrap">
                   <a href="/admin/vault/files/<%= f.id %>" class="pta-btn pta-btn--ghost pta-btn--sm" title="Download"><i class="bi bi-download"></i></a>
                   <form method="POST" action="/admin/vault/files/<%= f.id %>/delete" class="d-inline"
-                        onsubmit="return confirm('Delete <%= f.original_name %>?')">
+                        onsubmit="return confirm('Delete ' + <%- JSON.stringify(f.original_name) %> + '?')">
                     <button class="pta-btn pta-btn--ghost pta-btn--sm pta-tone-danger" title="Delete"><i class="bi bi-trash"></i></button>
                   </form>
                 </td>
