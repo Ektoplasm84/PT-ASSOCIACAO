@@ -73,6 +73,7 @@
         <th>Member ID</th>
         <th>Email</th>
         <th>Position</th>
+        <th>ID Type</th>
         <th>Fee Status</th>
         <th>Warnings</th>
         <th>Joined</th>
@@ -131,6 +132,15 @@
         <td><%= m.email %></td>
         <td><span class="pta-badge pta-badge--soft pta-tone-<%= _ptone %>"><%= _plabel %></span></td>
         <td>
+          <% if (m.is_aprc) { %>
+          <span class="pta-badge pta-badge--soft pta-tone-info">APRC</span>
+          <% } else if (m.is_tw_passport) { %>
+          <span class="pta-badge pta-badge--soft pta-tone-neutral">TW Passport</span>
+          <% } else { %>
+          <span class="pta-badge pta-badge--soft pta-tone-neutral">ARC</span>
+          <% } %>
+        </td>
+        <td>
           <% if (m.position === 'honorary') { %>
           <%- feeBadge('honorary') %>
           <% } else { %>
@@ -155,7 +165,7 @@
       </tr>
       <% }); %>
       <% if (!members.length) { %>
-      <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:3rem">No members found.</td></tr>
+      <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:3rem">No members found.</td></tr>
       <% } %>
     </tbody>
   </table>
