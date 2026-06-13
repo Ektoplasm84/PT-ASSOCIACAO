@@ -3,6 +3,12 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
+
+// busboy 1.x decodes multipart filenames as latin1 by default; modern browsers send UTF-8.
+// Re-encode to recover Chinese and other non-ASCII characters.
+function fixFilename(name) {
+  return Buffer.from(name, 'latin1').toString('utf8');
+}
 const bcrypt = require('bcryptjs');
 const Jimp = require('jimp');
 const db = require('../database/db');
@@ -762,7 +768,7 @@ router.post('/members/:id/documents/card', adminOnly, cardUpload.single('image')
     const insertRes = db.prepare(`
       INSERT INTO documents (member_id, file_path, original_name, mime_type, doc_type, thumb_path)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(member.id, filePath, req.file.originalname, req.file.mimetype, docType, thumbPath);
+    `).run(member.id, filePath, fixFilename(req.file.originalname), req.file.mimetype, docType, thumbPath);
 
     const docId = insertRes.lastInsertRowid;
 
@@ -806,11 +812,11 @@ router.post('/members/:id/documents', adminOnly, docUpload.array('documents', 5)
           thumbPath = path.join('uploads', 'thumbs', thumbFilename);
         } catch (_) {}
       }
-      insert.run(member.id, filePath, file.originalname, file.mimetype, thumbPath);
+      insert.run(member.id, filePath, fixFilename(file.originalname), file.mimetype, thumbPath);
     }
     writeAudit(res.locals.currentUser.id, res.locals.currentUser.email,
                member.id, `${member.member_id} ${member.first_name} ${member.last_name}`, 'member.doc_uploaded',
-               `${req.files.length} file(s): ${req.files.map(f => f.originalname).join(', ')}`);
+               `${req.files.length} file(s): ${req.files.map(f => fixFilename(f.originalname)).join(', ')}`);
     // HOOK: notify member a document was added to their profile
     req.session.flash = { type: 'success', message: `${req.files.length} document(s) uploaded.` };
   }
@@ -1308,10 +1314,10 @@ router.post('/vault/upload', (req, res, next) => {
   db.prepare(`
     INSERT INTO vault_files (section, filename, original_name, mime_type, file_size, description, uploaded_by)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(section, req.file.filename, req.file.originalname, req.file.mimetype, req.file.size, description || null, u.id);
+  `).run(section, req.file.filename, fixFilename(req.file.originalname), req.file.mimetype, req.file.size, description || null, u.id);
 
   writeAudit(u.id, u.email, null, null, 'vault.upload',
-    `[${section}] ${req.file.originalname} (${Math.round(req.file.size / 1024)} KB)`);
+    `[${section}] ${fixFilename(req.file.originalname)} (${Math.round(req.file.size / 1024)} KB)`);
   req.session.flash = { type: 'success', message: `File uploaded to ${section === 'admin' ? 'Administration' : 'Public'} Vault.` };
   res.redirect('/admin#vault');
 });
