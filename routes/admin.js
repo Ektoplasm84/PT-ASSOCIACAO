@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const Jimp = require('jimp');
 const db = require('../database/db');
 const { computeFeeStatus } = require('../utils/fee');
-const { scan: ocrScan, checkModels, getModelWarnings, dismissModelWarning, getActiveModels, setActiveModels, testModel: ocrTestModel } = require('../utils/ocr');
+const { scan: ocrScan, checkModels, getModelWarnings, dismissModelWarning, getActiveModels, setActiveModels, testModel: ocrTestModel, getModelTimeout, setModelTimeout } = require('../utils/ocr');
 const { getLogs, subscribe: logSubscribe } = require('../utils/logstream');
 const { writeAudit } = require('../utils/audit');
 const countries        = require('../utils/countries');
@@ -34,12 +34,12 @@ function setSetting(key, value) {
   db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, String(value));
 }
 
-// Load persisted OCR model list from settings (runs at module init)
+// Load persisted OCR settings from DB (runs at module init)
 {
   const saved = getSetting('ocr_models', null);
-  if (saved) {
-    try { setActiveModels(JSON.parse(saved)); } catch {}
-  }
+  if (saved) { try { setActiveModels(JSON.parse(saved)); } catch {} }
+  const savedTimeout = getSetting('ocr_timeout_ms', null);
+  if (savedTimeout) setModelTimeout(parseInt(savedTimeout, 10));
 }
 
 // --- OCR background result cache (keyed by document DB id) ---
@@ -219,8 +219,9 @@ router.get('/', (req, res) => {
 
   const modelWarnings = res.locals.isSuperAdmin ? getModelWarnings() : [];
   const defaultFee    = res.locals.isSuperAdmin ? parseInt(getSetting('default_fee_amount', '300'), 10) : 300;
-  const activeModels  = res.locals.isSuperAdmin ? getActiveModels() : [];
-  res.render('admin/dashboard', { title: 'Dashboard', stats, recent, warnings, modelWarnings, defaultFee, activeModels });
+  const activeModels    = res.locals.isSuperAdmin ? getActiveModels() : [];
+  const ocrTimeoutSec   = res.locals.isSuperAdmin ? Math.round(getModelTimeout() / 1000) : 55;
+  res.render('admin/dashboard', { title: 'Dashboard', stats, recent, warnings, modelWarnings, defaultFee, activeModels, ocrTimeoutSec });
 });
 
 // --- Calendar / Events ---
@@ -1164,6 +1165,13 @@ router.post('/settings/models', superAdminOnly, (req, res) => {
   }
   setActiveModels(models);
   setSetting('ocr_models', JSON.stringify(models));
+
+  const timeoutSec = parseInt(req.body.timeout_sec, 10);
+  if (timeoutSec >= 10 && timeoutSec <= 120) {
+    setModelTimeout(timeoutSec * 1000);
+    setSetting('ocr_timeout_ms', String(timeoutSec * 1000));
+  }
+
   writeAudit(res.locals.currentUser.id, res.locals.currentUser.email,
              null, null, 'settings.models_changed', models.join(', '));
   req.session.flash = { type: 'success', message: 'OCR model list saved.' };

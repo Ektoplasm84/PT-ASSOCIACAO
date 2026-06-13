@@ -168,7 +168,13 @@ async function checkModels() {
 
 // ── Single-model vision call ───────────────────────────────────────────────────
 
-const MODEL_TIMEOUT_MS = 55_000; // 55s per model call — buffer below proxy timeout ceiling
+let MODEL_TIMEOUT_MS = 55_000; // mutable — configurable via setModelTimeout()
+
+function getModelTimeout() { return MODEL_TIMEOUT_MS; }
+function setModelTimeout(ms) {
+  const n = parseInt(ms, 10);
+  if (n >= 10_000 && n <= 120_000) MODEL_TIMEOUT_MS = n;
+}
 
 async function callVisionModel(model, prompt, b64, mime) {
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -351,4 +357,4 @@ async function scan(docType, imagePath) {
   return result;
 }
 
-module.exports = { scan, checkModels, getModelWarnings, dismissModelWarning, getActiveModels, setActiveModels, testModel };
+module.exports = { scan, checkModels, getModelWarnings, dismissModelWarning, getActiveModels, setActiveModels, testModel, getModelTimeout, setModelTimeout };
