@@ -298,29 +298,4 @@ router.get('/documents/:docId/download', (req, res) => {
   res.sendFile(filePath);
 });
 
-// --- Public Vault (all members) ---
-
-router.get('/vault', (req, res) => {
-  const files = db.prepare(`
-    SELECT vf.*, COALESCE(m.arc_name_en, m.first_name || ' ' || m.last_name) as uploader_name
-    FROM vault_files vf
-    LEFT JOIN users u ON u.id = vf.uploaded_by
-    LEFT JOIN members m ON m.user_id = vf.uploaded_by
-    WHERE vf.section = 'public' ORDER BY vf.uploaded_at DESC
-  `).all();
-  res.render('user/vault', { title: 'Public Documents', files });
-});
-
-router.get('/vault/files/:id', (req, res) => {
-  const row = db.prepare(`SELECT * FROM vault_files WHERE id = ? AND section = 'public'`).get(req.params.id);
-  if (!row) return res.status(404).send('Not found');
-
-  const filePath = path.join(process.cwd(), 'uploads', 'vault', 'public', row.filename);
-  if (!fs.existsSync(filePath)) return res.status(404).send('File not found on disk');
-
-  res.setHeader('Content-Type', row.mime_type || 'application/octet-stream');
-  res.setHeader('Content-Disposition', contentDispositionFilename('attachment', row.original_name));
-  res.sendFile(filePath);
-});
-
-module.exports = router;
+module.exports = { router, contentDispositionFilename };
