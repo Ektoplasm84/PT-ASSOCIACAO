@@ -1,0 +1,56 @@
+<%- include('../partials/header') %>
+
+<div class="pta-pagehead">
+  <div class="pta-pagehead__titles">
+    <h1><i class="bi bi-archive-fill" style="color:var(--green-600)"></i> Public Documents</h1>
+  </div>
+</div>
+
+<div class="pta-card pta-card--flush">
+  <% if (files.length === 0) { %>
+  <div style="text-align:center;padding:3rem;color:var(--text-muted)">
+    <i class="bi bi-archive" style="font-size:2rem;display:block;margin-bottom:.5rem"></i>
+    No documents have been published yet.
+  </div>
+  <% } else { %>
+  <table class="pta-table">
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Description</th>
+        <th>Uploaded by</th>
+        <th>Date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% files.forEach(function(f) {
+        const ext = f.original_name.split('.').pop().toLowerCase();
+        const ico = ext === 'pdf' ? 'bi-file-earmark-pdf' :
+                    ['jpg','jpeg','png','webp'].includes(ext) ? 'bi-file-earmark-image' :
+                    ['doc','docx'].includes(ext) ? 'bi-file-earmark-word' :
+                    ['xls','xlsx'].includes(ext) ? 'bi-file-earmark-excel' :
+                    'bi-file-earmark';
+      %>
+      <tr>
+        <td>
+          <i class="bi <%= ico %>" style="margin-right:.4rem;color:var(--text-muted)"></i>
+          <span style="font-weight:500"><%= f.original_name %></span>
+          <span class="pta-id" style="margin-left:.5rem;font-size:.75rem"><%= Math.round(f.file_size / 1024) %> KB</span>
+        </td>
+        <td style="color:var(--text-muted)"><%= f.description || '—' %></td>
+        <td><%= f.uploader_name || f.uploader_email || '—' %></td>
+        <td><span class="pta-id"><%= f.uploaded_at ? f.uploaded_at.slice(0,10) : '—' %></span></td>
+        <td>
+          <a href="/vault/files/<%= f.id %>" class="pta-btn pta-btn--ghost pta-btn--sm" title="Download">
+            <i class="bi bi-download"></i>
+          </a>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

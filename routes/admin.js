@@ -119,6 +119,35 @@ const cardUpload = multer({
 
 const CARD_TYPES = ['arc_front', 'arc_back', 'cc_front', 'cc_back'];
 
+const vaultStorage = multer.diskStorage({
+  destination(req, file, cb) {
+    const section = req.body.section === 'admin' ? 'admin' : 'public';
+    cb(null, path.join(process.cwd(), 'uploads', 'vault', section));
+  },
+  filename(req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${Date.now()}-${uuidv4()}${ext}`);
+  },
+});
+
+const VAULT_ALLOWED_MIME = [
+  'application/pdf',
+  'image/jpeg', 'image/png', 'image/webp',
+  'text/plain',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+
+const vaultUpload = multer({
+  storage: vaultStorage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter(req, file, cb) {
+    cb(null, VAULT_ALLOWED_MIME.includes(file.mimetype));
+  },
+});
+
 // Generate a 300-wide thumbnail (non-fatal if it fails)
 async function generateThumb(srcPath, thumbPath) {
   const img = await Jimp.read(srcPath);
@@ -219,9 +248,32 @@ router.get('/', (req, res) => {
 
   const modelWarnings = res.locals.isSuperAdmin ? getModelWarnings() : [];
   const defaultFee    = res.locals.isSuperAdmin ? parseInt(getSetting('default_fee_amount', '300'), 10) : 300;
-  const activeModels    = res.locals.isSuperAdmin ? getActiveModels() : [];
-  const ocrTimeoutSec   = res.locals.isSuperAdmin ? Math.round(getModelTimeout() / 1000) : 55;
-  res.render('admin/dashboard', { title: 'Dashboard', stats, recent, warnings, modelWarnings, defaultFee, activeModels, ocrTimeoutSec });
+  const activeModels  = res.locals.isSuperAdmin ? getActiveModels() : [];
+  const ocrTimeoutSec = res.locals.isSuperAdmin ? Math.round(getModelTimeout() / 1000) : 55;
+
+  const u = res.locals.currentUser;
+  const canVaultAdmin = u.role === 'super_admin' || u.role === 'admin';
+  const vaultPublic = db.prepare(`
+    SELECT vf.*, u.email as uploader_email,
+           COALESCE(m.arc_name_en, m.first_name || ' ' || m.last_name) as uploader_name
+    FROM vault_files vf
+    LEFT JOIN users u ON u.id = vf.uploaded_by
+    LEFT JOIN members m ON m.user_id = vf.uploaded_by
+    WHERE vf.section = 'public' ORDER BY vf.uploaded_at DESC
+  `).all();
+  const vaultAdmin = canVaultAdmin ? db.prepare(`
+    SELECT vf.*, u.email as uploader_email,
+           COALESCE(m.arc_name_en, m.first_name || ' ' || m.last_name) as uploader_name
+    FROM vault_files vf
+    LEFT JOIN users u ON u.id = vf.uploaded_by
+    LEFT JOIN members m ON m.user_id = vf.uploaded_by
+    WHERE vf.section = 'admin' ORDER BY vf.uploaded_at DESC
+  `).all() : [];
+
+  res.render('admin/dashboard', {
+    title: 'Dashboard', stats, recent, warnings, modelWarnings, defaultFee,
+    activeModels, ocrTimeoutSec, vaultPublic, vaultAdmin, canVaultAdmin,
+  });
 });
 
 // --- Calendar / Events ---
@@ -1219,6 +1271,87 @@ router.get('/logs/stream', (req, res) => {
   }
 
   logSubscribe(res);
+});
+
+// ── File Vault ────────────────────────────────────────────────────────────────
+
+function canUploadVault(user) {
+  return user.role === 'super_admin' || user.role === 'admin' || MGMT_POSITIONS.includes(user.position);
+}
+
+// Upload — section determined by form field; admin section restricted to canWrite
+router.post('/vault/upload', (req, res, next) => {
+  // Determine section before multer so diskStorage can route correctly
+  const rawSection = req.body && req.body.section;
+  req.vaultSection = rawSection === 'admin' ? 'admin' : 'public';
+  next();
+}, vaultUpload.single('vault_file'), (req, res) => {
+  const u = res.locals.currentUser;
+  const section = req.vaultSection;
+
+  if (!canUploadVault(u)) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    req.session.flash = { type: 'danger', message: 'Not authorised to upload to vault.' };
+    return res.redirect('/admin#vault');
+  }
+  if (section === 'admin' && u.role !== 'super_admin' && u.role !== 'admin') {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    req.session.flash = { type: 'danger', message: 'Only admins can upload to the Administration vault.' };
+    return res.redirect('/admin#vault');
+  }
+  if (!req.file) {
+    req.session.flash = { type: 'danger', message: 'No file received or file type not allowed.' };
+    return res.redirect('/admin#vault');
+  }
+
+  const description = (req.body.description || '').trim().slice(0, 200);
+  db.prepare(`
+    INSERT INTO vault_files (section, filename, original_name, mime_type, file_size, description, uploaded_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(section, req.file.filename, req.file.originalname, req.file.mimetype, req.file.size, description || null, u.id);
+
+  writeAudit(u.id, u.email, null, null, 'vault.upload',
+    `[${section}] ${req.file.originalname} (${Math.round(req.file.size / 1024)} KB)`);
+  req.session.flash = { type: 'success', message: `File uploaded to ${section === 'admin' ? 'Administration' : 'Public'} Vault.` };
+  res.redirect('/admin#vault');
+});
+
+// Download — auth checked per section
+router.get('/vault/files/:id', (req, res) => {
+  const u   = res.locals.currentUser;
+  const row = db.prepare('SELECT * FROM vault_files WHERE id = ?').get(req.params.id);
+  if (!row) return res.status(404).send('Not found');
+
+  if (row.section === 'admin' && u.role !== 'super_admin' && u.role !== 'admin' && !MGMT_POSITIONS.includes(u.position)) {
+    return res.status(403).send('Access denied');
+  }
+
+  const filePath = path.join(process.cwd(), 'uploads', 'vault', row.section, row.filename);
+  if (!fs.existsSync(filePath)) return res.status(404).send('File not found on disk');
+
+  res.setHeader('Content-Type', row.mime_type || 'application/octet-stream');
+  res.setHeader('Content-Disposition', contentDispositionFilename('attachment', row.original_name));
+  res.sendFile(filePath);
+});
+
+// Delete — canWrite only (admin / super_admin)
+router.post('/vault/files/:id/delete', (req, res) => {
+  const u = res.locals.currentUser;
+  if (u.role !== 'super_admin' && u.role !== 'admin') {
+    req.session.flash = { type: 'danger', message: 'Not authorised.' };
+    return res.redirect('/admin#vault');
+  }
+  const row = db.prepare('SELECT * FROM vault_files WHERE id = ?').get(req.params.id);
+  if (!row) { req.session.flash = { type: 'danger', message: 'File not found.' }; return res.redirect('/admin#vault'); }
+
+  const filePath = path.join(process.cwd(), 'uploads', 'vault', row.section, row.filename);
+  try { fs.unlinkSync(filePath); } catch {}
+  db.prepare('DELETE FROM vault_files WHERE id = ?').run(row.id);
+
+  writeAudit(u.id, u.email, null, null, 'vault.delete',
+    `[${row.section}] ${row.original_name}`);
+  req.session.flash = { type: 'success', message: 'File deleted from vault.' };
+  res.redirect('/admin#vault');
 });
 
 module.exports = router;

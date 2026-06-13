@@ -321,4 +321,18 @@ db.prepare(`CREATE TABLE IF NOT EXISTS event_invites (
 db.prepare(`CREATE INDEX IF NOT EXISTS idx_ei_user  ON event_invites(user_id)`).run();
 db.prepare(`CREATE INDEX IF NOT EXISTS idx_ei_event ON event_invites(event_id)`).run();
 
+// --- File Vault ---
+db.prepare(`CREATE TABLE IF NOT EXISTS vault_files (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  section       TEXT    NOT NULL CHECK(section IN ('public','admin')),
+  filename      TEXT    NOT NULL,
+  original_name TEXT    NOT NULL,
+  mime_type     TEXT,
+  file_size     INTEGER,
+  description   TEXT,
+  uploaded_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  uploaded_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+)`).run();
+db.prepare(`CREATE INDEX IF NOT EXISTS idx_vault_section ON vault_files(section)`).run();
+
 module.exports = db;

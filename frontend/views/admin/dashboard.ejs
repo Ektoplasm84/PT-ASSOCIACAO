@@ -1047,4 +1047,140 @@
   <a href="/admin/members" class="pta-btn pta-btn--secondary pta-btn--sm">View All Members <i class="bi bi-arrow-right"></i></a>
 </div>
 
+<!-- ===== File Vault ===== -->
+<div id="vault" style="margin-top:2rem;margin-bottom:1.5rem">
+  <div class="pta-pagehead" style="margin-bottom:1rem">
+    <div class="pta-pagehead__titles">
+      <h2 style="margin:0"><i class="bi bi-archive-fill" style="color:var(--green-600);margin-right:.4rem"></i> File Vault</h2>
+    </div>
+    <a href="/vault" class="pta-btn pta-btn--ghost pta-btn--sm">
+      <i class="bi bi-box-arrow-up-right"></i> Member view
+    </a>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- Public Vault -->
+    <div class="col-12 col-lg-6">
+      <div class="pta-card h-100">
+        <header class="pta-card__head">
+          <i class="bi bi-globe2" style="color:var(--green-600)"></i>
+          <div class="pta-card__titles">
+            <span class="pta-card__eyebrow">Visible to all members</span>
+            <span class="pta-card__title">Public Vault</span>
+          </div>
+        </header>
+        <div class="pta-card__body">
+
+          <!-- Upload form -->
+          <form method="POST" action="/admin/vault/upload" enctype="multipart/form-data"
+                style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem">
+            <input type="hidden" name="section" value="public">
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+              <div style="flex:1;min-width:200px">
+                <label class="pta-field__label" style="margin-bottom:.25rem">File</label>
+                <input type="file" name="vault_file" class="pta-control" required>
+              </div>
+              <button type="submit" class="pta-btn pta-btn--sm">
+                <i class="bi bi-cloud-upload"></i> Upload
+              </button>
+            </div>
+            <input type="text" name="description" class="pta-control" placeholder="Description (optional)" maxlength="200">
+          </form>
+
+          <!-- File list -->
+          <% if (vaultPublic.length === 0) { %>
+          <p class="small mb-0" style="color:var(--text-muted);text-align:center;padding:1rem 0">No files yet.</p>
+          <% } else { %>
+          <table class="pta-table" style="font-size:.875rem">
+            <thead><tr><th>File</th><th>Uploaded</th><th></th></tr></thead>
+            <tbody>
+              <% vaultPublic.forEach(function(f) { %>
+              <tr>
+                <td>
+                  <div style="font-weight:500"><%= f.original_name %></div>
+                  <% if (f.description) { %><div style="color:var(--text-muted);font-size:.8rem"><%= f.description %></div><% } %>
+                  <div style="color:var(--text-muted);font-size:.75rem"><%= f.uploader_name || f.uploader_email || '—' %></div>
+                </td>
+                <td style="white-space:nowrap"><span class="pta-id"><%= f.uploaded_at ? f.uploaded_at.slice(0,10) : '—' %></span></td>
+                <td style="white-space:nowrap">
+                  <a href="/admin/vault/files/<%= f.id %>" class="pta-btn pta-btn--ghost pta-btn--sm" title="Download"><i class="bi bi-download"></i></a>
+                  <% if (canWrite) { %>
+                  <form method="POST" action="/admin/vault/files/<%= f.id %>/delete" class="d-inline"
+                        onsubmit="return confirm('Delete <%= f.original_name %>?')">
+                    <button class="pta-btn pta-btn--ghost pta-btn--sm pta-tone-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                  </form>
+                  <% } %>
+                </td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Vault -->
+    <% if (canVaultAdmin) { %>
+    <div class="col-12 col-lg-6">
+      <div class="pta-card h-100">
+        <header class="pta-card__head">
+          <i class="bi bi-lock-fill" style="color:var(--text-muted)"></i>
+          <div class="pta-card__titles">
+            <span class="pta-card__eyebrow">Admins &amp; Super Admins only</span>
+            <span class="pta-card__title">Administration Vault</span>
+          </div>
+        </header>
+        <div class="pta-card__body">
+
+          <form method="POST" action="/admin/vault/upload" enctype="multipart/form-data"
+                style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem">
+            <input type="hidden" name="section" value="admin">
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+              <div style="flex:1;min-width:200px">
+                <label class="pta-field__label" style="margin-bottom:.25rem">File</label>
+                <input type="file" name="vault_file" class="pta-control" required>
+              </div>
+              <button type="submit" class="pta-btn pta-btn--sm">
+                <i class="bi bi-cloud-upload"></i> Upload
+              </button>
+            </div>
+            <input type="text" name="description" class="pta-control" placeholder="Description (optional)" maxlength="200">
+          </form>
+
+          <% if (vaultAdmin.length === 0) { %>
+          <p class="small mb-0" style="color:var(--text-muted);text-align:center;padding:1rem 0">No files yet.</p>
+          <% } else { %>
+          <table class="pta-table" style="font-size:.875rem">
+            <thead><tr><th>File</th><th>Uploaded</th><th></th></tr></thead>
+            <tbody>
+              <% vaultAdmin.forEach(function(f) { %>
+              <tr>
+                <td>
+                  <div style="font-weight:500"><%= f.original_name %></div>
+                  <% if (f.description) { %><div style="color:var(--text-muted);font-size:.8rem"><%= f.description %></div><% } %>
+                  <div style="color:var(--text-muted);font-size:.75rem"><%= f.uploader_name || f.uploader_email || '—' %></div>
+                </td>
+                <td style="white-space:nowrap"><span class="pta-id"><%= f.uploaded_at ? f.uploaded_at.slice(0,10) : '—' %></span></td>
+                <td style="white-space:nowrap">
+                  <a href="/admin/vault/files/<%= f.id %>" class="pta-btn pta-btn--ghost pta-btn--sm" title="Download"><i class="bi bi-download"></i></a>
+                  <form method="POST" action="/admin/vault/files/<%= f.id %>/delete" class="d-inline"
+                        onsubmit="return confirm('Delete <%= f.original_name %>?')">
+                    <button class="pta-btn pta-btn--ghost pta-btn--sm pta-tone-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
+  </div>
+</div>
+
 <%- include('../partials/footer') %>

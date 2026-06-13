@@ -17,6 +17,7 @@
 <%
   const _navActive = title === 'Dashboard' ? 'dashboard'
     : title === 'Audit Log' ? 'audit'
+    : title === 'Public Documents' ? 'vault'
     : 'members';
 %>
 <header class="pta-topbar">
@@ -32,13 +33,15 @@
   <nav class="pta-nav">
     <a class="pta-nav__item <%= _navActive === 'dashboard' ? 'is-active' : '' %>" href="/admin"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
     <a class="pta-nav__item <%= _navActive === 'members'   ? 'is-active' : '' %>" href="/admin/members"><i class="bi bi-people-fill"></i><span>Members</span></a>
+    <a class="pta-nav__item <%= _navActive === 'vault'     ? 'is-active' : '' %>" href="/vault"><i class="bi bi-archive-fill"></i><span>Documents</span></a>
     <% if (canWrite) { %>
     <a class="pta-nav__item <%= _navActive === 'audit'     ? 'is-active' : '' %>" href="/admin/audit"><i class="bi bi-clock-history"></i><span>Audit Log</span></a>
     <% } %>
   </nav>
   <% } else { %>
   <nav class="pta-nav">
-    <a class="pta-nav__item is-active" href="/profile"><i class="bi bi-person-circle"></i><span>My Profile</span></a>
+    <a class="pta-nav__item <%= title === 'My Profile' ? 'is-active' : '' %>" href="/profile"><i class="bi bi-person-circle"></i><span>My Profile</span></a>
+    <a class="pta-nav__item <%= title === 'Public Documents' ? 'is-active' : '' %>" href="/vault"><i class="bi bi-archive-fill"></i><span>Documents</span></a>
   </nav>
   <% } %>
 

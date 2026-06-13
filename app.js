@@ -21,7 +21,7 @@ const session = require("express-session");
 const BetterSqliteStore = require("better-sqlite3-session-store")(session);
 
 // Ensure upload directories exist before anything else
-["uploads/photos", "uploads/documents", "uploads/thumbs"].forEach((dir) => {
+["uploads/photos", "uploads/documents", "uploads/thumbs", "uploads/vault/public", "uploads/vault/admin"].forEach((dir) => {
   fs.mkdirSync(path.join(process.cwd(), dir), { recursive: true });
 });
 
@@ -110,6 +110,7 @@ app.get("/uploads/thumbs/:filename", requireAuth, (req, res) => {
 app.use("/", authRouter);
 app.use("/admin", requireAuth, requireViewAll, adminRouter);
 app.use("/profile", requireAuth, userRouter);
+app.use("/vault", requireAuth, userRouter);
 
 // 404
 app.use((req, res) => {
