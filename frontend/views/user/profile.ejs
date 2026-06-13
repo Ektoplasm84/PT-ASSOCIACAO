@@ -12,18 +12,6 @@
   </div>
 </div>
 
-<div class="pta-tabs" role="tablist">
-  <button class="pta-tab" data-tab="profile" type="button"><i class="bi bi-person-vcard"></i> My Profile</button>
-  <button class="pta-tab" data-tab="notifications" type="button"><i class="bi bi-bell"></i> Notifications
-    <% if (pendingCount > 0) { %><span class="pta-tab__count" id="notifTabCount"><%= pendingCount %></span><% } %>
-  </button>
-</div>
-
-<div>
-
-<!-- ═══ Tab 1: Profile ═══ -->
-<div data-tab-pane="profile" role="tabpanel">
-
 <% if (feeReminder) { %>
 <div class="alert alert-warning d-flex gap-2 align-items-start mb-4">
   <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
@@ -31,10 +19,9 @@
 </div>
 <% } %>
 
-<div class="row g-4">
+<div class="profile-layout">
 
-  <!-- Photo + badge -->
-  <div class="col-md-3 text-center">
+  <div class="profile-sidebar text-center">
     <% if (member.photo_path) { %>
     <img src="/<%= member.photo_path.replace(/\\/g, '/') %>" alt="Photo"
          class="rounded-circle mb-3 shadow" style="width:130px;height:130px;object-fit:cover;">
@@ -54,7 +41,7 @@
     </div>
   </div>
 
-  <div class="col-md-9">
+  <div class="profile-cards">
 
     <!-- 1. Personal Info -->
     <div class="card shadow-sm mb-3">
@@ -137,9 +124,9 @@
       </div>
     </div>
 
-    <!-- Notes (visible to admins/super_admins on their own profile) -->
+    <!-- Notes (full-width) -->
     <% if (canWrite && member.notes) { %>
-    <div class="card shadow-sm mb-3">
+    <div class="card shadow-sm mb-3 full">
       <div class="card-header fw-semibold">Notes</div>
       <div class="card-body">
         <p class="mb-0" style="white-space:pre-wrap"><%= member.notes %></p>
@@ -147,7 +134,7 @@
     </div>
     <% } %>
 
-    <!-- Documents -->
+    <!-- My Documents (full-width) -->
     <%
       const CARD_TYPES_U = ['arc_front', 'arc_back', 'cc_front', 'cc_back'];
       const CARD_LABELS_U = { arc_front: 'ARC Front', arc_back: 'ARC Back', cc_front: 'CC Front', cc_back: 'CC Back' };
@@ -156,7 +143,7 @@
       const miscDocsU = documents.filter(d => !d.doc_type || d.doc_type === 'misc');
       const hasCardDocs = Object.keys(cardDocsU).length > 0;
     %>
-    <div class="card shadow-sm">
+    <div class="card shadow-sm full">
       <div class="card-header fw-semibold">My Documents</div>
       <div class="card-body">
 
@@ -224,18 +211,12 @@
     </div>
 
   </div>
+</div><!-- /profile-layout -->
+
+<div class="section-label" id="notifications">
+  <i class="bi bi-bell"></i> Notifications
+  <% if (pendingCount > 0) { %><span class="pta-badge pta-badge--solid pta-tone-danger" style="margin-left:.5rem"><%= pendingCount %></span><% } %>
 </div>
-</div><!-- /tab-pane profile -->
-
-<!-- ═══ Tab 2: Notifications ═══ -->
-<div data-tab-pane="notifications" role="tabpanel">
-
-  <% if (feeReminder) { %>
-  <div class="alert alert-warning d-flex gap-2 align-items-start mb-4">
-    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
-    <div><strong>Fee Reminder</strong> — <%= feeReminder %></div>
-  </div>
-  <% } %>
 
   <% if (!invites.length) { %>
   <div class="pta-card">
@@ -311,27 +292,43 @@
   <% } %>
 
   <% } %>
-</div><!-- /tab-pane notifications -->
 
-</div><!-- /tab-content -->
+<div class="section-label" style="margin-top:2rem"><i class="bi bi-archive-fill" style="color:var(--green-600)"></i> Public Documents</div>
+<div class="pta-card pta-card--flush">
+  <% if (!vaultFiles || !vaultFiles.length) { %>
+  <div style="text-align:center;padding:2rem;color:var(--text-muted)">
+    <i class="bi bi-archive" style="font-size:1.5rem;display:block;margin-bottom:.4rem"></i>
+    No documents published yet.
+  </div>
+  <% } else { %>
+  <div class="pta-table-wrap">
+    <table class="pta-table">
+      <thead><tr><th>File</th><th>Description</th><th>Date</th><th></th></tr></thead>
+      <tbody>
+        <% vaultFiles.forEach(function(f) {
+          const ext = f.original_name.split('.').pop().toLowerCase();
+          const ico = ext==='pdf' ? 'bi-file-earmark-pdf'
+                    : ['jpg','jpeg','png','webp'].includes(ext) ? 'bi-file-earmark-image'
+                    : ['doc','docx'].includes(ext) ? 'bi-file-earmark-word'
+                    : 'bi-file-earmark';
+        %>
+        <tr>
+          <td><i class="bi <%= ico %>" style="margin-right:.4rem;color:var(--text-muted)"></i>
+            <span style="font-weight:500"><%= f.original_name %></span>
+            <span class="pta-id" style="font-size:.75rem"><%= Math.round(f.file_size/1024) %> KB</span></td>
+          <td style="color:var(--text-muted)"><%= f.description || '—' %></td>
+          <td><span class="pta-id"><%= f.uploaded_at ? f.uploaded_at.slice(0,10) : '—' %></span></td>
+          <td><a href="/vault/files/<%= f.id %>" class="pta-btn pta-btn--ghost pta-btn--sm"><i class="bi bi-download"></i></a></td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
 
 <script>
 (function () {
-  // Tab switching
-  var _activeTab = '<%= activeTab === "notifications" ? "notifications" : "profile" %>';
-  function showTab(name) {
-    document.querySelectorAll('.pta-tab').forEach(function(t) {
-      t.classList.toggle('is-active', t.dataset.tab === name);
-    });
-    document.querySelectorAll('[data-tab-pane]').forEach(function(p) {
-      p.style.display = p.dataset.tabPane === name ? '' : 'none';
-    });
-  }
-  document.querySelectorAll('.pta-tab').forEach(function(t) {
-    t.addEventListener('click', function() { showTab(t.dataset.tab); });
-  });
-  showTab(_activeTab);
-
   // Respond to invite
   document.querySelectorAll('.js-respond').forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -366,13 +363,6 @@
               var n = parseInt(bellBadge.textContent, 10) - 1;
               if (n <= 0) bellBadge.remove();
               else bellBadge.textContent = String(n);
-            }
-            // Update tab count badge
-            var tabCount = document.getElementById('notifTabCount');
-            if (tabCount) {
-              var tn = parseInt(tabCount.textContent, 10) - 1;
-              if (tn <= 0) tabCount.remove();
-              else tabCount.textContent = String(tn);
             }
           } else {
             btn.disabled = false;

@@ -67,7 +67,7 @@
   </div>
   <% } else { %>
   <div class="pta-card__body" style="padding:0">
-    <table class="pta-table">
+    <div class="pta-table-wrap"><table class="pta-table">
       <thead><tr><th>Member</th><th>Fee</th><th>ARC</th><th>CC</th><th></th></tr></thead>
       <tbody>
         <% warnings.forEach(function(w) {
@@ -98,7 +98,7 @@
         </tr>
         <% }); %>
       </tbody>
-    </table>
+    </table></div>
   </div>
   <% } %>
 </div>
@@ -125,7 +125,7 @@
     </div>
     <% } else { %>
     <div class="pta-card__body" style="padding:0" id="modelHealthTable">
-      <table class="pta-table">
+      <div class="pta-table-wrap"><table class="pta-table">
         <thead><tr><th>Model</th><th>Status</th><th>Error</th><th>Detected</th><th></th></tr></thead>
         <tbody id="modelHealthRows">
           <% modelWarnings.forEach(function(w) { %>
@@ -149,7 +149,7 @@
           </tr>
           <% }); %>
         </tbody>
-      </table>
+      </table></div>
     </div>
     <% } %>
   </div>
@@ -452,10 +452,10 @@
           Models 1 and 2 run in parallel. Model 3 is a fallback when either parallel model is rate-limited.
         </p>
 
-        <table class="pta-table" style="margin-bottom:1rem">
+        <div class="pta-table-wrap"><table class="pta-table" style="margin-bottom:1rem">
           <thead><tr><th>#</th><th>Model ID</th><th>Role</th><th></th></tr></thead>
           <tbody id="modelConfigRows"></tbody>
-        </table>
+        </table></div>
 
         <div style="display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:.5rem">
           <div style="flex:1;min-width:240px">
@@ -552,6 +552,7 @@
           <div class="pta-cal-events" id="calEventsPanel">
             <div class="small" style="color:var(--text-muted)">Select a day to view events.</div>
           </div>
+          <div class="pta-agenda" id="calAgenda"><!-- populated by renderAgendaMobile() --></div>
         </div>
       </div>
     </div>
@@ -749,6 +750,7 @@
 
     if (_calSel) showDayEvents(_calSel);
     renderUpcoming();
+    renderAgendaMobile();
   }
 
   // Upcoming-events side panel — built from the same events the grid fetched,
@@ -796,6 +798,50 @@
         return function() { selectDay(ds); };
       }(e.start_date.slice(0, 10))));
       panel.appendChild(item);
+    });
+  }
+
+  function renderAgendaMobile() {
+    var el = document.getElementById('calAgenda');
+    if (!el) return;
+    el.innerHTML = '';
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var byDay = {};
+    _calEvents.forEach(function(e) {
+      var d = e.start_date ? e.start_date.slice(0, 10) : null;
+      if (d) { (byDay[d] = byDay[d] || []).push(e); }
+    });
+    var days = Object.keys(byDay).sort();
+    if (!days.length) {
+      el.innerHTML = '<div class="small" style="color:var(--text-muted)">Sem eventos este mês.</div>';
+      return;
+    }
+    var DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    days.forEach(function(ds) {
+      var dt   = new Date(ds + 'T00:00:00');
+      var item = document.createElement('div');
+      item.className = 'pta-agenda__day';
+      var dateDiv = document.createElement('div');
+      dateDiv.className = 'pta-agenda__date' + (ds === todayStr ? ' is-today' : '');
+      dateDiv.innerHTML = '<div class="pta-agenda__dnum">' + dt.getDate() + '</div>'
+                        + '<div class="pta-agenda__dow">' + DOW[dt.getDay()] + '</div>';
+      var evsDiv = document.createElement('div');
+      evsDiv.className = 'pta-agenda__evs';
+      byDay[ds].forEach(function(e) {
+        var ev = document.createElement('div');
+        ev.className = 'pta-agenda__ev';
+        ev.style.cursor = 'pointer';
+        ev.innerHTML = '<div class="pta-agenda__bar" style="background:'
+          + CAL_COLORS[e.id % CAL_COLORS.length] + '"></div>'
+          + '<div class="pta-agenda__txt"><div class="pta-agenda__t">' + escH(e.title) + '</div>'
+          + (e.location ? '<div class="pta-agenda__m">' + escH(e.location) + '</div>' : '')
+          + '</div>';
+        ev.addEventListener('click', (function(d) { return function() { selectDay(d); }; }(ds)));
+        evsDiv.appendChild(ev);
+      });
+      item.appendChild(dateDiv);
+      item.appendChild(evsDiv);
+      el.appendChild(item);
     });
   }
 
@@ -1015,7 +1061,7 @@
     <div class="pta-card__titles"><span class="pta-card__title">Recent Members</span></div>
   </header>
   <div class="pta-card__body" style="padding:0">
-    <table class="pta-table">
+    <div class="pta-table-wrap"><table class="pta-table">
       <thead><tr><th>Member</th><th>Email</th><th>Fee Status</th><th>Joined</th><th></th></tr></thead>
       <tbody>
         <% recent.forEach(function(m) { %>
@@ -1040,7 +1086,7 @@
         <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">No members yet.</td></tr>
         <% } %>
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 <div style="margin-top:1rem">

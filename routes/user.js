@@ -73,8 +73,11 @@ router.get('/', (req, res) => {
     }
   }
 
-  const activeTab = req.query.tab === 'notifications' ? 'notifications' : 'profile';
-  res.render('user/profile', { title: 'My Profile', member, documents, invites, feeReminder, activeTab });
+  const vaultFiles = db.prepare(
+    `SELECT * FROM vault_files WHERE section = 'public' ORDER BY uploaded_at DESC`
+  ).all();
+
+  res.render('user/profile', { title: 'My Profile', member, documents, invites, feeReminder, vaultFiles });
 });
 
 // --- Edit form ---

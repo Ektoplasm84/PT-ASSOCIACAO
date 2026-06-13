@@ -3,32 +3,35 @@
 <%
   const ACTION_LABELS = {
     'member.created':       { label: 'Member Created',    icon: 'bi-person-plus-fill',  color: 'success' },
-    'member.updated':       { label: 'Member Updated',    icon: 'bi-pencil-fill',        color: 'primary' },
+    'member.updated':       { label: 'Member Updated',    icon: 'bi-pencil-fill',        color: 'info'    },
     'member.deleted':       { label: 'Member Deleted',    icon: 'bi-person-x-fill',     color: 'danger'  },
-    'member.role_changed':  { label: 'Role Changed',      icon: 'bi-shield-fill',        color: 'warning' },
+    'member.role_changed':  { label: 'Role Changed',      icon: 'bi-shield-fill',        color: 'gold'    },
     'member.card_uploaded': { label: 'Card Uploaded',     icon: 'bi-credit-card-fill',   color: 'info'    },
     'member.doc_uploaded':  { label: 'Doc Uploaded',      icon: 'bi-file-earmark-plus',  color: 'info'    },
     'member.doc_deleted':   { label: 'Doc Deleted',       icon: 'bi-file-earmark-x',    color: 'danger'  },
-    'member.ocr_applied':   { label: 'OCR Fields Applied','icon': 'bi-scan',             color: 'secondary'},
-    'member.nia_photo_saved':{ label: 'NIA Photo Saved',  icon: 'bi-camera-fill',        color: 'secondary'},
-    'profile.self_updated':  { label: 'Self-Updated Profile', icon: 'bi-person-fill',    color: 'primary' },
+    'member.ocr_applied':   { label: 'OCR Fields Applied','icon': 'bi-scan',             color: 'neutral' },
+    'member.nia_photo_saved':{ label: 'NIA Photo Saved',  icon: 'bi-camera-fill',        color: 'neutral' },
+    'profile.self_updated':  { label: 'Self-Updated Profile', icon: 'bi-person-fill',    color: 'info'    },
     'member.fee_updated':    { label: 'Fee Updated',          icon: 'bi-cash-stack',      color: 'success' },
+    'vault.upload':          { label: 'Vault Upload',         icon: 'bi-archive-fill',    color: 'info'    },
+    'vault.delete':          { label: 'Vault Delete',         icon: 'bi-archive',         color: 'danger'  },
+    'member.password_reset': { label: 'Password Reset',       icon: 'bi-key-fill',        color: 'gold'    },
   };
 %>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="fw-bold mb-0"><i class="bi bi-journal-text me-2"></i>Audit Log</h2>
-  <span class="text-muted small"><%= total %> total entr<%= total === 1 ? 'y' : 'ies' %></span>
+<div class="pta-pagehead">
+  <div class="pta-pagehead__titles">
+    <h1><i class="bi bi-journal-text"></i> Audit Log</h1>
+    <span class="pta-pagehead__sub"><%= total %> total entr<%= total === 1 ? 'y' : 'ies' %></span>
+  </div>
 </div>
 
 <% if (!logs.length) { %>
-<div class="card shadow-sm">
-  <div class="card-body text-muted">
-    <i class="bi bi-check-circle text-success me-1"></i>No audit entries yet.
-  </div>
-</div>
+<div class="pta-card"><div class="pta-card__body" style="color:var(--text-muted)">
+  <i class="bi bi-check-circle" style="color:var(--success)"></i> No audit entries yet.
+</div></div>
 <% } else { %>
-<div class="card shadow-sm">
+<div class="pta-card pta-card--flush">
   <div class="table-responsive">
     <table class="table table-sm table-hover align-middle mb-0">
       <thead class="table-light">
@@ -42,7 +45,7 @@
       </thead>
       <tbody>
         <% logs.forEach(log => {
-          const meta = ACTION_LABELS[log.action] || { label: log.action, icon: 'bi-circle', color: 'secondary' };
+          const meta = ACTION_LABELS[log.action] || { label: log.action, icon: 'bi-circle', color: 'neutral' };
         %>
         <tr>
           <td class="text-muted small text-nowrap"><%= log.created_at ? log.created_at.replace('T',' ').slice(0,19) : '—' %></td>
@@ -59,7 +62,7 @@
             <% } %>
           </td>
           <td>
-            <span class="badge bg-<%= meta.color %> d-inline-flex align-items-center gap-1">
+            <span class="pta-badge pta-badge--soft pta-tone-<%= meta.color %>">
               <i class="<%= meta.icon %>"></i>
               <%= meta.label %>
             </span>
