@@ -246,6 +246,12 @@ if (!memberCols2.includes('arc_name_en')) {
   db.prepare('ALTER TABLE members ADD COLUMN arc_name_en TEXT').run();
 }
 
+// --- Migration: add is_aprc flag to members ---
+const memberCols3 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols3.includes('is_aprc')) {
+  db.prepare('ALTER TABLE members ADD COLUMN is_aprc INTEGER NOT NULL DEFAULT 0').run();
+}
+
 // --- Migration: add doc_type and thumb_path to documents ---
 const docCols = db.prepare('PRAGMA table_info(documents)').all().map(c => c.name);
 if (!docCols.includes('doc_type')) {

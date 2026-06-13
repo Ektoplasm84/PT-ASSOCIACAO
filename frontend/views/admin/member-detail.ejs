@@ -20,7 +20,9 @@
     return                     { label: 'VALID',          tone: 'success' };
   }
 
-  const arcValidity = docValidity(member.arc_expiry_date);
+  const arcValidity = member.is_aprc
+    ? { label: 'APRC — PERMANENT', tone: 'info' }
+    : docValidity(member.arc_expiry_date);
   const ccValidity  = docValidity(member.cc_expiry_date);
   const isHonorary  = member.user_position === 'honorary';
 
@@ -86,9 +88,16 @@
             Account created <%= member.account_created ? member.account_created.slice(0,10) : '—' %>
           </div>
           <% if (canWrite) { %>
+          <% if (member.is_aprc) { %>
+          <div class="small text-muted mt-1 d-flex align-items-center gap-1">
+            <i class="bi bi-info-circle"></i>
+            NIA photo fetch is not available for APRC holders.
+          </div>
+          <% } else { %>
           <button class="pta-btn pta-btn--secondary pta-btn--block" id="fetchArcPhotoBtn">
             <i class="bi bi-camera"></i> Fetch NIA Photo
           </button>
+          <% } %>
           <% } %>
         </div>
       </div>
@@ -274,8 +283,8 @@ function validatePwReset() {
       <header class="pta-card__head">
         <i class="bi bi-person-vcard"></i>
         <div class="pta-card__titles">
-          <span class="pta-card__eyebrow">Alien Resident Certificate</span>
-          <span class="pta-card__title">Residence — ARC</span>
+          <span class="pta-card__eyebrow"><%= member.is_aprc ? 'Alien Permanent Resident Certificate' : 'Alien Resident Certificate' %></span>
+          <span class="pta-card__title">Residence — <%= member.is_aprc ? 'APRC' : 'ARC' %></span>
         </div>
       </header>
       <div class="pta-card__body">
@@ -288,7 +297,7 @@ function validatePwReset() {
           <dt>Issue date</dt><dd class="mono"><%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '—' %></dd>
           <dt>Expiry date</dt>
           <dd class="mono">
-            <%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %>
+            <% if (member.is_aprc) { %>Permanent<% } else { %><%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %><% } %>
             <% if (arcValidity) { %>
             <span class="pta-badge pta-badge--soft pta-tone-<%= arcValidity.tone %>" style="margin-left:.4rem"><%= arcValidity.label %></span>
             <% } %>

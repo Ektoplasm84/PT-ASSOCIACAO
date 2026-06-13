@@ -117,7 +117,7 @@
           <div class="col-sm-6"><span class="text-muted small">Chinese Name</span><div><%= member.arc_chinese_name || '—' %></div></div>
           <div class="col-12"><span class="text-muted small">English Name (ARC)</span><div><%= member.arc_name_en || '—' %></div></div>
           <div class="col-sm-4"><span class="text-muted small">Date of Issue</span><div><%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '—' %></div></div>
-          <div class="col-sm-4"><span class="text-muted small">Date of Expiry</span><div><%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %></div></div>
+          <div class="col-sm-4"><span class="text-muted small">Date of Expiry</span><div><% if (member.is_aprc) { %><span class="badge bg-info text-dark px-2 py-1">Permanent (APRC)</span><% } else { %><%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %><% } %></div></div>
           <div class="col-sm-4"><span class="text-muted small">Passport Number</span><div><%= member.passport_number || '—' %></div></div>
           <div class="col-sm-6"><span class="text-muted small">Serial Number</span><div><%= member.arc_serial_number || '—' %></div></div>
         </div>

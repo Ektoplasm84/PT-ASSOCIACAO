@@ -206,11 +206,11 @@ router.get('/', (req, res) => {
            m.fee_status, m.arc_expiry_date, m.cc_expiry_date,
            u.position,
            CASE WHEN u.position != 'honorary' AND m.fee_status = 'unpaid' THEN 1 ELSE 0 END as warn_fee,
-           CASE WHEN m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days') THEN 1 ELSE 0 END as warn_arc,
+           CASE WHEN m.is_aprc = 0 AND m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days') THEN 1 ELSE 0 END as warn_arc,
            CASE WHEN m.cc_expiry_date  IS NOT NULL AND date(m.cc_expiry_date)  <= date('now', '+60 days') THEN 1 ELSE 0 END as warn_cc
     FROM members m JOIN users u ON u.id = m.user_id
     WHERE (u.position != 'honorary' AND m.fee_status = 'unpaid')
-       OR (m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days'))
+       OR (m.is_aprc = 0 AND m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days'))
        OR (m.cc_expiry_date  IS NOT NULL AND date(m.cc_expiry_date)  <= date('now', '+60 days'))
     ORDER BY
       CASE WHEN date(m.arc_expiry_date) < date('now') OR date(m.cc_expiry_date) < date('now') THEN 0 ELSE 1 END,
@@ -373,6 +373,7 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number,
     cc_number, cc_expiry_date, nif, niss,
+    is_aprc,
   } = req.body;
 
   const errors = [];
@@ -417,8 +418,8 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
          notes, photo_path,
          arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
          passport_number, arc_serial_number,
-         cc_number, cc_expiry_date, nif, niss)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         cc_number, cc_expiry_date, nif, niss, is_aprc)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       userRes.lastInsertRowid, memberId,
       first_name, last_name, phone,
@@ -429,9 +430,10 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
       fee_last_paid || null, feeValidUntil, feeStatus,
       notes || null, photoPath,
       arc_number || null, arc_name_en || null, arc_chinese_name || null,
-      arc_issue_date || null, arc_expiry_date || null,
+      arc_issue_date || null, is_aprc ? null : (arc_expiry_date || null),
       passport_number || null, arc_serial_number || null,
-      cc_number || null, cc_expiry_date || null, nif || null, niss || null
+      cc_number || null, cc_expiry_date || null, nif || null, niss || null,
+      is_aprc ? 1 : 0
     );
 
   });
@@ -497,6 +499,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number,
     cc_number, cc_expiry_date, nif, niss,
+    is_aprc,
   } = req.body;
 
   const errors = [];
@@ -554,6 +557,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
         arc_number=?, arc_name_en=?, arc_chinese_name=?, arc_issue_date=?, arc_expiry_date=?,
         passport_number=?, arc_serial_number=?,
         cc_number=?, cc_expiry_date=?, nif=?, niss=?,
+        is_aprc=?,
         updated_at=datetime('now')
       WHERE id=?
     `).run(
@@ -564,9 +568,10 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
       parseInt(fee_amount, 10) >= 0 ? parseInt(fee_amount, 10) : 300, fee_last_paid || null, feeValidUntil, feeStatus,
       notes || null, photoPath,
       arc_number || null, arc_name_en || null, arc_chinese_name || null,
-      arc_issue_date || null, arc_expiry_date || null,
+      arc_issue_date || null, is_aprc ? null : (arc_expiry_date || null),
       passport_number || null, arc_serial_number || null,
       cc_number || null, cc_expiry_date || null, nif || null, niss || null,
+      is_aprc ? 1 : 0,
       member.id
     );
   });
@@ -860,9 +865,15 @@ router.post('/members/:id/apply-card-fields', adminOnly, (req, res) => {
 
 router.get('/members/:id/arc-captcha', adminOnly, async (req, res) => {
   const member = db.prepare(
-    'SELECT arc_number, arc_issue_date, arc_expiry_date, arc_serial_number FROM members WHERE id = ?'
+    'SELECT arc_number, arc_issue_date, arc_expiry_date, arc_serial_number, is_aprc FROM members WHERE id = ?'
   ).get(req.params.id);
   if (!member) return res.status(404).json({ error: 'Member not found.' });
+
+  if (member.is_aprc) {
+    return res.status(400).json({
+      error: 'APRC holders are not supported by the NIA photo fetch — the NIA system requires an expiry date, which APRC cards do not have.'
+    });
+  }
 
   const missing = ['arc_number', 'arc_issue_date', 'arc_expiry_date', 'arc_serial_number']
     .filter(f => !member[f]);

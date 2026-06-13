@@ -149,12 +149,28 @@
 </div>
 
 <!-- ── 3. ARC Data (Taiwan) ──────────────────────────────────── -->
+<% const _isAprc = !!(v.is_aprc && v.is_aprc != '0'); %>
 <div class="card mb-3">
-  <div class="card-header fw-semibold">ARC Data <small class="text-muted fw-normal">(Taiwan Alien Resident Certificate)</small></div>
+  <div class="card-header fw-semibold">
+    ARC / APRC Data
+    <small class="text-muted fw-normal">(Taiwan Resident Certificate)</small>
+  </div>
   <div class="card-body">
     <div class="row g-3">
+      <!-- APRC toggle -->
+      <div class="col-12">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch"
+                 name="is_aprc" id="isAprcCheck" value="1"
+                 <%= _isAprc ? 'checked' : '' %>
+                 onchange="arcToggleAprc(this.checked)">
+          <label class="form-check-label" for="isAprcCheck">
+            <strong>APRC</strong> — Alien Permanent Resident Certificate (no expiry date)
+          </label>
+        </div>
+      </div>
       <div class="col-md-6">
-        <label class="form-label">ARC Number</label>
+        <label class="form-label">ARC / APRC Number</label>
         <input type="text" name="arc_number" class="form-control" value="<%= v.arc_number || '' %>">
       </div>
       <div class="col-md-6">
@@ -162,7 +178,7 @@
         <input type="text" name="arc_chinese_name" class="form-control" value="<%= v.arc_chinese_name || '' %>">
       </div>
       <div class="col-12">
-        <label class="form-label">English Name (ARC)</label>
+        <label class="form-label">English Name (ARC / APRC)</label>
         <input type="text" name="arc_name_en" class="form-control" value="<%= v.arc_name_en || '' %>">
       </div>
       <div class="col-md-4">
@@ -170,10 +186,15 @@
         <input type="date" name="arc_issue_date" class="form-control"
           value="<%= v.arc_issue_date ? v.arc_issue_date.slice(0,10) : '' %>">
       </div>
-      <div class="col-md-4">
+      <div class="col-md-4" id="arcExpiryCol">
         <label class="form-label">Date of Expiry</label>
-        <input type="date" name="arc_expiry_date" class="form-control"
-          value="<%= v.arc_expiry_date ? v.arc_expiry_date.slice(0,10) : '' %>">
+        <div id="arcExpiryInput" class="<%= _isAprc ? 'd-none' : '' %>">
+          <input type="date" name="arc_expiry_date" id="arcExpiryDate" class="form-control"
+            value="<%= !_isAprc && v.arc_expiry_date ? v.arc_expiry_date.slice(0,10) : '' %>">
+        </div>
+        <div id="arcExpiryPermanent" class="<%= _isAprc ? '' : 'd-none' %>">
+          <span class="badge bg-info text-dark px-3 py-2 fs-6">Permanent — APRC</span>
+        </div>
       </div>
       <div class="col-md-4">
         <label class="form-label">Passport Number</label>
@@ -186,6 +207,22 @@
     </div>
   </div>
 </div>
+<script>
+function arcToggleAprc(checked) {
+  var dateInput  = document.getElementById('arcExpiryDate');
+  var inputWrap  = document.getElementById('arcExpiryInput');
+  var permBadge  = document.getElementById('arcExpiryPermanent');
+  if (checked) {
+    inputWrap.classList.add('d-none');
+    permBadge.classList.remove('d-none');
+    dateInput.disabled = true;
+  } else {
+    inputWrap.classList.remove('d-none');
+    permBadge.classList.add('d-none');
+    dateInput.disabled = false;
+  }
+}
+</script>
 
 <!-- ── 4. Cartão de Cidadão ──────────────────────────────────── -->
 <div class="card mb-3">
