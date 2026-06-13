@@ -993,3 +993,9 @@ button.pta-topbar__bell{background:none;border:none;padding:0;cursor:pointer;}
 /* ── Stage 6 · member detail mobile ── */
 @media (max-width:768px){ .pta-detail{ grid-template-columns:1fr; } }
 @media (max-width:520px){ .pta-docslots{ grid-template-columns:repeat(2,1fr); } }
+
+/* ── Topbar colour — charcoal to match emblem tile ── */
+.pta-topbar{ background:#313131; }
+.pta-topbar__bell:hover,.pta-console-toggle:hover{ background:rgba(255,255,255,.10); }
+.pta-user__logout:hover{ background:rgba(255,255,255,.10); }
+@media (max-width:768px){ .pta-nav{ background:#313131; border-top-color:var(--gold-400); } }
