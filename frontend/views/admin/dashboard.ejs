@@ -220,6 +220,17 @@
     updateSaveInputs();
   }
 
+  var _savedModelList = modelList.slice(); // snapshot of last-saved state
+
+  function markUnsaved() {
+    var btn = document.getElementById('saveModelListBtn');
+    if (!btn) return;
+    btn.innerHTML = '<i class="bi bi-floppy-fill"></i> Save Model List <span style="font-size:.75em;opacity:.8">(unsaved)</span>';
+    btn.classList.add('pta-btn--danger');
+    btn.classList.remove('pta-btn');
+    btn.classList.add('pta-btn');
+  }
+
   function updateSaveInputs() {
     var container = document.getElementById('saveModelsInputs');
     if (!container) return;
@@ -229,6 +240,8 @@
       inp.type = 'hidden'; inp.name = 'models'; inp.value = m;
       container.appendChild(inp);
     });
+    var changed = JSON.stringify(modelList) !== JSON.stringify(_savedModelList);
+    if (changed) markUnsaved();
   }
 
   function testExistingModel(model, btn) {
@@ -279,11 +292,18 @@
 
   window._addModel = function () {
     var inp = document.getElementById('newModelInput');
+    var result = document.getElementById('testNewModelResult');
     var m = inp.value.trim();
-    if (!m || modelList.indexOf(m) !== -1) return;
+    if (!m) return;
+    if (modelList.indexOf(m) !== -1) {
+      result.style.display = '';
+      result.innerHTML = '<i class="bi bi-exclamation-circle"></i> Already in list.';
+      result.style.color = 'var(--color-warning,#b45309)';
+      return;
+    }
     modelList.push(m);
     inp.value = '';
-    document.getElementById('testNewModelResult').style.display = 'none';
+    result.style.display = 'none';
     renderModelList();
   };
 
@@ -465,7 +485,7 @@
               Max wait before aborting a slow model. Both models run in parallel so this is also the scan ceiling.
             </p>
           </div>
-          <button type="submit" class="pta-btn pta-btn--sm">
+          <button type="submit" id="saveModelListBtn" class="pta-btn pta-btn--sm">
             <i class="bi bi-floppy"></i> Save Model List
           </button>
         </form>
