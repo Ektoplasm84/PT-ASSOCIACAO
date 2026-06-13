@@ -2,17 +2,17 @@
 
 ## What This Is
 
-A membership management web application for a Portuguese-Taiwanese association. Members have extended profiles including personal data, Taiwan ARC (Alien Resident Certificate) data, and Portuguese Cartão de Cidadão data. Deployed as a Node.js application via cPanel's "Setup Node.js App" feature.
+A membership management web application for a Portuguese-Taiwanese association. Members have extended profiles including personal data, Taiwan ARC/APRC/Passport data, and Portuguese Cartão de Cidadão data. Deployed as a Node.js application via cPanel's "Setup Node.js App" feature.
 
 ---
 
-## Current Status (as of 2026-06-12)
+## Current Status (as of 2026-06-13)
 
 ### Done
 - Full Node.js + Express backend with SQLite embedded database
 - Role/position system: `role` (permission) + `position` (association title) — see § Role System
 - Honorary members (`position = 'honorary'`) — fee N/A, excluded from fee stats, no voting
-- Member card divided into 5 sections: Personal Info, Membership Info, ARC Data, Cartão de Cidadão, Notes
+- Member card divided into 5 sections: Personal Info, Membership Info, ARC/ID Data, Cartão de Cidadão, Notes
 - Display name throughout app: `arc_name_en` when available, falls back to `first_name + last_name`
 - Address stored as two plain text fields (`address_zh` from ARC OCR, `address` English) — no dropdown picker
 - Fee system: annual fee (0 or 300 TWD), date last paid, auto-computed status and validity
@@ -20,11 +20,11 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - Session-based authentication (bcrypt), sessions persisted in SQLite
 - **PT Design System** — `.pta-*` component layer on top of Bootstrap 5; full design handoff applied to all admin pages
 - **Card OCR** — dual-model parallel execution via OpenRouter vision API; admin reviews merged results + model conflict highlights in modal; apply selectively
-- **NIA ARC photo fetch** — server fetches Taiwan NIA captcha, admin solves it, official photo saved to profile
+- **NIA ARC photo fetch** — server fetches Taiwan NIA captcha, admin solves it, official photo saved to profile; blocked for APRC and TW Passport members
 - **Image lightbox** — clicking card or misc doc thumbnails opens a Bootstrap modal with full-size view + download button
 - **Dashboard warnings** — compact stats bar + Warnings & Advisories table (unpaid fees + expiring ARC/CC within 60 days)
 - **Vision Model Health** — super_admin dashboard card; on-demand model ping; passive offline detection during scans; dismiss individual warnings
-- **OCR Model Configuration** — super_admin dashboard card; live list of active models with role labels; add/remove/test any model ID; saved to `settings` table, persists across restarts
+- **OCR Model Configuration** — super_admin dashboard card; live list of active models with role labels; add/remove/test any model ID; timeout (seconds) input; all saved to `settings` table, persists across restarts. Unsaved-changes indicator on Save button; duplicate model feedback.
 - **Default Annual Fee** — super_admin dashboard card; configurable fee amount stored in `settings` table; pre-fills new member form; saving also retroactively updates `fee_amount` for all currently-unpaid non-honorary members
 - **Placeholder credentials** — new member form pre-fills a random `membro.XXXX@associacao.pt` email and placeholder name; email is the login credential so changing it changes login immediately
 - **Login brute-force protection** — in-memory rate limiter: 5 failures/15 min → 15-min IP block
@@ -35,25 +35,22 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - **In-app notification system** — `event_invites` table; bell icon in topbar (all roles) with pending count badge; Notifications tab on member profile (Bootstrap tabs); accept/decline in-place without page reload; fee reminder alert
 - **iCal export (member)** — `GET /profile/invites/:id/export.ics` generates a valid RFC 5545 `.ics` file; "Add to Calendar" button on pending + accepted invites; compatible with Apple Calendar, Google Calendar, Outlook
 - **Admin password reset** — super_admin can set a new password for any member from the Account Settings card on member-detail; hashed with bcryptjs cost 10; audited as `member.password_reset`
-- **Fee label clarity** — fee-exempt / honorary members display as "Honorary Member" throughout all templates; dropdown options read "0 TWD — Honorary Member"; raw "0 TWD (Exempt)" label eliminated
-- **Members list role visibility** — Position column in `members-list.ejs` now reflects system role: super_admin → "Super Admin" (gold badge), admin → "Admin" (info badge); falls back to association position for regular members
-- **Honorary fee-amount zero fix** — all fee_amount parsing uses `parseInt(n,10) >= 0 ? parseInt(n,10) : 300`; the old `|| 300` falsy-zero check no longer overwrites a stored `0` with `300`
-- **RFC 5987 Content-Disposition** — document view and download routes in both `admin.js` and `user.js` use `contentDispositionFilename(disposition, name)` helper; emits `filename*=UTF-8''...` for non-ASCII filenames; `res.download()` no longer used
-- **Trust proxy + production cookie** — `app.set('trust proxy', 1)` added before session middleware; `cookie.secure` activates when `NODE_ENV=production`; both required for HTTPS `Secure` sessions behind cPanel's nginx reverse proxy. Set `NODE_ENV=production` in the cPanel Node.js App environment variables panel.
-- **`isManagementUser(u)` helper** — in `routes/admin.js`; returns `true` when `u.position` is in `MGMT_POSITIONS`; shared by `feeWriteGuard` and `calendarWriteGuard`
-- **`resolveAudience()` UNION query** — refactored from 4 separate DB calls to a single UNION query built from safe hardcoded SQL segments
-- **OCR model ID validation** — `MODEL_ID_RE = /^[a-zA-Z0-9_\-/:\.]{1,120}$/` applied on `POST /admin/settings/models` and `POST /admin/ocr-test-model`; 10-second per-model cooldown (`_testCooldowns` Map) on the test route
-- **`setActiveModels()` stale-status cleanup** — when the model list changes, `modelStatus` entries for removed model IDs are deleted so stale offline warnings no longer appear
-- **Calendar event strips** — dashboard calendar cells show colored titled strips (`.pta-cal-strip`) instead of a dot; up to 2 strips stacked per cell; color assigned by `CAL_COLORS[event.id % 8]` (8 colors); "+N more" shown when >2 events; cells with events get `.has-events` tint + bold date number
-- **New Event button guard** — only shown to `canWrite` users or management-position users (not plain gestao viewers without write access)
-- **Invites route guard** — `GET /admin/events/:id/invites` uses `adminOnly` (previously only viewAll)
-- **Event end_date validation** — `POST /admin/events` rejects `end_date < start_date` with a 400 flash
-- **Fee reminder on Profile tab** — fee reminder alert shown on both My Profile tab and Notifications tab of `user/profile.ejs`
-- **Notes card for super_admin** — Notes card on member profile gated by `canWrite && member.notes`; was previously admin-role-only
-- **NIA fetch-error retry** — "Try again" button shown when NIA photo fetch fails; re-invokes `loadCaptcha()` without a page reload
-- **Invite respond error handling** — `profile.ejs` fetch checks `r.ok` before parsing JSON; alerts user on error with session-expiry hint
-- **ARC name hint on edit form** — `member-form.ejs` shows a blue info banner with a "Use ARC name" button when `arc_name_en` differs from stored `first_name`/`last_name`; values passed via `data-arc-first`/`data-arc-last` attributes (no JS injection); splits on last word (last word → Last Name, remainder → First Name)
-- **Version v1.3** — login page subtitle + Super Admin topbar badge
+- **Fee label clarity** — fee-exempt / honorary members display as "Honorary Member" throughout all templates; dropdown options read "0 TWD — Honorary Member"
+- **Members list role visibility** — Position column reflects system role: super_admin → "Super Admin" (gold badge), admin → "Admin" (info badge); falls back to association position
+- **Honorary fee-amount zero fix** — all fee_amount parsing uses `parseInt(n,10) >= 0 ? parseInt(n,10) : 300`
+- **RFC 5987 Content-Disposition** — document view and download routes in both `admin.js` and `user.js` use `contentDispositionFilename(disposition, name)` helper; emits `filename*=UTF-8''...` for non-ASCII filenames
+- **Chinese filename fix** — `fixFilename(name)` helper in `admin.js` re-encodes `Buffer.from(name, 'latin1').toString('utf8')` at every upload point; busboy 1.x defaults to latin1, modern browsers send UTF-8
+- **Trust proxy + production cookie** — `app.set('trust proxy', 1)` + `NODE_ENV=production` → HTTPS `Secure` sessions behind cPanel's nginx reverse proxy
+- **`isManagementUser(u)` helper** — in `routes/admin.js`; returns `true` when `u.position` is in `MGMT_POSITIONS`
+- **`resolveAudience()` UNION query** — single UNION query for event audience resolution
+- **OCR model ID validation** — `MODEL_ID_RE = /^[a-zA-Z0-9_\-/:\.]{1,120}$/` on save + test routes; 10-second per-model cooldown
+- **Calendar event strips** — colored `.pta-cal-strip` titles in calendar cells; up to 2 stacked; "+N more" strip; `.has-events` tint
+- **ARC name hint on edit form** — blue info banner + "Use ARC name" button when `arc_name_en` differs from stored name
+- **APRC support** — `is_aprc INTEGER` column on members; permanent residents get "APRC — PERMANENT" badge (info tone) instead of expiry; NIA fetch blocked with message; ID Type column shows "APRC"
+- **Taiwan Passport support** — `is_tw_passport INTEGER` column on members; ARC/ID section shows 3-way radio (ARC / APRC / TW Passport); passport expiry tracked via `arc_expiry_date`; NIA fetch blocked
+- **Members list improvements** — Warnings column (doc expiry badges), ID Type column (ARC/APRC/TW Passport), Sort dropdown (name A-Z/Z-A, recently added, oldest, join date ↑↓)
+- **File Vault** — two-section document vault: Public (all members can view/download; admin/SA/management can upload) and Administration (admin/SA only); dashboard cards for upload + manage; `/vault` member page; all actions audited; files stored under `uploads/vault/{section}/`
+- **Version V1.6**
 
 ### Not Yet Built
 - Email notifications to members
@@ -65,23 +62,14 @@ A membership management web application for a Portuguese-Taiwanese association. 
 ### Calendar & Notifications — Planned Extensions
 
 #### Email delivery of event invites
-The `event_invites` table has a `notified_at TEXT` column reserved for this.
-When an email system is added, the mailer queries `WHERE notified_at IS NULL`, sends
-one email per row, then stamps `notified_at = datetime('now')`. No schema change needed.
-Suggested trigger: after `POST /admin/events` resolves the audience and inserts invite rows,
-call the mailer in the background (or queue it). Attach the `.ics` file to the email so
-recipients get a one-click "Add to Calendar" prompt in Apple Mail / Gmail.
+The `event_invites` table has a `notified_at TEXT` column reserved for this. When an email system is added, the mailer queries `WHERE notified_at IS NULL`, sends one email per row, then stamps `notified_at = datetime('now')`. Suggested trigger: after `POST /admin/events` inserts invite rows, call the mailer in the background. Attach `.ics` so recipients get a one-click "Add to Calendar" in Apple Mail / Gmail.
 
 #### iCal export — admin side
 `GET /profile/invites/:id/export.ics` is live for members. Still to add:
-- `GET /admin/events/:id/export.ics` — admin downloads a `.ics` for any event (e.g. to share
-  externally or paste into a club newsletter).
+- `GET /admin/events/:id/export.ics` — admin downloads a `.ics` for any event.
 
 #### Event location — map link
-The `location` field on events is currently plain text (e.g. `"Taipei Park"`, `"AIT"`).
-WIP: render it as a `https://maps.google.com/?q=<encoded>` link wherever it is displayed
-(day panel in dashboard, invite card on member profile). Zero API key, zero cost — one-liner
-template change. No geocoding or validation needed.
+The `location` field is currently plain text. WIP: render as `https://maps.google.com/?q=<encoded>` link wherever displayed. Zero API key — one-liner template change.
 
 ---
 
@@ -92,6 +80,7 @@ PT ASSOCIACAO/
 │
 ├── app.js                        Entry point. Wires middleware, sessions, routes. Loads .env.
 │                                 Authenticated routes: GET /uploads/photos/:f, /uploads/thumbs/:f
+│                                 Public vault routes: GET /vault, GET /vault/files/:id
 ├── package.json
 ├── .env                          API keys — NEVER committed. See § Environment Variables.
 ├── .gitignore
@@ -102,8 +91,10 @@ PT ASSOCIACAO/
 ├── routes/
 │   ├── auth.js                   GET/POST /login, POST /logout, GET /
 │   ├── admin.js                  All /admin/* routes (member CRUD, documents, OCR, NIA photo,
-│   │                             role change, audit log, OCR health check)
+│   │                             role change, audit log, OCR health check, vault upload/download/delete)
+│   │                             Exports: router (Express Router)
 │   └── user.js                   All /profile/* routes (own profile + downloads)
+│                                 Exports: { router, contentDispositionFilename }
 │
 ├── middleware/
 │   └── auth.js                   requireAuth, requireAdmin, requireSuperAdmin, requireViewAll
@@ -111,7 +102,9 @@ PT ASSOCIACAO/
 ├── utils/
 │   ├── fee.js                    computeFeeStatus(fee_amount, fee_last_paid) helper
 │   ├── ocr.js                    OpenRouter vision API — dual-model parallel scan + health tracking
-│   │                             Exports: scan, checkModels, getModelWarnings, dismissModelWarning
+│   │                             Exports: scan, checkModels, getModelWarnings, dismissModelWarning,
+│   │                                      getActiveModels, setActiveModels, testModel,
+│   │                                      getModelTimeout, setModelTimeout
 │   ├── audit.js                  writeAudit(...) — append-only, 2000-row cap, atomic trim
 │   ├── countries.js              Full world country list (code, name, dial code, flag)
 │   └── taiwan-districts.js       All 22 Taiwan cities/counties with districts (ZH + EN + postal)
@@ -122,37 +115,42 @@ PT ASSOCIACAO/
 │   │   ├── 404.ejs
 │   │   ├── error.ejs
 │   │   ├── partials/
-│   │   │   ├── header.ejs        HTML head, CDN links (Bootstrap + Icons + Flags + Design System),
-│   │   │   │                     .pta-topbar navbar, opens <main class="pta-main">
+│   │   │   ├── header.ejs        HTML head, CDN links, .pta-topbar navbar (Documents link for all users)
 │   │   │   ├── footer.ejs        </main>, Bootstrap JS bundle CDN
 │   │   │   ├── flash.ejs         Alert banner for success/error messages
 │   │   │   ├── phone-field.ejs   Reusable country dial-code picker + number input
-│   │   │   └── member-form.ejs   5-section form (Personal / Membership / ARC / CC / Notes)
+│   │   │   └── member-form.ejs   5-section form (Personal / Membership / ARC+ID / CC / Notes)
+│   │   │                         ARC section has 3-way radio: ARC / APRC / TW Passport
 │   │   ├── admin/
-│   │   │   ├── dashboard.ejs     .pta-statsbar + Warnings & Advisories + Vision Model Health + recent
-│   │   │   ├── members-list.ejs  .pta-toolbar + .pta-filterchips + .pta-table (search, filter, paginate)
-│   │   │   ├── member-detail.ejs .pta-detail sidebar+content + image lightbox + OCR modal + NIA modal
+│   │   │   ├── dashboard.ejs     Stats + Warnings + Vision Model Health + OCR config (with timeout) +
+│   │   │   │                     Fee config + Calendar + Recent Members + File Vault (two sections)
+│   │   │   ├── members-list.ejs  Search + fee filter + sort dropdown + Warnings column + ID Type column
+│   │   │   ├── member-detail.ejs APRC/TW Passport display; NIA blocked message for non-ARC
 │   │   │   ├── member-new.ejs    New member form
 │   │   │   ├── member-edit.ejs   Edit member form
 │   │   │   └── audit-log.ejs     Paginated audit log (admin+ only)
 │   │   └── user/
-│   │       ├── profile.ejs       Own profile view
-│   │       └── profile-edit.ejs  Edit personal info, ARC data, CC data, password
+│   │       ├── profile.ejs       Own profile view (My Profile + Notifications tabs)
+│   │       ├── profile-edit.ejs  Edit personal info, ARC data, CC data, password
+│   │       └── vault.ejs         Public document vault — all authenticated members
 │   └── public/
 │       ├── css/
 │       │   ├── custom.css                    Minor Bootstrap overrides
 │       │   └── ds/
 │       │       ├── pt-design-system.css      Design tokens + .pta-* component styles
 │       │       ├── pt-bootstrap-bridge.css   Remaps Bootstrap CSS variables to design tokens
-│       │       └── azulejo-tile.svg          Background tile — referenced via relative url() in CSS
+│       │       └── azulejo-tile.svg          Background tile
 │       └── images/
 │           ├── logo-emblem.svg               Brand emblem (topbar + login)
 │           └── logo-wordmark.svg             Full wordmark
 │
 ├── uploads/                      ← Runtime only. Created on startup. Not in git.
 │   ├── photos/                   Member photos — served via authenticated route only
-│   ├── documents/
-│   └── thumbs/                   Card image thumbnails (JPEG, 200px wide) — authenticated route only
+│   ├── documents/                Card images + misc documents
+│   ├── thumbs/                   Card image thumbnails — authenticated route only
+│   └── vault/
+│       ├── public/               Public vault files — any authenticated user can download
+│       └── admin/                Admin vault files — admin/SA only
 │
 └── database/
     └── data.db                   ← Runtime only. Created on startup. Not in git.
@@ -162,145 +160,145 @@ PT ASSOCIACAO/
 
 ## Environment Variables
 
-Stored in `.env` in the project root. Loaded manually at startup by `app.js`. Never committed — `.gitignore` excludes it.
+Stored in `.env` in the project root. Loaded manually at startup by `app.js`. Never committed.
 
 ```
 OPENROUTER_API_KEY=sk-or-v1-...        # Required for card OCR feature
-SESSION_SECRET=<random 48-byte hex>    # Required — signs session cookies; generate with:
-                                       # node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+SESSION_SECRET=<random 48-byte hex>    # Required — signs session cookies
 # OPENROUTER_MODEL=nvidia/nemotron-nano-12b-v2-vl:free  # Optional: pin one model, bypasses parallel logic
 ```
 
-See `.env.example` for a template. On cPanel hosting, set these in the Node.js App environment variable panel — do NOT upload `.env`.
+On cPanel hosting, set `OPENROUTER_API_KEY`, `SESSION_SECRET`, and `NODE_ENV=production` as environment variables in the Node.js App panel — do NOT upload `.env`.
 
 ---
 
 ## Database Schema
 
 ### `users`
-Stores login credentials, permission role, and association position.
-
 | Column | Type | Notes |
 |--------|------|-------|
 | id | INTEGER PK | Auto-increment |
 | email | TEXT UNIQUE | Case-insensitive |
 | password_hash | TEXT | bcrypt, cost 10 |
-| role | TEXT | `super_admin` / `admin` / `member` — controls system permissions |
-| position | TEXT | Association title: `member` / `honorary` / `gestao` / `board` / `president` / `treasurer` / `secretary` |
+| role | TEXT | `super_admin` / `admin` / `member` |
+| position | TEXT | `member` / `honorary` / `gestao` / `board` / `president` / `treasurer` / `secretary` |
 | created_at | TEXT | ISO-8601 datetime |
 
 ### `members`
-One-to-one with `users`. Stores all personal, document, and membership data.
-
 | Column | Type | Notes |
 |--------|------|-------|
 | id | INTEGER PK | |
 | user_id | INTEGER FK | Cascades on user delete |
-| member_id | TEXT UNIQUE | e.g. `ASSOC-0042`, app-generated |
+| member_id | TEXT UNIQUE | e.g. `ASSOC-0042` |
 | first_name | TEXT | |
 | last_name | TEXT | |
-| phone | TEXT | Optional. Stored as `"+351 912345678"` |
-| address | TEXT | English address (plain text) |
-| address_zh | TEXT | Chinese address — as printed on ARC card; auto-filled by OCR |
-| city | TEXT | Legacy — not actively used |
-| postal_code | TEXT | Legacy — not actively used |
-| city_zh | TEXT | Legacy — not actively used |
-| district_zh | TEXT | Legacy — not actively used |
-| district_en | TEXT | Legacy — not actively used |
-| address_type | TEXT | Legacy (`tw`/`other`) — not actively used |
+| phone | TEXT | |
+| address | TEXT | English address |
+| address_zh | TEXT | Chinese address from ARC OCR |
+| city / postal_code / city_zh / district_zh / district_en / address_type | TEXT | Legacy — not actively used |
 | join_date | TEXT | ISO date |
-| fee_amount | INTEGER | 0 (exempt) or 300 (TWD). Default 300 |
-| fee_last_paid | TEXT | ISO date set by admin when payment received |
+| fee_amount | INTEGER | 0 (exempt) or 300 TWD; default 300 |
+| fee_last_paid | TEXT | ISO date |
 | fee_valid_until | TEXT | Auto-computed: fee_last_paid + 1 year |
-| fee_status | TEXT | `paid` / `unpaid` / `renewal_incoming` — auto-computed, never set manually |
+| fee_status | TEXT | `paid` / `unpaid` / `renewal_incoming` — always computed, never set from form |
 | notes | TEXT | Admin-only internal notes |
-| photo_path | TEXT | Relative path: `uploads/photos/<file>` |
+| photo_path | TEXT | Relative: `uploads/photos/<file>` |
 | arc_number | TEXT | Taiwan ARC UI number (e.g. `A800287833`) |
-| arc_name_en | TEXT | Holder's name in Western GIVEN SURNAME order (ALL CAPS) — display name throughout app |
-| arc_chinese_name | TEXT | Name in Chinese characters as on ARC card |
+| arc_name_en | TEXT | Western GIVEN SURNAME order (ALL CAPS) — display name throughout |
+| arc_chinese_name | TEXT | Name in Chinese characters |
 | arc_issue_date | TEXT | ISO date |
-| arc_expiry_date | TEXT | ISO date |
+| arc_expiry_date | TEXT | ISO date; also used as passport expiry when `is_tw_passport=1` |
 | passport_number | TEXT | |
-| arc_serial_number | TEXT | Reference number next to barcode on ARC back (no spaces) |
+| arc_serial_number | TEXT | Reference number next to barcode on ARC back |
+| is_aprc | INTEGER | 1 = permanent resident; no expiry shown; NIA fetch blocked |
+| is_tw_passport | INTEGER | 1 = Taiwan Passport as primary ID; expiry tracked via arc_expiry_date |
 | cc_number | TEXT | Portuguese Cartão de Cidadão number |
-| cc_issue_date | TEXT | **Dormant** — not shown in UI |
+| cc_issue_date | TEXT | Dormant — not shown in UI |
 | cc_expiry_date | TEXT | ISO date |
-| nif | TEXT | Número de Identificação Fiscal (9 digits) |
-| niss | TEXT | Número de Identificação de Segurança Social (11 digits) |
+| nif | TEXT | 9-digit tax number |
+| niss | TEXT | 11-digit social security number |
 | updated_at | TEXT | ISO-8601 datetime |
 
 ### `documents`
-Many per member. Stores uploaded files.
-
 | Column | Type | Notes |
 |--------|------|-------|
 | id | INTEGER PK | |
 | member_id | INTEGER FK | Cascades on member delete |
-| file_path | TEXT | Relative path: `uploads/documents/<file>` |
-| original_name | TEXT | Shown to users on download |
+| file_path | TEXT | Relative: `uploads/documents/<file>` |
+| original_name | TEXT | Shown on download; stored after `fixFilename()` UTF-8 re-encoding |
 | mime_type | TEXT | |
 | doc_type | TEXT | `arc_front` / `arc_back` / `cc_front` / `cc_back` / `misc` |
-| thumb_path | TEXT | Relative path to thumbnail (nullable): `uploads/thumbs/<file>` |
+| thumb_path | TEXT | Nullable: `uploads/thumbs/<file>` |
 | uploaded_at | TEXT | ISO-8601 datetime |
 
-Card documents are one-per-type per member — uploading a new one replaces the existing. `misc` can accumulate freely (up to 5 at a time per upload).
+Card documents are one-per-type per member (uploading replaces existing). `misc` can accumulate freely.
 
-### `settings`
-Runtime key/value store for admin-configurable values. Accessed via `getSetting` / `setSetting` helpers in `routes/admin.js`.
+### `vault_files`
+Association-wide document vault. One table for both sections, distinguished by `section`.
 
 | Column | Type | Notes |
 |--------|------|-------|
-| key | TEXT PK | Unique setting name |
-| value | TEXT | Always stored as string; parse as needed |
+| id | INTEGER PK | |
+| section | TEXT | `'public'` or `'admin'` — CHECK constraint enforced |
+| filename | TEXT | Stored filename: `{timestamp}-{uuid}.ext` |
+| original_name | TEXT | Original filename; stored after `fixFilename()` UTF-8 re-encoding |
+| mime_type | TEXT | |
+| file_size | INTEGER | Bytes |
+| description | TEXT | Optional; max 200 chars |
+| uploaded_by | INTEGER FK | `users.id` — SET NULL on user delete |
+| uploaded_at | TEXT | ISO-8601 datetime |
 
-**Current keys**:
+Index: `idx_vault_section (section)`.
+
+Access rules:
+- `public` section: any `requireAuth` user can download; admin/SA/management can upload; admin/SA can delete
+- `admin` section: admin/SA only for all operations
+
+### `settings`
+Runtime key/value store.
+
 | Key | Default | Description |
 |-----|---------|-------------|
-| `default_fee_amount` | `'300'` | Annual fee TWD pre-filled on new member form |
-| `ocr_models` | _(absent = use hardcoded defaults)_ | JSON array of active OCR model IDs |
+| `default_fee_amount` | `'300'` | Annual fee TWD pre-filled on new member form; saving updates all unpaid non-honorary members |
+| `ocr_models` | _(absent = hardcoded defaults)_ | JSON array of active OCR model IDs |
+| `ocr_timeout_ms` | _(absent = 55000)_ | Per-model timeout in milliseconds (10000–120000); configurable via dashboard |
 
 ### `events`
-Association events created by admin / SA / gestao. Displayed on the dashboard calendar widget.
-
 | Column | Type | Notes |
 |--------|------|-------|
 | id | INTEGER PK | |
 | title | TEXT | Required |
 | description | TEXT | Optional |
-| location | TEXT | Optional — plain text (see § Planned Extensions for map link WIP) |
+| location | TEXT | Optional — plain text |
 | start_date | TEXT | ISO date `YYYY-MM-DD` |
-| end_date | TEXT | ISO date, optional (multi-day events) |
+| end_date | TEXT | ISO date, optional |
 | created_by | INTEGER FK | `users.id` — cascades on delete |
 | created_at | TEXT | ISO-8601 datetime |
 
 ### `event_invites`
-One row per (event, user) pair. Tracks RSVP status and future email delivery state.
+| Column | Type | Notes |
+|--------|------|-------|
+| id | INTEGER PK | |
+| event_id | INTEGER FK | Cascades on delete |
+| user_id | INTEGER FK | Cascades on delete |
+| status | TEXT | `pending` / `accepted` / `declined` |
+| seen_at | TEXT | First view timestamp |
+| responded_at | TEXT | Last Accept/Decline timestamp |
+| notified_at | TEXT | Reserved for email delivery |
+| — | UNIQUE | `(event_id, user_id)` |
+
+### `audit_log`
+Append-only. No FK on `member_id`. Capped at 2000 rows.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | INTEGER PK | |
-| event_id | INTEGER FK | `events.id` — cascades on delete |
-| user_id | INTEGER FK | `users.id` — cascades on delete |
-| status | TEXT | `pending` / `accepted` / `declined` |
-| seen_at | TEXT | Timestamp when member first viewed the invite (for future email reminder logic) |
-| responded_at | TEXT | Timestamp of last Accept / Decline action |
-| notified_at | TEXT | **Reserved for email** — NULL until mailer stamps it |
-| — | UNIQUE | `(event_id, user_id)` — one invite per user per event |
-
-Indexes: `idx_ei_user (user_id)`, `idx_ei_event (event_id)`.
-
-### `audit_log`
-Append-only. No FK on `member_id` — entries survive member deletion. Capped at 2000 rows (oldest purged on each insert via `utils/audit.js`).
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | INTEGER PK | Auto-increment |
-| actor_id | INTEGER | User ID of whoever made the change (nullable) |
-| actor_email | TEXT | Email of actor at time of action |
-| member_id | INTEGER | Numeric DB id of affected member (nullable) |
-| member_ref | TEXT | Human-readable snapshot: `"ASSOC-0042 João Silva"` |
-| action | TEXT | Event key — see § Audit Log Actions |
-| detail | TEXT | Field-level diff; filename; `role=x, position=y` for role changes |
+| actor_id | INTEGER | Nullable |
+| actor_email | TEXT | |
+| member_id | INTEGER | Nullable |
+| member_ref | TEXT | e.g. `"ASSOC-0042 João Silva"` |
+| action | TEXT | See § Audit Log Actions |
+| detail | TEXT | Field diff or descriptive string |
 | created_at | TEXT | ISO-8601 datetime |
 
 ---
@@ -310,77 +308,67 @@ Append-only. No FK on `member_id` — entries survive member deletion. Capped at
 Two independent columns on `users`: `role` (system permission) and `position` (association title).
 
 ### Permission roles (`users.role`)
-
-| Role | Who | Can do |
-|------|-----|--------|
-| `super_admin` | Association president/owner | Everything: all CRUD, role/position changes, delete any account |
-| `admin` | Association staff | All member CRUD, documents, OCR, NIA photo, audit log — no role changes |
-| `member` | Everyone else | Own profile only — view + edit own data, download own documents |
+| Role | Can do |
+|------|--------|
+| `super_admin` | Everything: all CRUD, role/position changes, delete any account, OCR config, vault admin |
+| `admin` | All member CRUD, documents, OCR, NIA photo, audit log, vault admin — no role changes |
+| `member` | Own profile only — view + edit own data, download own documents, view public vault |
 
 ### Association positions (`users.position`)
-
 | Position | Notes |
 |----------|-------|
 | `member` | Default |
-| `honorary` | No fees, no voting, fee sections show N/A, excluded from paid/unpaid stats |
-| `gestao` | Umbrella for all management positions. Grants view-all + fee-write access regardless of `role`. |
-| `board` | Under gestao umbrella — same view-all + fee-write access |
-| `president` | Under gestao umbrella — same view-all + fee-write access |
-| `treasurer` | Under gestao umbrella — same view-all + fee-write access |
-| `secretary` | Under gestao umbrella — same view-all + fee-write access |
+| `honorary` | No fees; fee sections show N/A; excluded from paid/unpaid stats |
+| `gestao` | Grants view-all + fee-write + calendar-write + public-vault-upload access |
+| `board` / `president` / `treasurer` / `secretary` | Same access as gestao |
 
 ### Middleware (`middleware/auth.js`)
-
 ```javascript
 requireAuth(req, res, next)       // any session — sets currentUser, canWrite, isSuperAdmin, canViewAll
 requireAdmin(req, res, next)      // super_admin | admin only
 requireSuperAdmin(req, res, next) // super_admin only
-requireViewAll(req, res, next)    // admin+ OR position='gestao'
+requireViewAll(req, res, next)    // admin+ OR position in MGMT_POSITIONS
 ```
 
-### `res.locals` helpers (available in every authenticated template)
-
-| Variable | Value | Use |
-|----------|-------|-----|
-| `currentUser` | `{ id, email, role, position }` | Identity checks |
-| `canWrite` | `true` for super_admin + admin | Hide all write buttons/forms |
-| `isSuperAdmin` | `true` for super_admin only | Show Role Management, Vision Model Health, OCR Model Config, Fee Config |
-| `canViewAll` | `true` for admin+ OR position=gestao | Access to admin area |
-| `pendingInviteCount` | integer | Count of `event_invites` rows with `status='pending'` for the current user — drives the topbar bell badge |
+### `res.locals` helpers (every authenticated template)
+| Variable | Value |
+|----------|-------|
+| `currentUser` | `{ id, email, role, position }` |
+| `canWrite` | `true` for super_admin + admin |
+| `isSuperAdmin` | `true` for super_admin only |
+| `canViewAll` | `true` for admin+ OR management position |
+| `pendingInviteCount` | Count of pending event invites for current user |
 
 ### Inline guards in `routes/admin.js`
-
 ```javascript
-adminOnly(req, res, next)       // blocks gestao (position) on all write routes
-superAdminOnly(req, res, next)  // blocks everyone but super_admin on role-change + health routes
+adminOnly(req, res, next)       // blocks gestao (position) on write routes
+superAdminOnly(req, res, next)  // blocks everyone but super_admin
+canUploadVault(user)            // returns true for admin/SA/all management positions
 ```
 
 ---
 
 ## Fee Status Logic
 
-Implemented in `utils/fee.js` — `computeFeeStatus(feeAmount, feeLastPaid)`.
+`computeFeeStatus(feeAmount, feeLastPaid)` in `utils/fee.js`.
 
 | Condition | fee_status | Badge |
 |-----------|-----------|-------|
 | fee_amount = 0 | `paid` | `pta-tone-success` |
-| fee_amount > 0, no date paid | `unpaid` | `pta-tone-danger` |
-| Paid, valid until > 30 days away | `paid` | `pta-tone-success` |
-| Paid, valid until ≤ 30 days away | `renewal_incoming` | `pta-tone-gold` |
-| Paid, valid until has passed | `unpaid` | `pta-tone-danger` |
-
-- `fee_valid_until` = `fee_last_paid` + 1 year
-- `fee_status` is always computed on save — never editable directly from a form
+| fee_amount > 0, no date | `unpaid` | `pta-tone-danger` |
+| Paid, valid > 30 days | `paid` | `pta-tone-success` |
+| Paid, valid ≤ 30 days | `renewal_incoming` | `pta-tone-gold` |
+| Paid, expired | `unpaid` | `pta-tone-danger` |
 
 ---
 
 ## Member Card Sections
 
-1. **Personal Info** — first name, last name, phone (dial-code picker), email, address ZH + EN (plain text), photo
-2. **Membership Info** — member ID, join date, annual fee amount, last paid, valid until, fee status badge
-3. **ARC Data** — ARC number, English name (`arc_name_en`), Chinese name, issue/expiry dates, passport number, serial number
-4. **Cartão de Cidadão** — CC number, expiry date, NIF, NISS
-5. **Notes** — free text, visible to admins only
+1. **Personal Info** — first name, last name, phone, email, address ZH + EN, photo
+2. **Membership Info** — member ID, join date, annual fee, last paid, valid until, fee status
+3. **ARC / ID Data** — 3-way radio: ARC / APRC / TW Passport; number, names, dates, serial; "APRC — PERMANENT" badge when `is_aprc=1`; expiry label changes for passport
+4. **Cartão de Cidadão** — CC number, expiry, NIF, NISS
+5. **Notes** — admin-only
 
 ---
 
@@ -390,7 +378,7 @@ Implemented in `utils/fee.js` — `computeFeeStatus(feeAmount, feeLastPaid)`.
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/login` | Login page |
-| POST | `/login` | Authenticate; redirect by role |
+| POST | `/login` | Authenticate |
 | POST | `/logout` | Destroy session |
 | GET | `/` | Redirect to dashboard or profile |
 
@@ -399,335 +387,283 @@ Implemented in `utils/fee.js` — `computeFeeStatus(feeAmount, feeLastPaid)`.
 |--------|------|-------------|
 | GET | `/uploads/photos/:filename` | Serve member photo (requireAuth) |
 | GET | `/uploads/thumbs/:filename` | Serve thumbnail (requireAuth) |
+| GET | `/vault` | Public vault page — all authenticated users |
+| GET | `/vault/files/:id` | Download public vault file (requireAuth, section=public only) |
 
-### Admin (requires gestao or higher for GET; admin+ for write routes)
+### Admin (requireViewAll for GET; adminOnly/superAdminOnly for writes)
 | Method | Path | Guard | Description |
 |--------|------|-------|-------------|
 | GET | `/admin` | viewAll | Dashboard |
-| GET | `/admin/members` | viewAll | Member list |
+| GET | `/admin/members` | viewAll | Member list (search, fee filter, sort) |
 | GET | `/admin/members/new` | adminOnly | New member form |
-| POST | `/admin/members` | adminOnly | Create member + user account |
-| GET | `/admin/members/:id` | viewAll | Member detail view |
+| POST | `/admin/members` | adminOnly | Create member |
+| GET | `/admin/members/:id` | viewAll | Member detail |
 | GET | `/admin/members/:id/edit` | adminOnly | Edit form |
 | POST | `/admin/members/:id` | adminOnly | Update member |
 | POST | `/admin/members/:id/delete` | adminOnly | Delete member |
-| POST | `/admin/members/:id/change-role` | superAdminOnly | Change account role + position |
-| POST | `/admin/members/:id/set-password` | superAdminOnly | Set a new password for the member; body `{ new_password, confirm_password }`; min 6 chars; hashed with bcryptjs |
+| POST | `/admin/members/:id/change-role` | superAdminOnly | Change role + position |
+| POST | `/admin/members/:id/set-password` | superAdminOnly | Set new password |
 | POST | `/admin/members/:id/documents` | adminOnly | Upload misc documents (up to 5) |
-| POST | `/admin/members/:id/documents/card` | adminOnly | Upload card image; auto-runs OCR; returns `{ extracted }` JSON |
-| POST | `/admin/members/:id/documents/:docId/ocr` | adminOnly | Re-run OCR on stored card; returns `{ extracted }` JSON |
-| POST | `/admin/members/:id/apply-card-fields` | adminOnly | Apply OCR-extracted fields; returns JSON |
-| POST | `/admin/members/:id/documents/:docId/delete` | adminOnly | Delete a document |
-| GET | `/admin/members/:id/documents/:docId/view` | viewAll | Serve document inline (lightbox) |
-| GET | `/admin/members/:id/documents/:docId/download` | viewAll | Download a document |
-| GET | `/admin/members/:id/arc-captcha` | adminOnly | Fetch NIA captcha (base64 + session token) |
-| POST | `/admin/members/:id/arc-fetch-photo` | adminOnly | Validate captcha + call NIA + save photo |
-| POST | `/admin/ocr-health-check` | superAdminOnly | Ping all active OCR models; returns `{ warnings }` |
-| POST | `/admin/ocr-dismiss-warning` | superAdminOnly | Body `{ model }` — clears in-memory model warning |
-| POST | `/admin/ocr-test-model` | superAdminOnly | Body `{ model }` — ping one model ID; returns `{ ok, error? }` |
-| POST | `/admin/settings/fee` | superAdminOnly | Body `{ fee_amount }` — save default annual fee to settings table |
-| POST | `/admin/settings/models` | superAdminOnly | Body `{ models[] }` — save OCR model list to settings table |
-| GET | `/admin/audit` | adminOnly | Audit log (paginated 50/page, newest first) |
+| POST | `/admin/members/:id/documents/card` | adminOnly | Upload card image + auto-OCR |
+| POST | `/admin/members/:id/documents/:docId/ocr` | adminOnly | Re-run OCR on stored card |
+| POST | `/admin/members/:id/apply-card-fields` | adminOnly | Apply OCR fields |
+| POST | `/admin/members/:id/documents/:docId/delete` | adminOnly | Delete document |
+| GET | `/admin/members/:id/documents/:docId/view` | viewAll | Serve document inline |
+| GET | `/admin/members/:id/documents/:docId/download` | viewAll | Download document |
+| GET | `/admin/members/:id/arc-captcha` | adminOnly | Fetch NIA captcha (blocked for APRC/TW Passport) |
+| POST | `/admin/members/:id/arc-fetch-photo` | adminOnly | Validate captcha + save NIA photo |
+| POST | `/admin/ocr-health-check` | superAdminOnly | Ping all OCR models |
+| POST | `/admin/ocr-dismiss-warning` | superAdminOnly | Clear in-memory model warning |
+| POST | `/admin/ocr-test-model` | superAdminOnly | Ping one model; 10s cooldown |
+| POST | `/admin/settings/fee` | superAdminOnly | Save default annual fee |
+| POST | `/admin/settings/models` | superAdminOnly | Save OCR model list + timeout |
+| GET | `/admin/audit` | adminOnly | Audit log (paginated) |
+| POST | `/admin/vault/upload` | requireAuth + guard | Upload to vault (section in body); public = canUploadVault; admin = canWrite |
+| GET | `/admin/vault/files/:id` | requireAuth + guard | Download vault file (admin section needs admin/SA/management) |
+| POST | `/admin/vault/files/:id/delete` | canWrite | Delete vault file |
 
-### Calendar / Events (requires canViewAll for reads; calendarWriteGuard for writes)
+### Calendar / Events
 | Method | Path | Guard | Description |
 |--------|------|-------|-------------|
-| GET | `/admin/events/data` | viewAll | JSON — events for `?year=&month=`; includes invite/accepted/declined counts |
-| POST | `/admin/events` | calendarWrite | Create event; body `{ title, start_date, end_date?, location?, description?, audience[] }`; validates `end_date >= start_date`; resolves audience via UNION query → inserts invite rows in same transaction |
-| POST | `/admin/events/:id/delete` | calendarWrite | Delete event + all invites; SA can delete any, others own only |
-| GET | `/admin/events/:id/invites` | adminOnly | JSON — all invitees for an event with status + display name; grouped by status server-side |
+| GET | `/admin/events/data` | viewAll | JSON events for `?year=&month=` |
+| POST | `/admin/events` | calendarWrite | Create event + resolve audience + insert invites |
+| POST | `/admin/events/:id/delete` | calendarWrite | Delete event |
+| GET | `/admin/events/:id/invites` | adminOnly | JSON invitee list with status |
 
-`calendarWriteGuard` allows `admin`, `super_admin`, and all `MGMT_POSITIONS` (gestao / board / president / treasurer / secretary).
-
-### Member (requires login, own data only)
+### Member (requireAuth, own data only)
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/profile` | Own profile view — My Profile tab; accepts `?tab=notifications` to open Notifications tab |
-| GET | `/profile/edit` | Edit: personal info, ARC data, CC data, password |
-| POST | `/profile` | Save own profile changes |
+| GET | `/profile` | Own profile (My Profile + Notifications tabs) |
+| GET | `/profile/edit` | Edit form |
+| POST | `/profile` | Save profile changes |
 | GET | `/profile/documents/:docId/view` | Serve own document inline |
-| GET | `/profile/documents/:docId/download` | Download own document (ownership verified) |
-| GET | `/profile/invites/:id/export.ics` | Download RFC 5545 `.ics` for one invite (ownership verified) |
-| POST | `/profile/invites/:id/respond` | Body `{ action: 'accepted'|'declined' }` — updates invite status; returns `{ ok, status }` JSON |
+| GET | `/profile/documents/:docId/download` | Download own document |
+| GET | `/profile/invites/:id/export.ics` | Download RFC 5545 `.ics` |
+| POST | `/profile/invites/:id/respond` | Accept / Decline invite |
 
 ---
 
 ## Card OCR Feature
 
-### Overview
-Admin uploads a card image (JPEG/PNG/WebP, max 5 MB). Server sends it to two OpenRouter vision LLMs in parallel. Results are merged — first non-empty value wins; conflicts surfaced for admin to resolve. Admin reviews in Before/After modal and selectively applies fields.
-
 ### Card Types and Fields
-| doc_type | Card face | Fields extracted |
-|----------|-----------|-----------------|
-| `arc_front` | Taiwan ARC — front | `arc_number`, `arc_name_en`, `arc_chinese_name`, `arc_issue_date`, `arc_expiry_date`, `passport_number`, `address_zh` |
-| `arc_back` | Taiwan ARC — back | `arc_serial_number` |
-| `cc_front` | Portuguese CC — front | `cc_number`, `cc_expiry_date` |
-| `cc_back` | Portuguese CC — back | `nif`, `niss` |
+| doc_type | Fields extracted |
+|----------|-----------------|
+| `arc_front` | `arc_number`, `arc_name_en`, `arc_chinese_name`, `arc_issue_date`, `arc_expiry_date`, `passport_number`, `address_zh` |
+| `arc_back` | `arc_serial_number` |
+| `cc_front` | `cc_number`, `cc_expiry_date` |
+| `cc_back` | `nif`, `niss` |
 
 ### Implementation (`utils/ocr.js`)
-- Pure HTTP to `https://openrouter.ai/api/v1/chat/completions`
-- Image base64-encoded, sent as inline data URL
-- Four distinct per-type prompts in `PROMPTS`
-- **Dual-model parallel execution**: first two entries in `_activeModels` run simultaneously via `Promise.allSettled`
-- **Merge logic**: first non-empty value wins; `_conflicts: { field: [valA, valB] }` when both differ
-- **Fallback**: if either parallel slot is rate-limited (429), third model substituted
-- **In-memory health tracking**: non-429 errors mark model as offline; cleared on successful call
-- `OPENROUTER_MODEL` env var pins one model (bypasses all parallel/fallback logic)
-- Markdown code fences stripped before `JSON.parse`
-
-### Active model list (runtime-configurable)
-`_activeModels` in `ocr.js` is mutable. On startup, `routes/admin.js` reads `ocr_models` from the `settings` table and calls `setActiveModels()`. Hardcoded defaults (`DEFAULT_VISION_MODELS`) apply if the setting is absent.
-
-| # | Model ID | Role |
-|---|----------|------|
-| 1 | `nvidia/nemotron-nano-12b-v2-vl:free` | Primary (fast, reliable) |
-| 2 | `nex-agi/nex-n2-pro:free` | Secondary parallel |
-| 3 | `moonshotai/kimi-k2.6:free` | Fallback on 429 |
-
-**Do not swap models without first verifying the exact model ID on OpenRouter.** Invalid IDs return HTTP 400 and create false "Offline" warnings. Use the dashboard "Test" button before adding any new model.
+- Pure HTTP to OpenRouter `/api/v1/chat/completions`
+- **Dual-model parallel**: first two `_activeModels` run via `Promise.allSettled`
+- **Merge**: first non-empty value wins; `_conflicts` when both differ and both non-empty
+- **Fallback**: third model substituted if either parallel slot returns 429
+- **Per-model timeout**: `MODEL_TIMEOUT_MS` (default 55s, configurable via dashboard); AbortController cleared only after `res.json()` body is fully read — headers arriving does NOT clear the timer
+- **Health tracking**: non-429 errors mark model offline; cleared on success
+- `OPENROUTER_MODEL` env var pins one model (bypasses parallel + fallback)
 
 ### `utils/ocr.js` exports
 | Export | Description |
 |--------|-------------|
-| `scan(docType, imagePath)` | Run OCR; returns extracted fields + optional `_conflicts` |
-| `checkModels()` | Ping all active models; update in-memory health store; return warnings |
-| `getModelWarnings()` | Return current in-memory warning array |
-| `dismissModelWarning(modelId)` | Clear a warning entry |
-| `getActiveModels()` | Return current `_activeModels` copy |
-| `setActiveModels(models)` | Replace active list; falls back to defaults if empty/invalid; clears stale `modelStatus` entries for removed models |
-| `testModel(modelId)` | Ping one model; returns `{ ok: bool, error?: string }` |
+| `scan(docType, imagePath)` | Run OCR; returns fields + optional `_conflicts` |
+| `checkModels()` | Ping all active models; update health store |
+| `getModelWarnings()` | Current in-memory warnings array |
+| `dismissModelWarning(modelId)` | Clear a warning |
+| `getActiveModels()` | Current `_activeModels` copy |
+| `setActiveModels(models)` | Replace list; clears stale `modelStatus` entries |
+| `testModel(modelId)` | Ping one model; returns `{ ok, error? }` |
+| `getModelTimeout()` | Current `MODEL_TIMEOUT_MS` value |
+| `setModelTimeout(ms)` | Set timeout (10000–120000 range enforced) |
 
-### Post-processing
-- `arc_serial_number`: spaces stripped — models hallucinate a space between letter prefix and digits (e.g. "F 230502164" → "F230502164")
-- `arc_name_en`: prompts instruct models to convert ARC SURNAME-FIRST to Western GIVEN-FIRST format
+### Active model list
+| # | Model ID | Role |
+|---|----------|------|
+| 1 | `nvidia/nemotron-nano-12b-v2-vl:free` | Primary |
+| 2 | `nex-agi/nex-n2-pro:free` | Secondary parallel |
+| 3 | `moonshotai/kimi-k2.6:free` | Fallback on 429 |
 
-### Prompt notes
-- **arc_front — Chinese name**: on the same row as the UI No., immediately after the alphanumeric code
-- **arc_front — address**: under "居留地址 Residence address" label at card bottom
-- **arc_front — name order**: ARC prints SURNAME GIVEN; prompt instructs reorder to GIVEN SURNAME
-- **arc_back serial**: reference number to the RIGHT of barcode at the very TOP — NOT MRZ, NOT 舊式統一證號
-- **cc_front dates**: printed DD MM YYYY — prompt converts to YYYY-MM-DD
-- **cc_back NISS**: some card generations print `X` — prompt returns `""` in that case
+Only models with `:free` suffix are free. Models without `:free` charge OpenRouter credits.
 
-### OCR Review Modal (`member-detail.ejs`)
-- `CARD_FIELDS` per-type field list — shows all expected fields even when empty
-- Row states: `table-success` (new data), `table-warning` (differs from saved), `table-info` + `?` badge (models disagreed)
-- Conflicted fields show a `<select>` dropdown (Model A / Model B) — `data-value` on checkbox updates live
-- Per-field checkbox (pre-checked), Accept All / Reject All buttons
-- On submit, only checked fields POSTed to `apply-card-fields` (validated against ALLOWED list server-side)
+---
+
+## File Vault
+
+Two-section document store for association files. Not for member-specific documents (those live in `documents` table).
+
+### Access matrix
+| | Public | Administration |
+|---|---|---|
+| View / Download | Any logged-in member | Admin + Super Admin |
+| Upload | Admin, Super Admin, all management positions | Admin + Super Admin only |
+| Delete | Admin + Super Admin | Admin + Super Admin |
+
+### Storage
+Files stored under `uploads/vault/public/` and `uploads/vault/admin/`. These directories are created at startup. Served through authenticated routes — NOT via `express.static`.
+
+### Allowed file types (vault upload)
+PDF, JPEG, PNG, WebP, plain text, Word (`.doc`/`.docx`), Excel (`.xls`/`.xlsx`). Max 20 MB per file.
+
+### UI
+- **Dashboard** — "File Vault" section at the bottom with two side-by-side cards (Public + Administration). Upload form with optional description. Delete button (canWrite). "Member view" link to `/vault`.
+- **Member `/vault` page** — clean table of public files with download button; linked from topbar "Documents" for all users.
+
+### Audit events
+- `vault.upload` — `[section] filename (N KB)`
+- `vault.delete` — `[section] filename`
 
 ---
 
 ## Key Behaviours
 
 ### Authentication & Authorisation
-- Session-based. Sessions live in SQLite via `better-sqlite3-session-store`.
-- `requireAuth` sets `res.locals` helpers for every authenticated page.
-- Admin router mounted with `requireViewAll` — gestao (position) can view, write routes have `adminOnly` inline.
+- Sessions in SQLite via `better-sqlite3-session-store` — survive server restarts.
 - All queries in `routes/user.js` scope to `WHERE user_id = req.session.userId`.
 
-### Login Brute-Force Protection (`routes/auth.js`)
-- In-memory `Map` keyed by `req.ip` — no extra packages.
-- 5 failed attempts within 15 minutes → IP blocked for 15 minutes.
-- Successful login clears the counter. Stale entries purged every 30 minutes.
-- **Resets on server restart** — intentional (shared hosting).
-
 ### Audit Log
-- Table: `audit_log` — no FK on `member_id`, entries survive member deletion.
-- Hard cap: 2000 rows. `writeAudit()` uses a transaction to insert + trim atomically.
-- **No UPDATE or DELETE routes** — append-only by design.
+- Hard cap: 2000 rows. `writeAudit()` inserts + trims atomically. No UPDATE or DELETE routes.
 
 | Action key | When |
 |-----------|------|
 | `member.created` | Admin creates a new member |
-| `member.updated` | Admin saves member edit form (detail = field diff) |
+| `member.updated` | Admin saves member edit (detail = field diff) |
 | `member.deleted` | Admin deletes a member |
 | `member.role_changed` | Super-admin changes role/position |
-| `member.password_reset` | Super-admin sets a new password for a member |
+| `member.password_reset` | Super-admin sets member password |
 | `member.card_uploaded` | Card image uploaded |
 | `member.doc_uploaded` | Misc document(s) uploaded |
 | `member.doc_deleted` | Document deleted |
-| `member.ocr_applied` | OCR-extracted fields applied |
-| `member.nia_photo_saved` | NIA photo fetched and saved |
-| `profile.self_updated` | Member edits own profile (detail = field diff) |
-| `settings.fee_changed` | Super-admin changes default annual fee (detail = new value) |
-| `settings.models_changed` | Super-admin saves OCR model list (detail = comma-separated IDs) |
-| `event.created` | Admin/gestao creates a calendar event (detail = title, date, invite count) |
-| `event.deleted` | Admin/gestao deletes an event (detail = title, date) |
+| `member.ocr_applied` | OCR fields applied |
+| `member.nia_photo_saved` | NIA photo saved |
+| `profile.self_updated` | Member edits own profile |
+| `settings.fee_changed` | Default annual fee changed |
+| `settings.models_changed` | OCR model list (or timeout) saved |
+| `event.created` | Calendar event created |
+| `event.deleted` | Calendar event deleted |
+| `vault.upload` | File uploaded to vault |
+| `vault.delete` | File deleted from vault |
 
 ### File Uploads
 - **Photos**: JPEG/PNG/WebP, max 2 MB → `uploads/photos/`
-- **Card images**: JPEG/PNG/WebP, max 5 MB → `uploads/documents/`; thumbnails (200px wide JPEG) → `uploads/thumbs/`. One per type per member — uploading replaces existing.
-- **Misc documents**: PDF/Word/images/text, max 10 MB each, up to 5 at a time → `uploads/documents/`
-- Filenames: `{timestamp}-{uuid}.ext` — original filename NOT used on disk
-- **Photos and thumbs served via `requireAuth` routes** — not `express.static`
-- Documents served via authenticated download routes (ownership verified)
+- **Card images**: max 5 MB → `uploads/documents/`; thumbnails → `uploads/thumbs/`. One per type per member.
+- **Misc documents**: PDF/Word/images/text, max 10 MB each → `uploads/documents/`
+- **Vault files**: PDF/Word/Excel/images/text, max 20 MB → `uploads/vault/{section}/`
+- Disk filenames: `{timestamp}-{uuid}.ext` — original name stored in DB after `fixFilename()` re-encoding
+- **Chinese / non-ASCII filenames**: `fixFilename(name)` re-encodes `Buffer.from(name, 'latin1').toString('utf8')` because busboy 1.x defaults to latin1; applied at all upload insert points in `admin.js`
 
-### Member IDs
-Format: `ASSOC-XXXX` (zero-padded 4 digits). `nextMemberId()` called **inside** the create transaction.
+### DB Migrations
+- Simple column additions: `PRAGMA table_info` check → `ALTER TABLE … ADD COLUMN`
+- Full table recreations: foreign keys OFF → create new → copy → drop old → rename → rebuild indexes
+- Never use `db.exec` with multiple statements — security hook blocks it
 
-### DB Migrations (startup checks in `database/db.js`)
-1. `needsRebuild` — if `fee_amount` or `renewal_incoming` absent → full rebuild
-2. Users role migration — if `super_admin` absent → recreate, mapping `admin→super_admin`, `user→member`
-3. `ALTER TABLE … ADD COLUMN` for multiple columns — existence check first
-4. `settings` table — `CREATE TABLE IF NOT EXISTS settings (key TEXT PK, value TEXT)` — always runs safely
-- Pattern: check → migrate in transaction → recreate indexes
-- Never use `db.exec` with multiple statements
-
-### Flash Messages
-`req.session.flash = { type: 'success'|'danger', message }` before redirect. Consumed once, rendered by `partials/flash.ejs`.
-
-### cPanel Deployment (HostArmada / LiteSpeed)
-- Entry point: `app.js`. Port: `process.env.PORT`.
-- All file paths use `process.cwd()`.
-- Do NOT upload `node_modules/`, `uploads/`, `database/data.db`, or `.env`.
-- Set `OPENROUTER_API_KEY`, `SESSION_SECRET`, and **`NODE_ENV=production`** as environment variables in the Node.js App panel.
-- `NODE_ENV=production` is required for `cookie.secure: true`; combined with `app.set('trust proxy', 1)` this enables HTTPS-only session cookies behind cPanel's nginx reverse proxy.
-
-**Deploy workflow (after every git push):**
-1. cPanel Terminal (or Git panel): `git pull` in `/home/chiangly/repositories/PT-ASSOCIACAO/`
-2. `npm install` (only needed when `package.json` changes)
-3. Find the running process PID: open `https://associacao.poetico.co/node-check.php?token=ptassoc-diag-2024`
-4. Kill it: `https://associacao.poetico.co/node-kill.php?token=ptassoc-diag-2024&pid=XXXX`
+### cPanel Deployment
+1. `git pull` in `/home/chiangly/repositories/PT-ASSOCIACAO/`
+2. `npm install` (only when `package.json` changes)
+3. Get PID: `https://associacao.poetico.co/node-check.php?token=ptassoc-diag-2024`
+4. Kill: `https://associacao.poetico.co/node-kill.php?token=ptassoc-diag-2024&pid=XXXX`
 5. cPanel → Node.js Selector → **Start**
 
-**Why this is needed:** HostArmada runs Node via LiteSpeed's `lsnode` process manager. The "Stop" button in the Node.js panel does not always terminate the running process — it can be orphaned (PPID=1). The kill step ensures the stale process is gone before starting fresh.
-
-**PID changes every restart** — always check before killing. `node-kill.php` and `node-check.php` are gitignored and must be uploaded manually to `public_html/` (not to the app directory). Delete them from the server when not actively debugging.
-
-**`database/data.db` survives normal deploys** (it is gitignored and `git pull` does not touch it). It is only lost if the entire application directory is deleted from cPanel. Back up `data.db` via cPanel File Manager periodically.
+`node-check.php` and `node-kill.php` are gitignored — upload manually to `public_html/`, delete after use.
 
 ---
 
 ## NIA ARC Photo Fetch
 
-Implemented in `routes/admin.js`. Uses Node's built-in `fetch` (Node 18+).
+Server-side only (Node 18+ global `fetch`). Blocked for `is_aprc=1` and `is_tw_passport=1` members — those don't have a searchable ARC record.
 
 ### Flow
-1. Admin clicks **"Fetch NIA Photo"** button (in sidebar profile card, under the member's photo)
-2. Server calls NIA `GET /api/captcha` → captcha image + `JSESSIONID`; stored server-side (5-min TTL)
-3. Captcha shown in modal; admin types answer
-4. Server validates captcha: fail → reload; pass → search
-5. Server calls NIA `POST /api/search` with ARC fields + captcha
-6. `rcode: "0000"` → photo saved, `photo_path` updated, page reloads
-7. `rcode: "0301"` → "No matching record found" error
+1. Admin clicks **"Fetch NIA Photo"** (sidebar, under member photo)
+2. Server fetches NIA captcha image + JSESSIONID; stored server-side (5-min TTL)
+3. Admin solves captcha in modal
+4. Server validates + calls NIA search → saves photo if found
+5. On failure: "Try again" button re-runs `loadCaptcha()` without page reload
 
-### NIA API Endpoints
+### NIA API
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/icinfo-frontend/api/captcha?{ts}` | Get captcha image + JSESSIONID |
+| GET | `/icinfo-frontend/api/captcha?{ts}` | Captcha image + JSESSIONID |
 | GET | `/icinfo-frontend/api/captcha/{answer}/validation` | Validate captcha |
-| POST | `/icinfo-frontend/api/search` | Submit ARC data; returns `{ rcode, message, data: { image } }` |
+| POST | `/icinfo-frontend/api/search` | Submit ARC data; returns photo |
 
-POST body: `{ "uino": "...", "issueDate": "YYYY-MM-DD", "expiryDate": "YYYY-MM-DD", "serialNo": "...", "captcha": "..." }`
+POST body: `{ "uino", "issueDate", "expiryDate", "serialNo", "captcha" }`
 
 ---
 
 ## Frontend Design System
 
-### Load order (must be preserved in `header.ejs`)
+### Load order
 ```
-Bootstrap 5.3.3 CSS (CDN, SRI hash)
-Bootstrap Icons 1.11.3 (CDN, SRI hash)
-Flag Icons 7.2.3 (CDN, SRI hash)
+Bootstrap 5.3.3 CSS (CDN, SRI)
+Bootstrap Icons 1.11.3 (CDN, SRI)
+Flag Icons 7.2.3 (CDN, SRI)
 /css/custom.css
 /css/ds/pt-design-system.css
 /css/ds/pt-bootstrap-bridge.css
 ```
 
-`login.ejs` is standalone — loads its own CDN links + design system CSS without using `header.ejs`.
-
-### Layout shell
-Every authenticated page:
-```
-header.ejs → <main class="pta-main">  [flash]  [content]
-footer.ejs → </main>
-```
-
 ### Page Inventory
 
 #### `login.ejs`
-Standalone. `.pta-login` > `.pta-login__card` > `.pta-login__brand` (logo) + flash + `.pta-login__form`.
+Standalone. `.pta-login` layout. Version badge shows current app version.
 
 #### `admin/dashboard.ejs`
-Variables: `stats { total, honorary, paid, unpaid }`, `warnings[]`, `recent[]`, `modelWarnings[]`, `activeModels[]`, `defaultFee` (last three: super_admin only).
+Variables: `stats`, `warnings[]`, `recent[]`, `modelWarnings[]`, `activeModels[]`, `ocrTimeoutSec`, `defaultFee`, `vaultPublic[]`, `vaultAdmin[]`, `canVaultAdmin`.
 
-- `.pta-pagehead` — title + "New Member" button (canWrite)
-- `.pta-card.pta-card--flush` > `.pta-statsbar` — 4 `.pta-stat` tiles: Total / Paid / Unpaid / Honorary
-- **Warnings & Advisories** card — `.pta-table` with fee/ARC/CC columns; count badge
-- **Vision Model Health** card (isSuperAdmin) — model status table; "Run Check" AJAX; per-row dismiss. All DOM uses `createElement`/`textContent` — no innerHTML with untrusted data.
-- **OCR Model Configuration** card (isSuperAdmin) — JS-rendered model list (`modelConfigRows` tbody populated by `renderModelList()` via `DOMContentLoaded`); per-model Test (AJAX) + Remove; Add Model input + Test + Add; Save button → `POST /admin/settings/models`.
-- **Default Annual Fee** card (isSuperAdmin) — number input pre-filled with `defaultFee`; Save → `POST /admin/settings/fee`; also retroactively updates `fee_amount` for all `fee_status='unpaid'` non-honorary members; flash message reports how many were updated.
-- **Association Calendar** card (all canViewAll) — month grid (Mon–Sun, EU week); AJAX loads `/admin/events/data`; today highlighted; cells with events get `.has-events` class (light blue tint + bold date number); per-day up to 2 colored `.pta-cal-strip` title strips stacked from bottom (color = `CAL_COLORS[event.id % 8]`); "+N more" strip when >2 events; click day → event panel below grid; "New Event" button (canWrite or management position) opens modal; per-event attendee toggle (fetches `/admin/events/:id/invites`); delete button (ownership enforced server-side).
-  - **New Event modal** — title, start/end date, location, description, audience checkboxes (All / Paid / Unpaid / Honorary / Non-Honorary); closes automatically on success via `bootstrap.Modal.getOrCreateInstance(...).hide()`.
-- **Recent Members** card — last 5 joins
+Sections (top → bottom):
+1. Stats bar + Warnings & Advisories
+2. Vision Model Health (isSuperAdmin)
+3. OCR Model Configuration (isSuperAdmin) — model list, timeout input (10–120s), Save
+4. Default Annual Fee (isSuperAdmin)
+5. Association Calendar + Upcoming Events
+6. Recent Members
+7. File Vault — Public card (always shown to canViewAll) + Administration card (canVaultAdmin only)
 
-**Note on script timing**: the OCR model config HTML card appears *after* the `<script>` block in the source, so `renderModelList()` is deferred with a `DOMContentLoaded` guard.
+**Script note**: OCR model config HTML appears after the `<script>` block → `renderModelList()` deferred via `DOMContentLoaded`. Unsaved state: Save button turns red + shows "(unsaved)" when `JSON.stringify(modelList) !== JSON.stringify(_savedModelList)`.
 
 #### `admin/members-list.ejs`
-Variables: `members[]`, `search`, `feeFilter`, `page`, `totalPages`, `total`.
+Variables: `members[]`, `search`, `feeFilter`, `sort`, `page`, `totalPages`, `total`.
 
-- `.pta-pagehead` — member count + "New Member" (canWrite)
-- `.pta-toolbar` — `.pta-search` (GET form, preserves fee filter in hidden input) + `.pta-filterchips` (All / Paid / Renewal / Unpaid)
-- `.pta-card.pta-card--flush` > `.pta-table` — clickable rows; avatar initials + namecell; fee badge; pagination
-- **Position column** — shows system role when elevated: `super_admin` → "Super Admin" (gold badge), `admin` → "Admin" (info badge); falls back to association position for `role=member` rows. Query selects `u.role as user_role`.
+Columns: Member (avatar + name) | Member ID | Email | Position | ID Type | Fee Status | Warnings | Joined | Actions
+
+- `sort` param drives `ORDER BY` via server-side `SORT_MAP` whitelist
+- `memberListUrl(overrides)` helper builds URLs preserving all active filters
+- Warnings column: "No Warning" badge (success) or stacked doc-expiry badges (danger/warning)
+- ID Type column: ARC / APRC (info) / TW Passport
 
 #### `admin/member-detail.ejs`
-Variables: `member` (full row + `user_role`, `user_position`, `account_created`), `documents[]`.
+Variables: `member` (full row), `documents[]`.
 
-Layout: `.pta-pagehead` (back link + name + edit button) → `.pta-detail` (sidebar + content)
-
-**Sidebar**:
-- Profile card: `.pta-avatar--xl` (photo or initials), name, fee badge or "Honorary Member", **Fetch NIA Photo button** (canWrite)
-- Account Settings panel (isSuperAdmin): role select + position select; below a `<hr>`, a separate password reset form (`POST /admin/members/:id/set-password`) with new + confirm inputs; client-side mismatch alert + confirm dialog before submit
-- NIA Photo modal: if the fetch fails, a "Try again" button appears (id `arcRetryBtn`) that re-invokes `loadCaptcha()` without a page reload
-- Danger Zone (canWrite): delete form
-
-**Content column** (6 cards):
-1. Contact — phone, email, address fields
-2. Membership & Fees — member ID, dates, fee; Update Payment form (canViewAll && !isHonorary)
-3. ARC (eyebrow: "Alien Resident Certificate") — 7 fields + expiry validity badge
-4. Cartão de Cidadão (eyebrow: "Portuguese ID") — 4 fields + expiry validity badge
-5. Notes
-6. Documents — `.pta-docslots` (4 card slots) + misc list + upload form
-
-Three modals: Image Lightbox, OCR Review, NIA Photo — all lazy-inited Bootstrap modals.
+ARC/ID card:
+- Card title changes: "ARC" / "APRC" / "Taiwan Passport"
+- Expiry label: "Expiry date" (ARC) / "Passport Expiry" (TW Passport) / hidden (APRC)
+- Validity badge: computed by `docValidity()` for ARC/Passport; `{ label: 'APRC — PERMANENT', tone: 'info' }` for APRC
+- NIA button replaced with info note for APRC and TW Passport members
 
 #### `admin/member-new.ejs` / `admin/member-edit.ejs`
-Variables: `errors[]`, `data`, `countries`, `defaultFee`. Use `partials/member-form.ejs`.
+Use `partials/member-form.ejs`. Variables include `defaultFee`.
 
-New member form (`GET /admin/members/new`) pre-fills `data` with:
-- `email`: `membro.XXXX@associacao.pt` (random 4-char alphanumeric suffix)
-- `first_name`: `Novo`
-- `last_name`: `Membro XXXX`
-- `fee_amount`: value from `settings.default_fee_amount`
-
-`partials/member-form.ejs` fee dropdown is dynamic — shows `v.fee_amount` (if non-zero) or `defaultFee` as the non-zero option. Both new and edit routes must pass `defaultFee` to `res.render()`.
-
-#### `admin/audit-log.ejs`
-Variables: `logs[]`, `page`, `totalPages`, `total`. Paginated 50/page, newest first.
+`partials/member-form.ejs` ARC section:
+- 3-way Bootstrap radio group (`btn-check`): ARC / APRC / TW Passport
+- `arcDocTypeChanged()` JS toggles: expiry label, passport label, APRC permanent badge visibility
+- Selected type submitted as `residence_doc_type` → server derives `is_aprc` and `is_tw_passport`
 
 #### `user/profile.ejs`
-Variables: `member`, `documents[]`, `invites[]`, `feeReminder` (string or null), `activeTab` (`'profile'` or `'notifications'`).
+Two tabs: My Profile (read-only data + fee reminder) + Notifications (invites + fee reminder).
 
-Two Bootstrap tabs:
-- **My Profile** — existing read-only member data (personal, membership, ARC, CC, notes, documents); fee reminder alert shown here too (if unpaid/renewal_incoming and not honorary)
-- **Notifications** — fee reminder alert (if unpaid/renewal_incoming and not honorary); pending invite cards with Accept / Decline / Add to Calendar buttons; previous responses list (accepted shows calendar icon, declined does not); fetch errors surface an alert with session-expiry hint
+APRC members: expiry shows "Permanent (APRC)" badge.
 
-The `GET /profile` route always loads both tabs' data. Pass `?tab=notifications` to auto-activate the Notifications tab (used by the topbar bell link).
+#### `user/vault.ejs`
+Variables: `files[]` (public vault only).
 
-#### `user/profile-edit.ejs`
-4 editable sections: Personal Info, ARC Data, Cartão de Cidadão, Change Password.
+Table: filename + size | description | uploader name | date | download button. Empty state shown when no files.
 
 ---
 
 ## Known Constraints & Gotchas
 
 ### Deployment
-- **No Chromium / Puppeteer** — shared hosting
-- **Node 18+** — global `fetch` required
-- **`better-sqlite3`** — native compilation; always `npm install` on server
+- No Chromium / Puppeteer — shared hosting
+- Node 18+ — global `fetch` required
+- `better-sqlite3` — native; always `npm install` on server after deploy
 
 ### Package Choices
 | Package | Why |
@@ -741,14 +677,17 @@ The `GET /profile` route always loads both tabs' data. Pass `?tab=notifications`
 ### Common Dev Issues
 - **Port 3000 EADDRINUSE** → `Get-Process node | Stop-Process -Force`
 - **Fee status** — never set from a form; always computed by `utils/fee.js`
-- **Fee amount = 0** — use `parseInt(n,10) >= 0 ? ... : 300`, not `|| 300`; honorary members store `0` and it must not be silently replaced with `300`
+- **Fee amount = 0** — `parseInt(n,10) >= 0 ? parseInt(n,10) : 300`, not `|| 300`
 - **Bootstrap modal init** — lazy getter only; never `new bootstrap.Modal(...)` at parse time
-- **OCR model IDs** — verify on OpenRouter before adding; wrong IDs give HTTP 400
-- **HTTPS cookies on cPanel** — requires `app.set('trust proxy', 1)` in `app.js` AND `NODE_ENV=production` in the cPanel App panel; without both, session cookies will not be flagged `Secure`
+- **OCR model IDs** — verify on OpenRouter before adding; wrong IDs give HTTP 400; only `:free` models are free
+- **HTTPS cookies on cPanel** — requires `app.set('trust proxy', 1)` AND `NODE_ENV=production` in cPanel panel
+- **Chinese filenames** — `fixFilename()` must wrap `req.file.originalname` before DB insert; busboy decodes as latin1
+- **APRC members** — never compute fee status for honorary; similarly never show NIA fetch for APRC/TW Passport
+- **Vault routing** — public vault routes live directly in `app.js` (not in `user.js`) to avoid the double-prefix problem from sharing the userRouter at a different mount point
 
 ---
 
-## Default Credentials (change immediately)
+## Default Credentials
 
 | Field | Value |
 |-------|-------|
@@ -760,8 +699,8 @@ The `GET /profile` route always loads both tabs' data. Pass `?tab=notifications`
 
 ## Future: Notifications & Communication
 
-In-app notifications are live (bell icon, Notifications tab, event invites). Next layers:
+In-app notifications live (bell, Notifications tab, event invites). Next layers:
 
-1. **Email** — add `nodemailer`. For calendar events: query `event_invites WHERE notified_at IS NULL`, send, stamp `notified_at`. Attach `.ics` file so recipients get a one-click "Add to Calendar" prompt. Other trigger points: member creation, fee renewal reminder, document upload.
-2. **SMS** — add Twilio or equivalent for urgent fee/event reminders.
-3. **No extra schema needed for email/SMS on calendar events** — `event_invites.notified_at` column is already present. For non-event notifications (system messages, fee alerts), a separate `notifications` table may be added later.
+1. **Email** — `nodemailer`. Query `event_invites WHERE notified_at IS NULL`, send, stamp `notified_at`. Attach `.ics`.
+2. **SMS** — Twilio for urgent reminders.
+3. **No schema changes needed for email on calendar events** — `event_invites.notified_at` already present.

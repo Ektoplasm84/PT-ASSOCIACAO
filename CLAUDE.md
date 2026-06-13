@@ -45,52 +45,67 @@ LiteSpeed's `lsnode` process manager does not always terminate cleanly when you 
 ```
 app.js                   Entry point — middleware, sessions, routes, .env loader
                          Sets `app.set('trust proxy', 1)` before session middleware (required for cPanel nginx + Secure cookie)
-                         Also mounts authenticated photo/thumb routes (see § Hard Rules)
+                         Mounts authenticated photo/thumb routes (see § Hard Rules)
+                         Mounts public vault routes: GET /vault, GET /vault/files/:id (requireAuth)
 database/db.js           SQLite schema, migrations, seed admin
 routes/auth.js           /login, /logout
 routes/admin.js          /admin/* — member CRUD, documents, card OCR, NIA photo fetch,
                          role change, password reset, audit log, OCR health check,
-                         settings (fee + models), calendar events (CRUD + attendee list)
-                         Also defines getSetting(key, default) / setSetting(key, value) helpers
-                         that read/write the settings table. Loads persisted OCR model list
-                         from settings at module init and calls setActiveModels().
-                         resolveAudience(groups) → single UNION query → array of user IDs for event invite targeting.
-                         isManagementUser(u) → true if user.position is in MGMT_POSITIONS; used by feeWriteGuard + calendarWriteGuard.
+                         settings (fee + models + timeout), calendar events, vault (upload/download/delete)
+                         getSetting(key, default) / setSetting(key, value) helpers for settings table.
+                         Loads persisted OCR model list + timeout from settings at module init.
+                         resolveAudience(groups) → single UNION query → array of user IDs.
+                         isManagementUser(u) → true if user.position is in MGMT_POSITIONS.
                          calendarWriteGuard — allows admin+ and all MGMT_POSITIONS.
-                         contentDispositionFilename(disposition, name) — RFC 5987 Content-Disposition helper for non-ASCII filenames.
-                         MODEL_ID_RE — regex `/^[a-zA-Z0-9_\-/:\.]{1,120}$/` that validates OCR model IDs on all write paths.
-                         _testCooldowns — Map enforcing a 10-second per-model cooldown on `POST /admin/ocr-test-model`.
+                         canUploadVault(user) → true for admin/SA/all management positions.
+                         contentDispositionFilename(disposition, name) — RFC 5987 Content-Disposition helper.
+                         fixFilename(name) — re-encodes multer/busboy latin1 filenames to UTF-8 for Chinese support.
+                         MODEL_ID_RE — regex `/^[a-zA-Z0-9_\-/:\.]{1,120}$/` validates OCR model IDs.
+                         _testCooldowns — Map enforcing 10-second per-model cooldown on ocr-test-model.
 routes/user.js           /profile/* — own profile (tabbed: My Profile + Notifications),
                          invite respond, iCal export
-                         contentDispositionFilename(disposition, name) — same RFC 5987 helper as admin.js
+                         Exports: { router, contentDispositionFilename } (NOT a default export)
 middleware/auth.js       requireAuth, requireAdmin, requireSuperAdmin, requireViewAll guards
                          requireAuth also sets res.locals.pendingInviteCount (pending invite count)
 utils/fee.js             computeFeeStatus(fee_amount, fee_last_paid)
 utils/ocr.js             OpenRouter vision API — dual-model parallel scan
+                         MODEL_TIMEOUT_MS — mutable; default 55s; configurable via dashboard + settings table
                          Exports: scan(docType, imagePath), checkModels(),
                                   getModelWarnings(), dismissModelWarning(model),
                                   getActiveModels(), setActiveModels(models),
-                                  testModel(modelId)
+                                  testModel(modelId),
+                                  getModelTimeout(), setModelTimeout(ms)
 utils/audit.js           writeAudit(actorId, actorEmail, memberId, memberRef, action, detail) — 2000-row cap
 utils/countries.js       Full world country list for phone dial-code picker
 utils/taiwan-districts.js All 22 TW cities/counties + districts (ZH/EN/postal)
 frontend/views/          ALL EJS templates — design territory
 frontend/views/partials/phone-field.ejs    Reusable dial-code picker partial
-frontend/views/partials/member-form.ejs   5-section member form (used by new + edit pages)
+frontend/views/partials/member-form.ejs   5-section member form; ARC section has 3-way radio (ARC/APRC/TW Passport)
+frontend/views/admin/dashboard.ejs        Stats + Warnings + OCR config (with timeout) + Fee + Calendar + Vault
+frontend/views/admin/members-list.ejs     Search + fee filter + sort dropdown + Warnings column + ID Type column
+frontend/views/admin/member-detail.ejs    APRC/TW Passport display; NIA blocked for non-ARC
 frontend/views/admin/audit-log.ejs        Audit log page (paginated, admin+ only)
+frontend/views/user/vault.ejs             Public document vault — all authenticated members
 frontend/public/css/custom.css            Bootstrap overrides only
 frontend/public/css/ds/pt-design-system.css   PT Design System — tokens + .pta-* components
 frontend/public/css/ds/pt-bootstrap-bridge.css Bootstrap variable remap to design tokens
 frontend/public/css/ds/azulejo-tile.svg   Background tile — must stay next to CSS (relative url())
 frontend/public/images/logo-emblem.svg    Brand emblem used in topbar + login
 frontend/public/images/logo-wordmark.svg  Full wordmark
-uploads/                 Runtime only — photos, documents, thumbs (never commit)
+uploads/                 Runtime only — photos, documents, thumbs, vault/ (never commit)
+uploads/vault/public/    Public vault files — served via authenticated route
+uploads/vault/admin/     Admin vault files — served via authenticated route
 database/data.db         Runtime only — SQLite file (never commit)
 .env                     API keys — NEVER commit, NEVER upload to cPanel
 
 Settings table (in data.db):
   key='default_fee_amount'  → integer TWD, default 300
   key='ocr_models'          → JSON array of model ID strings
+  key='ocr_timeout_ms'      → integer ms (10000–120000), default 55000
+
+vault_files table (in data.db):
+  id, section ('public'/'admin'), filename, original_name, mime_type, file_size,
+  description, uploaded_by (FK users.id, SET NULL on delete), uploaded_at
 
 Events tables (in data.db):
   events           → id, title, description, location, start_date, end_date, created_by, created_at
@@ -117,6 +132,13 @@ Events tables (in data.db):
 - **`app.set('trust proxy', 1)` must be set** before session middleware in `app.js`; required for HTTPS `Secure` cookies behind cPanel's nginx reverse proxy. Also set `NODE_ENV=production` in the cPanel Node.js App environment variables panel.
 - **`fee_amount = 0` is valid** — always use `parseInt(fee_amount, 10) >= 0 ? parseInt(fee_amount, 10) : 300` (not `|| 300`) so honorary members' zero fee is stored correctly.
 - **Document Content-Disposition** — use `contentDispositionFilename(disposition, name)` helper (RFC 5987) in both admin.js and user.js for any `Content-Disposition` header; `res.download()` is not used.
+- **Chinese / non-ASCII filenames** — always wrap `req.file.originalname` with `fixFilename(name)` before storing in the DB; busboy 1.x decodes multipart filenames as latin1 by default, so raw UTF-8 bytes from modern browsers come in garbled. `fixFilename` does `Buffer.from(name, 'latin1').toString('utf8')`.
+- **`routes/user.js` exports an object** — `const { router: userRouter, contentDispositionFilename } = require('./routes/user')`; it does NOT export the router as a plain default. Do not revert to `module.exports = router`.
+- **Vault files are NOT static** — served via authenticated routes in `app.js` (`GET /vault/files/:id` for public, `GET /admin/vault/files/:id` for admin). Do not add `express.static` for `uploads/vault/`.
+- **Vault routes live in `app.js`, not `user.js`** — mounting the userRouter at `/vault` would double the prefix (user.js route `/vault` + mount `/vault` = `/vault/vault`). The two member-facing vault routes are defined directly in `app.js`.
+- **NIA fetch is blocked for APRC and TW Passport** — `is_aprc=1` or `is_tw_passport=1` members do not have a searchable NIA ARC record; the captcha and fetch routes return a clear message and do not call NIA.
+- **`is_aprc` and `is_tw_passport` are mutually exclusive** — derived server-side from the `residence_doc_type` radio value (`arc` / `aprc` / `tw_passport`); never both 1 at the same time.
+- **OCR model timeout is runtime-configurable** — `MODEL_TIMEOUT_MS` in `ocr.js` is a `let`, not a `const`; changed via `setModelTimeout(ms)`. Persisted as `ocr_timeout_ms` in the settings table. AbortController cleared only after `res.json()` completes — do NOT clear it after `await fetch()` headers arrive.
 
 ---
 
@@ -193,7 +215,15 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - **Notes card on member profile** — gated by `canWrite && member.notes` (not `currentUser.role === 'admin'`); super_admin users also see notes.
 - **Calendar event indicators** — dashboard calendar cells use `.pta-cal-strip` (colored titled strips, not dots); up to 2 strips stacked per day; colors assigned by `CAL_COLORS[event.id % 8]`; "+N more" strip when >2 events. Cells with events get `.has-events` class (light blue tint, bold number). "New Event" button in dashboard is guarded for `canWrite` OR management positions.
 - **NIA fetch-error retry** — when the NIA photo fetch fails, a "Try again" button is shown in `member-detail.ejs` that re-runs `loadCaptcha()` without a page reload.
+- **NIA fetch blocked for APRC/TW Passport** — `is_aprc=1` or `is_tw_passport=1` members show an info note instead of the fetch button; the captcha and fetch routes also check and return a descriptive error if called directly.
+- **File Vault** — Public Vault: any logged-in member can view/download; admin/SA/management can upload. Administration Vault: admin/SA only. Delete: admin/SA only. Upload and delete are audited. Max 20 MB per file; allowed: PDF, images, Word, Excel, plain text.
+- **Members list Warnings column** — computed client-side from `m.arc_expiry_date`, `m.cc_expiry_date`, and `m.is_aprc`; APRC members skip the ARC expiry check. Multiple badges can stack in one cell. "No Warning" badge (success) when no issues.
+- **Members list ID Type column** — shows ARC / APRC (info tone) / TW Passport based on `is_aprc` and `is_tw_passport` flags.
 - **ARC name hint on edit form** — `member-form.ejs` shows a blue info banner with a "Use ARC name" button when `arc_name_en` differs from `first_name + last_name`; values are in `data-arc-first`/`data-arc-last` HTML attributes (EJS HTML-escapes them); JS reads via `this.dataset.*` — never interpolated into JS source. Splits on last whitespace: last word → Last Name, remainder → First Name.
+- **ARC section is now 3-way** — `member-form.ejs` uses a Bootstrap `btn-check` radio group (`residence_doc_type`: `arc` / `aprc` / `tw_passport`); `arcDocTypeChanged()` JS toggles expiry label, passport label, and APRC permanent badge; server derives `is_aprc` and `is_tw_passport` from this single field.
+- **Members list sort** — `sort` param driven by a server-side `SORT_MAP` whitelist; `memberListUrl(overrides)` helper in the template builds URLs preserving all active filters. Defensive fallback `var sort = (typeof sort !== 'undefined') ? sort : 'name_az'` at top of template guards against old cached routes.
+- **Vault confirm dialog XSS** — delete forms use `data-name="<%= f.original_name %>"` (EJS auto-escapes) + `this.dataset.name` in `onsubmit`; never interpolate user-controlled text directly into a JS event handler attribute.
+- **File Vault audit** — `vault.upload` and `vault.delete` action keys; detail includes section + filename + size. Both called via `writeAudit()` from `utils/audit.js` in the vault routes.
 
 ---
 
@@ -294,6 +324,7 @@ setSetting('default_fee_amount', '400')   // → upserts row
 |-----|------|---------|-------------|
 | `default_fee_amount` | integer string | `'300'` | Annual fee (TWD) pre-filled on new member forms; saving also retroactively updates all unpaid non-honorary members |
 | `ocr_models` | JSON array string | (none — uses hardcoded) | Active OCR model list |
+| `ocr_timeout_ms` | integer string | (none — uses 55000) | Per-model timeout in ms (10000–120000); configurable from OCR Model Configuration card |
 
 Super-admin dashboard cards for both settings:
 - **Default Annual Fee** card — number input + Save → `POST /admin/settings/fee`
