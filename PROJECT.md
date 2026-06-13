@@ -50,7 +50,8 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - **Taiwan Passport support** — `is_tw_passport INTEGER` column on members; ARC/ID section shows 3-way radio (ARC / APRC / TW Passport); passport expiry tracked via `arc_expiry_date`; NIA fetch blocked
 - **Members list improvements** — Warnings column (doc expiry badges), ID Type column (ARC/APRC/TW Passport), Sort dropdown (name A-Z/Z-A, recently added, oldest, join date ↑↓)
 - **File Vault** — two-section document vault: Public (all members can view/download; admin/SA/management can upload) and Administration (admin/SA only); dashboard cards for upload + manage; `/vault` member page; all actions audited; files stored under `uploads/vault/{section}/`
-- **Version V1.6**
+- **Design System R4** — responsive shell: fluid `.pta-main`, mobile bottom tab nav (`.pta-nav` transforms to fixed bottom bar at ≤768px), copper/charcoal login, mobile calendar agenda (`.pta-agenda` / `renderAgendaMobile()`), `pta-table-wrap` on dashboard tables, profile single-scroll layout (`profile-layout` CSS grid, Bootstrap tabs removed), audit log DS upgrade (pta-pagehead + pta-badge tones + pta-card wrappers); charcoal topbar `#313131`; brand "Associação Cultural Portuguesa / na Formosa"; emblem updated to `logo-emblem.png`
+- **Version V1.7**
 
 ### Not Yet Built
 - Email notifications to members
@@ -115,7 +116,7 @@ PT ASSOCIACAO/
 │   │   ├── 404.ejs
 │   │   ├── error.ejs
 │   │   ├── partials/
-│   │   │   ├── header.ejs        HTML head, CDN links, .pta-topbar navbar (Documents link for all users)
+│   │   │   ├── header.ejs        HTML head, CDN links, .pta-topbar (charcoal #313131); admin/gestao nav: Dashboard+Members+Documents+Audit; member nav: My Profile only
 │   │   │   ├── footer.ejs        </main>, Bootstrap JS bundle CDN
 │   │   │   ├── flash.ejs         Alert banner for success/error messages
 │   │   │   ├── phone-field.ejs   Reusable country dial-code picker + number input
@@ -130,7 +131,7 @@ PT ASSOCIACAO/
 │   │   │   ├── member-edit.ejs   Edit member form
 │   │   │   └── audit-log.ejs     Paginated audit log (admin+ only)
 │   │   └── user/
-│   │       ├── profile.ejs       Own profile view (My Profile + Notifications tabs)
+│   │       ├── profile.ejs       Own profile — single-scroll layout (no tabs); profile-layout CSS grid; notifications at #notifications anchor; public vault files table at bottom
 │   │       ├── profile-edit.ejs  Edit personal info, ARC data, CC data, password
 │   │       └── vault.ejs         Public document vault — all authenticated members
 │   └── public/
@@ -141,7 +142,8 @@ PT ASSOCIACAO/
 │       │       ├── pt-bootstrap-bridge.css   Remaps Bootstrap CSS variables to design tokens
 │       │       └── azulejo-tile.svg          Background tile
 │       └── images/
-│           ├── logo-emblem.svg               Brand emblem (topbar + login)
+│           ├── logo-emblem.png               Brand emblem (512×512, copper on charcoal) — topbar + login
+│           ├── logo-full.jpg                 Full lockup for emails/share
 │           └── logo-wordmark.svg             Full wordmark
 │
 ├── uploads/                      ← Runtime only. Created on startup. Not in git.
@@ -619,6 +621,10 @@ Sections (top → bottom):
 
 **Script note**: OCR model config HTML appears after the `<script>` block → `renderModelList()` deferred via `DOMContentLoaded`. Unsaved state: Save button turns red + shows "(unsaved)" when `JSON.stringify(modelList) !== JSON.stringify(_savedModelList)`.
 
+**Mobile calendar**: `renderAgendaMobile()` fires at the end of `renderGrid()`; builds a `.pta-agenda` list grouped by day from `_calEvents`; each row uses `CAL_COLORS` and `escH()`; clicking calls `selectDay()`. Shown at ≤640px.
+
+**Table wrapping**: all four dashboard tables (Warnings, Vision Model Health, OCR Config, Recent Members) are wrapped in `<div class="pta-table-wrap">` for horizontal scroll on mobile.
+
 #### `admin/members-list.ejs`
 Variables: `members[]`, `search`, `feeFilter`, `sort`, `page`, `totalPages`, `total`.
 
@@ -647,7 +653,11 @@ Use `partials/member-form.ejs`. Variables include `defaultFee`.
 - Selected type submitted as `residence_doc_type` → server derives `is_aprc` and `is_tw_passport`
 
 #### `user/profile.ejs`
-Two tabs: My Profile (read-only data + fee reminder) + Notifications (invites + fee reminder).
+Single-scroll layout — no Bootstrap tabs. Variables: `member`, `documents[]`, `invites[]`, `feeReminder`, `vaultFiles[]`.
+
+Structure: `profile-layout` CSS grid (`.profile-sidebar` + `.profile-cards`). Sections top-to-bottom: fee reminder alert (once) → member data cards → `.section-label` divider with `id="notifications"` anchor → invite list → public documents table (`.pta-table-wrap`).
+
+Bell link in topbar (`/profile#notifications`) scrolls directly to the notifications section.
 
 APRC members: expiry shows "Permanent (APRC)" badge.
 

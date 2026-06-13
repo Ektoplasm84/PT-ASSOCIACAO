@@ -62,8 +62,9 @@ routes/admin.js          /admin/* — member CRUD, documents, card OCR, NIA phot
                          fixFilename(name) — re-encodes multer/busboy latin1 filenames to UTF-8 for Chinese support.
                          MODEL_ID_RE — regex `/^[a-zA-Z0-9_\-/:\.]{1,120}$/` validates OCR model IDs.
                          _testCooldowns — Map enforcing 10-second per-model cooldown on ocr-test-model.
-routes/user.js           /profile/* — own profile (tabbed: My Profile + Notifications),
+routes/user.js           /profile/* — own profile (single-scroll: profile grid + notifications + public vault),
                          invite respond, iCal export
+                         Profile GET queries vault_files WHERE section='public' and passes vaultFiles[] to render.
                          Exports: { router, contentDispositionFilename } (NOT a default export)
 middleware/auth.js       requireAuth, requireAdmin, requireSuperAdmin, requireViewAll guards
                          requireAuth also sets res.locals.pendingInviteCount (pending invite count)
@@ -82,15 +83,20 @@ frontend/views/          ALL EJS templates — design territory
 frontend/views/partials/phone-field.ejs    Reusable dial-code picker partial
 frontend/views/partials/member-form.ejs   5-section member form; ARC section has 3-way radio (ARC/APRC/TW Passport)
 frontend/views/admin/dashboard.ejs        Stats + Warnings + OCR config (with timeout) + Fee + Calendar + Vault
+                                          pta-table-wrap on 4 tables; renderAgendaMobile() populates .pta-agenda on mobile (≤640px)
 frontend/views/admin/members-list.ejs     Search + fee filter + sort dropdown + Warnings column + ID Type column
 frontend/views/admin/member-detail.ejs    APRC/TW Passport display; NIA blocked for non-ARC
 frontend/views/admin/audit-log.ejs        Audit log page (paginated, admin+ only)
-frontend/views/user/vault.ejs             Public document vault — all authenticated members
+                                          DS pagehead (pta-pagehead); pta-badge DS tone classes; pta-card wrappers
+frontend/views/user/profile.ejs           Own profile — single-scroll layout; profile-layout CSS grid; notifications at #notifications anchor;
+                                          public vault files table (pta-table-wrap) at bottom; no tabs; no activeTab local
+frontend/views/user/vault.ejs             Public document vault — all authenticated members (standalone /vault page)
 frontend/public/css/custom.css            Bootstrap overrides only
 frontend/public/css/ds/pt-design-system.css   PT Design System — tokens + .pta-* components
 frontend/public/css/ds/pt-bootstrap-bridge.css Bootstrap variable remap to design tokens
 frontend/public/css/ds/azulejo-tile.svg   Background tile — must stay next to CSS (relative url())
-frontend/public/images/logo-emblem.svg    Brand emblem used in topbar + login
+frontend/public/images/logo-emblem.png    Brand emblem (512×512, copper on charcoal) — topbar + login
+frontend/public/images/logo-full.jpg      Full lockup for emails/share
 frontend/public/images/logo-wordmark.svg  Full wordmark
 uploads/                 Runtime only — photos, documents, thumbs, vault/ (never commit)
 uploads/vault/public/    Public vault files — served via authenticated route
@@ -205,15 +211,16 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - **New member placeholder credentials** — `GET /admin/members/new` pre-fills `email=membro.XXXX@associacao.pt`, `first_name=Novo`, `last_name=Membro XXXX` (random 4-char suffix). Admin can override before saving. Email is the login identifier — changing it immediately changes what the member uses to log in.
 - **Fee dropdown in `member-form.ejs`** is dynamic — shows the member's actual stored fee amount (non-zero) or falls back to the `defaultFee` local for new members. `defaultFee` must be passed to `res.render()` for both new and edit routes — including validation re-renders on error.
 - **Calendar events** — created by admin/SA/gestao via dashboard modal; `resolveAudience()` in `routes/admin.js` converts audience group strings to user IDs via a single UNION query; invites inserted in the same transaction as the event; `end_date` must be ≥ `start_date` (validated server-side); `GET /admin/events/:id/invites` requires `adminOnly` guard (not just viewAll)
-- **Notification bell** — `pendingInviteCount` set in `requireAuth` on every request; topbar bell links to `/profile?tab=notifications`; member profile uses Bootstrap tabs with `activeTab` local controlling which panel is active on load
+- **Notification bell** — `pendingInviteCount` set in `requireAuth` on every request; topbar bell links to `/profile#notifications`; member profile is single-scroll — `id="notifications"` anchor scrolls directly to that section; no tabs, no `activeTab` local
 - **iCal export** — `GET /profile/invites/:id/export.ics`; RFC 5545 plain text, no library needed; DTEND is always start+1 day for single-day events (iCal all-day exclusive end); ownership verified against `req.session.userId`
 - **Event location is plain text** — no geocoding; WIP: render as `maps.google.com/?q=` link in templates
 - **Fee label for honorary/exempt members** — displays as "Honorary Member" everywhere: fee badge fallback in `feeBadge()`, inline status text in member-detail, fee_amount display in member-detail and profile, dropdown options ("0 TWD — Honorary Member"). Never shows "0 TWD (Exempt)".
 - **Members list Position column** — shows system role when elevated: `super_admin` → "Super Admin" (gold badge), `admin` → "Admin" (info badge); falls back to association position for regular members. The list query selects `u.role as user_role` alongside `u.position`.
 - **Admin password reset** — super_admin can set a new password for any member via the password reset form in the Account Settings card on member-detail. Client-side: mismatch alert + confirm dialog. Server-side: min 6 chars + mismatch check + bcrypt hash + audit log.
-- **Fee reminder alert** — shown on both the My Profile tab and the Notifications tab of `user/profile.ejs`; the alert on the Profile tab lets members see the reminder regardless of which tab they land on.
+- **Fee reminder alert** — shown once at the top of `user/profile.ejs` (tabs removed in DS R4); visible regardless of scroll position.
+- **Profile page restructure (DS R4)** — `user/profile.ejs` removed Bootstrap tabs entirely; layout is `profile-layout` CSS grid (`.profile-sidebar` + `.profile-cards`); notifications section uses `id="notifications"` anchor; public vault files appended at the bottom as a `pta-table-wrap` table; `routes/user.js` profile GET now queries `vault_files WHERE section='public'` and passes `vaultFiles` to render.
 - **Notes card on member profile** — gated by `canWrite && member.notes` (not `currentUser.role === 'admin'`); super_admin users also see notes.
-- **Calendar event indicators** — dashboard calendar cells use `.pta-cal-strip` (colored titled strips, not dots); up to 2 strips stacked per day; colors assigned by `CAL_COLORS[event.id % 8]`; "+N more" strip when >2 events. Cells with events get `.has-events` class (light blue tint, bold number). "New Event" button in dashboard is guarded for `canWrite` OR management positions.
+- **Calendar event indicators** — dashboard calendar cells use `.pta-cal-strip` (colored titled strips, not dots); up to 2 strips stacked per day; colors assigned by `CAL_COLORS[event.id % 8]`; "+N more" strip when >2 events. Cells with events get `.has-events` class (light blue tint, bold number). "New Event" button in dashboard is guarded for `canWrite` OR management positions. On mobile (≤640px) `renderAgendaMobile()` builds a `.pta-agenda` list view from `_calEvents` grouped by day; clicking an item calls `selectDay()`.
 - **NIA fetch-error retry** — when the NIA photo fetch fails, a "Try again" button is shown in `member-detail.ejs` that re-runs `loadCaptcha()` without a page reload.
 - **NIA fetch blocked for APRC/TW Passport** — `is_aprc=1` or `is_tw_passport=1` members show an info note instead of the fetch button; the captcha and fetch routes also check and return a descriptive error if called directly.
 - **File Vault** — Public Vault: any logged-in member can view/download; admin/SA/management can upload. Administration Vault: admin/SA only. Delete: admin/SA only. Upload and delete are audited. Max 20 MB per file; allowed: PDF, images, Word, Excel, plain text.
@@ -407,9 +414,19 @@ footer.ejs  →  </main>
 | `.pta-id` | Monospace identifier style |
 | `.pta-docslots` | 2×2 grid for the four card document slots |
 | `.pta-login` / `.pta-login__card` | Login page layout |
+| `.pta-table-wrap` | `overflow-x:auto` wrapper for horizontal table scroll on mobile |
+| `.pta-agenda` | Mobile calendar list view (≤640px); populated by `renderAgendaMobile()` in dashboard.ejs |
+| `.section-label` | Visual section divider with icon; used in profile single-scroll layout |
+| `.profile-layout` / `.profile-sidebar` / `.profile-cards` | Profile page CSS grid — sidebar left, cards right |
 
 ### Tone modifiers (used with `.pta-badge`, `.pta-stat`, `.pta-avatar`)
 `pta-tone-success` · `pta-tone-danger` · `pta-tone-warning` · `pta-tone-gold` · `pta-tone-info` · `pta-tone-neutral` · `pta-tone-honorary`
+
+### Topbar & brand (DS R4)
+- Background: `#313131` charcoal — set via `.pta-topbar { background: #313131; }` override at end of `pt-design-system.css` (not via the `--surface-inverse` token, to avoid breaking other uses)
+- Brand name: `<span class="pta-brand__name">Associação Cultural Portuguesa</span>` / `<span class="pta-brand__sub">na Formosa</span>`
+- Emblem: `logo-emblem.png` (512×512, copper on charcoal) — **not** `.svg`; reference in `header.ejs` and `login.ejs`
+- Member-only nav (non-canViewAll) shows only "My Profile"; Documents link is in the admin/gestao nav only
 
 ### SRI hashes
 All CDN links in `header.ejs`, `footer.ejs`, and `login.ejs` have `integrity` attributes. If a CDN version is ever bumped, recompute the hash locally:
