@@ -1,6 +1,7 @@
 <%- include('../partials/header') %>
 
 <%
+  var sort = (typeof sort !== 'undefined') ? sort : 'name_az';
   function feeBadge(status) {
     if (status === 'paid')
       return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>Paid</span>';
