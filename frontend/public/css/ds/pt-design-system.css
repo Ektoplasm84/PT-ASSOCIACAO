@@ -1000,10 +1000,33 @@ button.pta-topbar__bell{background:none;border:none;padding:0;cursor:pointer;}
 .pta-user__logout:hover{ background:rgba(255,255,255,.10); }
 @media (max-width:768px){ .pta-nav{ background:#313131; border-top-color:var(--gold-400); } }
 
-/* ── Mobile fixes (R4 pass 2) ── */
+/* ── Segmented control (.pta-seg) ── */
+/* Hidden radio inputs + adjacent labels — same HTML pattern as Bootstrap btn-check */
+.pta-seg{
+  display:flex;
+  border:1px solid var(--border-default);
+  border-radius:var(--radius-md);
+  overflow:hidden;
+  background:var(--white);
+}
+.pta-seg__opt{
+  flex:1;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-sans);font-weight:var(--weight-semibold);font-size:var(--text-base);
+  height:2.5rem;padding:0 .75em;
+  color:var(--stone-700);background:var(--white);
+  border-right:1px solid var(--border-default);
+  cursor:pointer;user-select:none;white-space:nowrap;
+  transition:background var(--duration-fast) var(--ease-out),
+             color var(--duration-fast) var(--ease-out);
+}
+.pta-seg__opt:last-of-type{ border-right:none; }
+.pta-seg__opt:hover{ background:var(--stone-50); }
+.btn-check:checked + .pta-seg__opt{ background:var(--green-500);color:#fff; }
+.btn-check:checked + .pta-seg__opt:hover{ background:var(--green-600); }
+.btn-check:focus-visible + .pta-seg__opt{ outline:2px solid var(--green-400);outline-offset:-2px; }
 
-/* ARC doc-type radio group: hide "(Permanent)" subtext so 3 buttons fit on narrow screens */
-@media (max-width:480px){ .btn-group[role="group"] .btn small{ display:none; } }
+/* ── Mobile fixes (R4 pass 2) ── */
 
 /* Invite action buttons: stack full-width on phones */
 @media (max-width:480px){
