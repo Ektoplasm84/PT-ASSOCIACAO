@@ -117,7 +117,14 @@ app.get("/lang/:code", (req, res) => {
   if (SUPPORTED.includes(code)) {
     res.cookie("lang", code, { maxAge: 365 * 24 * 60 * 60 * 1000, httpOnly: false, sameSite: "lax" });
   }
-  const back = req.headers.referer || "/";
+  let back = "/";
+  try {
+    const ref = req.headers.referer;
+    if (ref) {
+      const u = new URL(ref);
+      if (u.host === req.headers.host) back = u.pathname + u.search + u.hash;
+    }
+  } catch (_) { /* malformed URL — stay on / */ }
   res.redirect(back);
 });
 
