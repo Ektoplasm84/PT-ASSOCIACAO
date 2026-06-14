@@ -47,6 +47,7 @@ app.js                   Entry point — middleware, sessions, routes, .env load
                          Sets `app.set('trust proxy', 1)` before session middleware (required for cPanel nginx + Secure cookie)
                          Mounts authenticated photo/thumb routes (see § Hard Rules)
                          Mounts public vault routes: GET /vault, GET /vault/files/:id (requireAuth)
+                         GET /lang/:code — sets lang cookie; redirects to same-origin Referer only (validated + normalized)
 database/db.js           SQLite schema, migrations, seed admin
 routes/auth.js           /login, /logout
 routes/admin.js          /admin/* — member CRUD, documents, card OCR, NIA photo fetch,
@@ -79,6 +80,13 @@ utils/ocr.js             OpenRouter vision API — dual-model parallel scan
 utils/audit.js           writeAudit(actorId, actorEmail, memberId, memberRef, action, detail) — 2000-row cap
 utils/countries.js       Full world country list for phone dial-code picker
 utils/taiwan-districts.js All 22 TW cities/counties + districts (ZH/EN/postal)
+utils/i18n.js            Zero-dependency i18n middleware — reads `lang` cookie from raw headers,
+                         caches JSON locale files, attaches t(dot.notation.key) + lang to res.locals.
+                         Supported: en / pt / zh-TW (default: en). No npm dependencies (fs + path only).
+locales/en.json          English locale — SOURCE OF TRUTH for all ~430 UI keys across every template
+locales/pt.json          Portuguese locale
+locales/zh-TW.json       Traditional Chinese locale — AI-generated; has `_note` warning key;
+                         needs native speaker review before relying on translations
 frontend/views/          ALL EJS templates — design territory
 frontend/views/partials/phone-field.ejs    Reusable dial-code picker partial
 frontend/views/partials/member-form.ejs   5-section member form; ARC section uses .pta-seg (ARC/APRC/TW Passport)
@@ -149,6 +157,11 @@ Events tables (in data.db):
 - **NIA fetch is blocked for APRC and TW Passport** — `is_aprc=1` or `is_tw_passport=1` members do not have a searchable NIA ARC record; the captcha and fetch routes return a clear message and do not call NIA.
 - **`is_aprc` and `is_tw_passport` are mutually exclusive** — derived server-side from the `residence_doc_type` radio value (`arc` / `aprc` / `tw_passport`); never both 1 at the same time.
 - **OCR model timeout is runtime-configurable** — `MODEL_TIMEOUT_MS` in `ocr.js` is a `let`, not a `const`; changed via `setModelTimeout(ms)`. Persisted as `ocr_timeout_ms` in the settings table. AbortController cleared only after `res.json()` completes — do NOT clear it after `await fetch()` headers arrive.
+- **i18n: `t()` is available in every EJS template** — provided by `utils/i18n.js` via `res.locals`. Call `t('section.key')` with dot notation. Falls back to the key string itself if missing — never throws.
+- **i18n: `locales/en.json` is the source of truth** — add new UI strings there first, then copy and translate into `pt.json` and `zh-TW.json`. All three files must have the same key structure.
+- **i18n: ZH-TW is AI-generated** — `locales/zh-TW.json` contains a `_note` warning key. Do not ship Chinese UI as production-ready without native speaker review.
+- **i18n: `/lang/:code` redirect is hardened** — Referer header is validated same-origin; pathname is normalized (strip leading slashes, re-prefix one); redirect uses absolute same-origin URL (`${req.protocol}://${req.headers.host}${safePath}`). Never revert to `res.redirect(req.headers.referer)`.
+- **`npm install` not needed for i18n changes** — `utils/i18n.js` and `locales/*.json` have zero npm dependencies. Only run `npm install` on the server when `package.json` changes.
 
 ---
 
@@ -235,6 +248,8 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - **Members list sort** — `sort` param driven by a server-side `SORT_MAP` whitelist; `memberListUrl(overrides)` helper in the template builds URLs preserving all active filters. Defensive fallback `var sort = (typeof sort !== 'undefined') ? sort : 'name_az'` at top of template guards against old cached routes.
 - **Vault confirm dialog XSS** — delete forms use `data-name="<%= f.original_name %>"` (EJS auto-escapes) + `this.dataset.name` in `onsubmit`; never interpolate user-controlled text directly into a JS event handler attribute.
 - **File Vault audit** — `vault.upload` and `vault.delete` action keys; detail includes section + filename + size. Both called via `writeAudit()` from `utils/audit.js` in the vault routes.
+- **Language switcher** — `GET /lang/:code` sets `lang` cookie (365 days, `httpOnly:false`, `sameSite:lax`); redirect is validated same-origin with normalized path; `utils/i18n.js` reads cookie from raw headers on every request; supported codes: `en` / `pt` / `zh-TW`; default: `en`. Switcher shown in topbar (dark style) and login page (`.pta-langsw--light`).
+- **`<html lang="">` attribute** — set from `res.locals.lang` in both `header.ejs` and `login.ejs`; enables `:lang(zh-TW)` CSS rule that applies CJK font stack.
 
 ---
 
@@ -423,6 +438,9 @@ footer.ejs  →  </main>
 | `.section-label` | Visual section divider with icon; used in profile single-scroll layout |
 | `.profile-layout` / `.profile-sidebar` / `.profile-cards` | Profile page CSS grid — sidebar left, cards right |
 | `.pta-seg` / `.pta-seg__opt` | Segmented radio control; uses hidden `btn-check` inputs + adjacent labels; inactive = white/bordered, active = green-500; icons supported |
+| `.pta-langsw` | Language switcher — flex row of flag-icon buttons; added to topbar right and login page |
+| `.pta-langsw__btn` | Individual language button; `.pta-langsw__btn--active` for current lang; white-on-dark by default |
+| `.pta-langsw--light` | Modifier for light-background contexts (login page); inverts colors to dark-on-light |
 
 ### Tone modifiers (used with `.pta-badge`, `.pta-stat`, `.pta-avatar`)
 `pta-tone-success` · `pta-tone-danger` · `pta-tone-warning` · `pta-tone-gold` · `pta-tone-info` · `pta-tone-neutral` · `pta-tone-honorary`

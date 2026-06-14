@@ -100,12 +100,19 @@ PT ASSOCIACAO/
 ├── middleware/
 │   └── auth.js                   requireAuth, requireAdmin, requireSuperAdmin, requireViewAll
 │
+├── locales/
+│   ├── en.json                   English locale — source of truth (~430 keys)
+│   ├── pt.json                   Portuguese locale
+│   └── zh-TW.json                Traditional Chinese locale (AI-generated; flagged for native review)
+│
 ├── utils/
 │   ├── fee.js                    computeFeeStatus(fee_amount, fee_last_paid) helper
 │   ├── ocr.js                    OpenRouter vision API — dual-model parallel scan + health tracking
 │   │                             Exports: scan, checkModels, getModelWarnings, dismissModelWarning,
 │   │                                      getActiveModels, setActiveModels, testModel,
 │   │                                      getModelTimeout, setModelTimeout
+│   ├── i18n.js                   Zero-dependency i18n middleware — reads lang cookie, caches locale JSON,
+│   │                             attaches t(dot.key) + lang to res.locals on every request
 │   ├── audit.js                  writeAudit(...) — append-only, 2000-row cap, atomic trim
 │   ├── countries.js              Full world country list (code, name, dial code, flag)
 │   └── taiwan-districts.js       All 22 Taiwan cities/counties with districts (ZH + EN + postal)
@@ -560,7 +567,7 @@ PDF, JPEG, PNG, WebP, plain text, Word (`.doc`/`.docx`), Excel (`.xls`/`.xlsx`).
 
 ### cPanel Deployment
 1. `git pull` in `/home/chiangly/repositories/PT-ASSOCIACAO/`
-2. `npm install` (only when `package.json` changes)
+2. `npm install` — **only when `package.json` changes**; not needed for locale JSON or `utils/i18n.js` edits (zero npm deps)
 3. Get PID: `https://associacao.poetico.co/node-check.php?token=ptassoc-diag-2024`
 4. Kill: `https://associacao.poetico.co/node-kill.php?token=ptassoc-diag-2024&pid=XXXX`
 5. cPanel → Node.js Selector → **Start**
@@ -597,16 +604,24 @@ POST body: `{ "uino", "issueDate", "expiryDate", "serialNo", "captcha" }`
 ```
 Bootstrap 5.3.3 CSS (CDN, SRI)
 Bootstrap Icons 1.11.3 (CDN, SRI)
-Flag Icons 7.2.3 (CDN, SRI)
+Flag Icons 7.2.3 (CDN, SRI)       ← used by .pta-langsw flag buttons (.fi-gb / .fi-pt / .fi-tw)
 /css/custom.css
-/css/ds/pt-design-system.css
+/css/ds/pt-design-system.css       ← includes .pta-langsw component + :lang(zh-TW) CJK font stack
 /css/ds/pt-bootstrap-bridge.css
 ```
+
+### i18n / Language Switcher
+- `utils/i18n.js` middleware runs before all routes; attaches `t(key)` and `lang` to `res.locals`
+- `lang` cookie: name=`lang`, codes `en` / `pt` / `zh-TW`, 365-day maxAge, `sameSite:lax`
+- `GET /lang/:code` sets cookie; redirect validated same-origin with normalized path + absolute URL
+- All EJS templates use `t('section.key')` — falls back to key string on missing entries
+- `<html lang="<%= lang %>">` in both `header.ejs` and `login.ejs` — enables `:lang(zh-TW)` CSS
+- ZH-TW translations are AI-generated — flagged in `locales/zh-TW.json` with `_note` key
 
 ### Page Inventory
 
 #### `login.ejs`
-Standalone. `.pta-login` layout. Version badge shows current app version.
+Standalone. `.pta-login` layout. Version badge shows current app version. Language switcher (`.pta-langsw.pta-langsw--light`) below the hint text — light-background style.
 
 #### `admin/dashboard.ejs`
 Variables: `stats`, `warnings[]`, `recent[]`, `modelWarnings[]`, `activeModels[]`, `ocrTimeoutSec`, `defaultFee`, `vaultPublic[]`, `vaultAdmin[]`, `canVaultAdmin`.
