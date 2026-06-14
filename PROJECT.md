@@ -121,7 +121,8 @@ PT ASSOCIACAO/
 │   │   │   ├── flash.ejs         Alert banner for success/error messages
 │   │   │   ├── phone-field.ejs   Reusable country dial-code picker + number input
 │   │   │   └── member-form.ejs   5-section form (Personal / Membership / ARC+ID / CC / Notes)
-│   │   │                         ARC section has 3-way radio: ARC / APRC / TW Passport
+│   │   │                         ARC section uses .pta-seg segmented control (ARC / APRC / TW Passport)
+│   │   │                         with icons; APRC has no "(Permanent)" label suffix
 │   │   ├── admin/
 │   │   │   ├── dashboard.ejs     Stats + Warnings + Vision Model Health + OCR config (with timeout) +
 │   │   │   │                     Fee config + Calendar + Recent Members + File Vault (two sections)
@@ -648,7 +649,9 @@ ARC/ID card:
 Use `partials/member-form.ejs`. Variables include `defaultFee`.
 
 `partials/member-form.ejs` ARC section:
-- 3-way Bootstrap radio group (`btn-check`): ARC / APRC / TW Passport
+- `.pta-seg` segmented control with `btn-check` hidden radio inputs: ARC / APRC / TW Passport
+- Icons: `bi-credit-card-fill` (ARC), `bi-shield-fill-check` (APRC), `bi-passport-fill` (TW Passport)
+- APRC label has no "(Permanent)" suffix — implied by the acronym
 - `arcDocTypeChanged()` JS toggles: expiry label, passport label, APRC permanent badge visibility
 - Selected type submitted as `residence_doc_type` → server derives `is_aprc` and `is_tw_passport`
 

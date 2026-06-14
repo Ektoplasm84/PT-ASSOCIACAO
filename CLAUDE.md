@@ -81,10 +81,14 @@ utils/countries.js       Full world country list for phone dial-code picker
 utils/taiwan-districts.js All 22 TW cities/counties + districts (ZH/EN/postal)
 frontend/views/          ALL EJS templates — design territory
 frontend/views/partials/phone-field.ejs    Reusable dial-code picker partial
-frontend/views/partials/member-form.ejs   5-section member form; ARC section has 3-way radio (ARC/APRC/TW Passport)
+frontend/views/partials/member-form.ejs   5-section member form; ARC section uses .pta-seg (ARC/APRC/TW Passport)
+                                          Icons: bi-credit-card-fill / bi-shield-fill-check / bi-passport-fill
+                                          APRC label does NOT say "(Permanent)" — that is implied by the name
 frontend/views/admin/dashboard.ejs        Stats + Warnings + OCR config (with timeout) + Fee + Calendar + Vault
                                           pta-table-wrap on 4 tables; renderAgendaMobile() populates .pta-agenda on mobile (≤640px)
+                                          New-event modal date inputs use col-12 col-sm-6 (stack on phones)
 frontend/views/admin/members-list.ejs     Search + fee filter + sort dropdown + Warnings column + ID Type column
+                                          Table wrapped in pta-table-wrap for mobile horizontal scroll
 frontend/views/admin/member-detail.ejs    APRC/TW Passport display; NIA blocked for non-ARC
 frontend/views/admin/audit-log.ejs        Audit log page (paginated, admin+ only)
                                           DS pagehead (pta-pagehead); pta-badge DS tone classes; pta-card wrappers
@@ -227,7 +231,7 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - **Members list Warnings column** — computed client-side from `m.arc_expiry_date`, `m.cc_expiry_date`, and `m.is_aprc`; APRC members skip the ARC expiry check. Multiple badges can stack in one cell. "No Warning" badge (success) when no issues.
 - **Members list ID Type column** — shows ARC / APRC (info tone) / TW Passport based on `is_aprc` and `is_tw_passport` flags.
 - **ARC name hint on edit form** — `member-form.ejs` shows a blue info banner with a "Use ARC name" button when `arc_name_en` differs from `first_name + last_name`; values are in `data-arc-first`/`data-arc-last` HTML attributes (EJS HTML-escapes them); JS reads via `this.dataset.*` — never interpolated into JS source. Splits on last whitespace: last word → Last Name, remainder → First Name.
-- **ARC section is now 3-way** — `member-form.ejs` uses a Bootstrap `btn-check` radio group (`residence_doc_type`: `arc` / `aprc` / `tw_passport`); `arcDocTypeChanged()` JS toggles expiry label, passport label, and APRC permanent badge; server derives `is_aprc` and `is_tw_passport` from this single field.
+- **ARC section is now 3-way** — `member-form.ejs` uses `.pta-seg` (DS segmented control) with `btn-check` radio inputs (`residence_doc_type`: `arc` / `aprc` / `tw_passport`); icons: `bi-credit-card-fill` / `bi-shield-fill-check` / `bi-passport-fill`; APRC label has no "(Permanent)" suffix — implied by name; `arcDocTypeChanged()` JS toggles expiry label, passport label, and APRC permanent badge; server derives `is_aprc` and `is_tw_passport` from this single field.
 - **Members list sort** — `sort` param driven by a server-side `SORT_MAP` whitelist; `memberListUrl(overrides)` helper in the template builds URLs preserving all active filters. Defensive fallback `var sort = (typeof sort !== 'undefined') ? sort : 'name_az'` at top of template guards against old cached routes.
 - **Vault confirm dialog XSS** — delete forms use `data-name="<%= f.original_name %>"` (EJS auto-escapes) + `this.dataset.name` in `onsubmit`; never interpolate user-controlled text directly into a JS event handler attribute.
 - **File Vault audit** — `vault.upload` and `vault.delete` action keys; detail includes section + filename + size. Both called via `writeAudit()` from `utils/audit.js` in the vault routes.
@@ -418,6 +422,7 @@ footer.ejs  →  </main>
 | `.pta-agenda` | Mobile calendar list view (≤640px); populated by `renderAgendaMobile()` in dashboard.ejs |
 | `.section-label` | Visual section divider with icon; used in profile single-scroll layout |
 | `.profile-layout` / `.profile-sidebar` / `.profile-cards` | Profile page CSS grid — sidebar left, cards right |
+| `.pta-seg` / `.pta-seg__opt` | Segmented radio control; uses hidden `btn-check` inputs + adjacent labels; inactive = white/bordered, active = green-500; icons supported |
 
 ### Tone modifiers (used with `.pta-badge`, `.pta-stat`, `.pta-avatar`)
 `pta-tone-success` · `pta-tone-danger` · `pta-tone-warning` · `pta-tone-gold` · `pta-tone-info` · `pta-tone-neutral` · `pta-tone-honorary`
