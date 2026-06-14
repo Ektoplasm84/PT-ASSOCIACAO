@@ -117,15 +117,19 @@ app.get("/lang/:code", (req, res) => {
   if (SUPPORTED.includes(code)) {
     res.cookie("lang", code, { maxAge: 365 * 24 * 60 * 60 * 1000, httpOnly: false, sameSite: "lax" });
   }
-  let back = "/";
+  let safePath = "/";
   try {
     const ref = req.headers.referer;
     if (ref) {
       const u = new URL(ref);
-      if (u.host === req.headers.host) back = u.pathname + u.search + u.hash;
+      if (u.host === req.headers.host) {
+        // Strip leading slashes then re-add one to prevent //host or backslash tricks
+        safePath = "/" + u.pathname.replace(/^\/+/, "") + u.search + u.hash;
+      }
     }
   } catch (_) { /* malformed URL — stay on / */ }
-  res.redirect(back);
+  // Redirect as absolute same-origin URL; prevents protocol-relative interpretation
+  res.redirect(`${req.protocol}://${req.headers.host}${safePath}`);
 });
 
 // Routes
