@@ -3,11 +3,11 @@
 
 <div class="row mb-3 align-items-center">
   <div class="col">
-    <h2 class="fw-bold">My Profile</h2>
+    <h2 class="fw-bold"><%= t('profile.title') %></h2>
   </div>
   <div class="col-auto">
     <a href="/profile/edit" class="btn btn-primary">
-      <i class="bi bi-pencil"></i> Edit Profile
+      <i class="bi bi-pencil"></i> <%= t('profile.edit_btn') %>
     </a>
   </div>
 </div>
@@ -32,10 +32,10 @@
     <div class="text-muted small"><code><%= member.member_id %></code></div>
     <div class="mt-2">
       <% if (member.user_position === 'honorary') { %>
-      <span class="badge bg-honorary"><i class="bi bi-star-fill me-1"></i>Honorary Member</span>
+      <span class="badge bg-honorary"><i class="bi bi-star-fill me-1"></i><%= t('fee.status_honorary') %></span>
       <% } else { %>
       <span class="badge bg-<%= member.fee_status === 'paid' ? 'success' : member.fee_status === 'renewal_incoming' ? 'warning' : 'danger' %>">
-        Fee: <%= member.fee_status === 'renewal_incoming' ? 'Renewal Incoming' : member.fee_status %>
+        <%= member.fee_status === 'paid' ? t('fee.status_paid') : member.fee_status === 'renewal_incoming' ? t('fee.status_renewal') : t('fee.status_unpaid') %>
       </span>
       <% } %>
     </div>
@@ -45,45 +45,45 @@
 
     <!-- 1. Personal Info -->
     <div class="card shadow-sm mb-3">
-      <div class="card-header fw-semibold">Personal Info</div>
+      <div class="card-header fw-semibold"><%= t('profile.section_personal') %></div>
       <div class="card-body">
         <div class="row g-2">
-          <div class="col-sm-6"><span class="text-muted small">Phone</span><div><%= member.phone || '—' %></div></div>
-          <div class="col-sm-6"><span class="text-muted small">Email</span><div><%= member.email || '—' %></div></div>
-          <div class="col-12"><span class="text-muted small">Address (ZH)</span><div><%= member.address_zh || '—' %></div></div>
-          <div class="col-12"><span class="text-muted small">Address (EN)</span><div><%= member.address || '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.phone') %></span><div><%= member.phone || '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.email') %></span><div><%= member.email || '—' %></div></div>
+          <div class="col-12"><span class="text-muted small"><%= t('profile.address_zh') %></span><div><%= member.address_zh || '—' %></div></div>
+          <div class="col-12"><span class="text-muted small"><%= t('profile.address_en') %></span><div><%= member.address || '—' %></div></div>
         </div>
       </div>
     </div>
 
     <!-- 2. Membership Info -->
     <%
-      const feeLabels = { paid: 'Paid', unpaid: 'Unpaid', renewal_incoming: 'Renewal Incoming' };
+      const feeLabels = { paid: t('fee.status_paid'), unpaid: t('fee.status_unpaid'), renewal_incoming: t('fee.status_renewal') };
       const feeColors = { paid: 'success', unpaid: 'danger', renewal_incoming: 'warning' };
     %>
     <div class="card shadow-sm mb-3">
-      <div class="card-header fw-semibold">Membership Info</div>
+      <div class="card-header fw-semibold"><%= t('profile.section_membership') %></div>
       <div class="card-body">
         <div class="row g-2">
-          <div class="col-sm-6"><span class="text-muted small">Email</span><div><%= member.email %></div></div>
-          <div class="col-sm-6"><span class="text-muted small">Member Since</span><div><%= member.join_date ? member.join_date.slice(0,10) : '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.email') %></span><div><%= member.email %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.joined') %></span><div><%= member.join_date ? member.join_date.slice(0,10) : '—' %></div></div>
           <% if (member.user_position === 'honorary') { %>
           <div class="col-12">
             <span class="badge bg-honorary px-3 py-2">
-              <i class="bi bi-star-fill me-1"></i>Honorary Member — annual fees not applicable
+              <i class="bi bi-star-fill me-1"></i><%= t('fee.status_honorary') %>
             </span>
           </div>
           <% } else { %>
-          <div class="col-sm-4"><span class="text-muted small">Annual Fee</span>
-            <div><% if (member.fee_amount === 0) { %>Honorary Member<% } else { %><span data-esc-twd="<%= member.fee_amount || 300 %>"><span class="esc-amt"><%= member.fee_amount || 300 %></span> <span class="js-esc-twd">TWD</span></span><% } %></div>
+          <div class="col-sm-4"><span class="text-muted small"><%= t('profile.fee_amount') %></span>
+            <div><% if (member.fee_amount === 0) { %><%= t('fee.status_honorary') %><% } else { %><span data-esc-twd="<%= member.fee_amount || 300 %>"><span class="esc-amt"><%= member.fee_amount || 300 %></span> <span class="js-esc-twd">TWD</span></span><% } %></div>
           </div>
-          <div class="col-sm-4"><span class="text-muted small">Last Paid</span>
+          <div class="col-sm-4"><span class="text-muted small"><%= t('fee.last_paid') %></span>
             <div><%= member.fee_last_paid ? member.fee_last_paid.slice(0,10) : '—' %></div>
           </div>
-          <div class="col-sm-4"><span class="text-muted small">Valid Until</span>
+          <div class="col-sm-4"><span class="text-muted small"><%= t('profile.fee_valid_until') %></span>
             <div><%= member.fee_valid_until ? member.fee_valid_until.slice(0,10) : '—' %></div>
           </div>
-          <div class="col-sm-12 mt-1"><span class="text-muted small">Fee Status</span>
+          <div class="col-sm-12 mt-1"><span class="text-muted small"><%= t('profile.fee_status') %></span>
             <div>
               <span class="badge bg-<%= feeColors[member.fee_status] || 'secondary' %>">
                 <%= feeLabels[member.fee_status] || member.fee_status %>
@@ -97,29 +97,29 @@
 
     <!-- 3. ARC Data -->
     <div class="card shadow-sm mb-3">
-      <div class="card-header fw-semibold">ARC Data <small class="text-muted fw-normal">(Taiwan)</small></div>
+      <div class="card-header fw-semibold"><%= t('profile.arc_data_title') %> <small class="text-muted fw-normal"><%= t('profile.arc_taiwan') %></small></div>
       <div class="card-body">
         <div class="row g-2">
-          <div class="col-sm-6"><span class="text-muted small">ARC Number</span><div><%= member.arc_number || '—' %></div></div>
-          <div class="col-sm-6"><span class="text-muted small">Chinese Name</span><div><%= member.arc_chinese_name || '—' %></div></div>
-          <div class="col-12"><span class="text-muted small">English Name (ARC)</span><div><%= member.arc_name_en || '—' %></div></div>
-          <div class="col-sm-4"><span class="text-muted small">Date of Issue</span><div><%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '—' %></div></div>
-          <div class="col-sm-4"><span class="text-muted small">Date of Expiry</span><div><% if (member.is_aprc) { %><span class="badge bg-info text-dark px-2 py-1">Permanent (APRC)</span><% } else { %><%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %><% } %></div></div>
-          <div class="col-sm-4"><span class="text-muted small">Passport Number</span><div><%= member.passport_number || '—' %></div></div>
-          <div class="col-sm-6"><span class="text-muted small">Serial Number</span><div><%= member.arc_serial_number || '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.arc_number') %></span><div><%= member.arc_number || '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.arc_chinese_name') %></span><div><%= member.arc_chinese_name || '—' %></div></div>
+          <div class="col-12"><span class="text-muted small"><%= t('profile.arc_name_en') %></span><div><%= member.arc_name_en || '—' %></div></div>
+          <div class="col-sm-4"><span class="text-muted small"><%= t('profile.arc_issue_date') %></span><div><%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '—' %></div></div>
+          <div class="col-sm-4"><span class="text-muted small"><%= t('profile.arc_expiry') %></span><div><% if (member.is_aprc) { %><span class="badge bg-info text-dark px-2 py-1"><%= t('profile.aprc_permanent') %></span><% } else { %><%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %><% } %></div></div>
+          <div class="col-sm-4"><span class="text-muted small"><%= t('profile.passport_number') %></span><div><%= member.passport_number || '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.serial_number') %></span><div><%= member.arc_serial_number || '—' %></div></div>
         </div>
       </div>
     </div>
 
     <!-- 4. Cartão de Cidadão -->
     <div class="card shadow-sm mb-3">
-      <div class="card-header fw-semibold">Cartão de Cidadão</div>
+      <div class="card-header fw-semibold"><%= t('profile.section_cc') %></div>
       <div class="card-body">
         <div class="row g-2">
-          <div class="col-sm-6"><span class="text-muted small">CC Number</span><div><%= member.cc_number || '—' %></div></div>
-          <div class="col-sm-6"><span class="text-muted small">Date of Expiry</span><div><%= member.cc_expiry_date ? member.cc_expiry_date.slice(0,10) : '—' %></div></div>
-          <div class="col-sm-6"><span class="text-muted small">NIF</span><div><%= member.nif || '—' %></div></div>
-          <div class="col-sm-6"><span class="text-muted small">NISS</span><div><%= member.niss || '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.cc_number') %></span><div><%= member.cc_number || '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.cc_expiry') %></span><div><%= member.cc_expiry_date ? member.cc_expiry_date.slice(0,10) : '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.nif') %></span><div><%= member.nif || '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.niss') %></span><div><%= member.niss || '—' %></div></div>
         </div>
       </div>
     </div>
@@ -127,7 +127,7 @@
     <!-- Notes (full-width) -->
     <% if (canWrite && member.notes) { %>
     <div class="card shadow-sm mb-3 full">
-      <div class="card-header fw-semibold">Notes</div>
+      <div class="card-header fw-semibold"><%= t('profile.notes_title') %></div>
       <div class="card-body">
         <p class="mb-0" style="white-space:pre-wrap"><%= member.notes %></p>
       </div>
@@ -137,18 +137,18 @@
     <!-- My Documents (full-width) -->
     <%
       const CARD_TYPES_U = ['arc_front', 'arc_back', 'cc_front', 'cc_back'];
-      const CARD_LABELS_U = { arc_front: 'ARC Front', arc_back: 'ARC Back', cc_front: 'CC Front', cc_back: 'CC Back' };
+      const CARD_LABELS_U = { arc_front: t('profile.card_arc_front'), arc_back: t('profile.card_arc_back'), cc_front: t('profile.card_cc_front'), cc_back: t('profile.card_cc_back') };
       const cardDocsU = {};
       documents.forEach(d => { if (CARD_TYPES_U.includes(d.doc_type)) cardDocsU[d.doc_type] = d; });
       const miscDocsU = documents.filter(d => !d.doc_type || d.doc_type === 'misc');
       const hasCardDocs = Object.keys(cardDocsU).length > 0;
     %>
     <div class="card shadow-sm full">
-      <div class="card-header fw-semibold">My Documents</div>
+      <div class="card-header fw-semibold"><%= t('profile.my_documents') %></div>
       <div class="card-body">
 
         <% if (hasCardDocs) { %>
-        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em">Identity Cards</p>
+        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em"><%= t('profile.identity_cards') %></p>
         <div class="row g-2 mb-3">
           <% for (const [type, label] of Object.entries(CARD_LABELS_U)) { %>
           <%   const doc = cardDocsU[type]; %>
@@ -168,7 +168,7 @@
               </div>
               <a href="/profile/documents/<%= doc.id %>/download"
                  class="btn btn-outline-primary w-100" style="padding:2px 6px;font-size:.75rem">
-                <i class="bi bi-download"></i> Download
+                <i class="bi bi-download"></i> <%= t('vault.download_btn') %>
               </a>
             </div>
           </div>
@@ -179,7 +179,7 @@
         <% } %>
 
         <% if (miscDocsU.length) { %>
-        <% if (hasCardDocs) { %><p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em">Miscellaneous</p><% } %>
+        <% if (hasCardDocs) { %><p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em"><%= t('profile.misc_docs') %></p><% } %>
         <ul class="list-group list-group-flush">
           <% miscDocsU.forEach(doc => { %>
           <li class="list-group-item d-flex justify-content-between align-items-center px-0">
@@ -204,7 +204,7 @@
           <% }) %>
         </ul>
         <% } else if (!hasCardDocs) { %>
-        <p class="text-muted mb-0">No documents on file.</p>
+        <p class="text-muted mb-0"><%= t('profile.no_my_documents') %></p>
         <% } %>
 
       </div>
@@ -214,7 +214,7 @@
 </div><!-- /profile-layout -->
 
 <div class="section-label" id="notifications">
-  <i class="bi bi-bell"></i> Notifications
+  <i class="bi bi-bell"></i> <%= t('profile.section_notifications') %>
   <% if (pendingCount > 0) { %><span class="pta-badge pta-badge--solid pta-tone-danger" style="margin-left:.5rem"><%= pendingCount %></span><% } %>
 </div>
 
@@ -222,7 +222,7 @@
   <div class="pta-card">
     <div class="pta-card__body" style="text-align:center;padding:3rem 1rem;color:var(--text-muted)">
       <i class="bi bi-bell-slash" style="font-size:2rem"></i>
-      <p class="mb-0 mt-2">No notifications yet.</p>
+      <p class="mb-0 mt-2"><%= t('notify.no_notifications') %></p>
     </div>
   </div>
   <% } else { %>
@@ -234,7 +234,7 @@
 
   <% if (pendingInvites.length) { %>
   <h6 class="text-uppercase fw-semibold mb-3" style="letter-spacing:.05em;font-size:.75rem;color:var(--text-muted)">
-    Pending (<%= pendingInvites.length %>)
+    <%= t('notify.pending_heading') %> (<%= pendingInvites.length %>)
   </h6>
   <% pendingInvites.forEach(function(inv) { %>
   <div class="pta-invite" id="inv-<%= inv.id %>">
@@ -251,12 +251,12 @@
           <div class="pta-invite__desc"><%= inv.description %></div>
           <% } %>
         </div>
-        <span class="pta-invite__status is-pending">pending</span>
+        <span class="pta-invite__status is-pending"><%= t('notify.pending') %></span>
       </div>
       <div class="pta-invite__actions">
-        <button class="pta-btn pta-btn--sm js-respond" data-id="<%= inv.id %>" data-action="accepted"><i class="bi bi-check-lg"></i> Accept</button>
-        <button class="pta-btn pta-btn--secondary pta-btn--sm js-respond" data-id="<%= inv.id %>" data-action="declined">Decline</button>
-        <a class="pta-btn pta-btn--gold-soft pta-btn--sm" href="/profile/invites/<%= inv.id %>/export.ics" title="Download .ics for Apple Calendar, Google Calendar, Outlook…"><i class="bi bi-calendar-plus"></i> Add to Calendar</a>
+        <button class="pta-btn pta-btn--sm js-respond" data-id="<%= inv.id %>" data-action="accepted"><i class="bi bi-check-lg"></i> <%= t('profile.invite_accept') %></button>
+        <button class="pta-btn pta-btn--secondary pta-btn--sm js-respond" data-id="<%= inv.id %>" data-action="declined"><%= t('profile.invite_decline') %></button>
+        <a class="pta-btn pta-btn--gold-soft pta-btn--sm" href="/profile/invites/<%= inv.id %>/export.ics" title="Download .ics for Apple Calendar, Google Calendar, Outlook…"><i class="bi bi-calendar-plus"></i> <%= t('profile.invite_add_cal') %></a>
       </div>
     </div>
   </div>
@@ -266,7 +266,7 @@
   <% if (answeredInvites.length) { %>
   <% if (pendingInvites.length) { %><hr class="my-4"><% } %>
   <h6 class="text-uppercase fw-semibold mb-3" style="letter-spacing:.05em;font-size:.75rem;color:var(--text-muted)">
-    Previous responses
+    <%= t('notify.previous_heading') %>
   </h6>
   <% answeredInvites.forEach(function(inv) { %>
   <div class="pta-invite is-resolved">
@@ -280,7 +280,7 @@
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:.5rem">
-          <span class="pta-invite__status is-<%= inv.status %>"><%= inv.status %></span>
+          <span class="pta-invite__status is-<%= inv.status %>"><%= t('notify.' + inv.status) %></span>
           <% if (inv.status === 'accepted') { %>
           <a href="/profile/invites/<%= inv.id %>/export.ics" class="pta-btn pta-btn--ghost pta-btn--sm" title="Add to calendar"><i class="bi bi-calendar-plus"></i></a>
           <% } %>
@@ -293,17 +293,17 @@
 
   <% } %>
 
-<div class="section-label" style="margin-top:2rem"><i class="bi bi-archive-fill" style="color:var(--green-600)"></i> Public Documents</div>
+<div class="section-label" style="margin-top:2rem"><i class="bi bi-archive-fill" style="color:var(--green-600)"></i> <%= t('profile.section_documents') %></div>
 <div class="pta-card pta-card--flush">
   <% if (!vaultFiles || !vaultFiles.length) { %>
   <div style="text-align:center;padding:2rem;color:var(--text-muted)">
     <i class="bi bi-archive" style="font-size:1.5rem;display:block;margin-bottom:.4rem"></i>
-    No documents published yet.
+    <%= t('profile.no_documents') %>
   </div>
   <% } else { %>
   <div class="pta-table-wrap">
     <table class="pta-table">
-      <thead><tr><th>File</th><th>Description</th><th>Date</th><th></th></tr></thead>
+      <thead><tr><th><%= t('vault.col_file') %></th><th><%= t('vault.col_desc') %></th><th><%= t('vault.col_date') %></th><th></th></tr></thead>
       <tbody>
         <% vaultFiles.forEach(function(f) {
           const ext = f.original_name.split('.').pop().toLowerCase();

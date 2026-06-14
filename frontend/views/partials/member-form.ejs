@@ -5,15 +5,15 @@
 
 <!-- ── 1. Personal Info ──────────────────────────────────────── -->
 <div class="card mb-3">
-  <div class="card-header fw-semibold">Personal Info</div>
+  <div class="card-header fw-semibold"><%= t('form.section_personal') %></div>
   <div class="card-body">
     <div class="row g-3">
       <div class="col-md-6">
-        <label class="form-label">First Name *</label>
+        <label class="form-label"><%= t('form.first_name') %> *</label>
         <input type="text" id="input_first_name" name="first_name" class="form-control" value="<%= v.first_name || '' %>" required>
       </div>
       <div class="col-md-6">
-        <label class="form-label">Last Name *</label>
+        <label class="form-label"><%= t('form.last_name') %> *</label>
         <input type="text" id="input_last_name" name="last_name" class="form-control" value="<%= v.last_name || '' %>" required>
       </div>
       <% if (v.arc_name_en) {
@@ -26,11 +26,11 @@
       <div class="col-12">
         <div class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2">
           <i class="bi bi-person-vcard"></i>
-          <span>ARC English Name: <strong><%= v.arc_name_en %></strong></span>
+          <span><%= t('form.arc_name_banner') %>: <strong><%= v.arc_name_en %></strong></span>
           <button type="button" class="btn btn-sm btn-outline-primary ms-auto"
             data-arc-first="<%= _arcFirst %>" data-arc-last="<%= _arcLast %>"
             onclick="document.getElementById('input_first_name').value=this.dataset.arcFirst;document.getElementById('input_last_name').value=this.dataset.arcLast;">
-            Use ARC name
+            <%= t('form.use_arc_name') %>
           </button>
         </div>
       </div>
@@ -41,34 +41,34 @@
         const _phoneNum   = _phoneMatch ? _phoneMatch[2] : (v.phone || '');
       %>
       <div class="col-md-6">
-        <label class="form-label">Phone</label>
+        <label class="form-label"><%= t('form.phone') %></label>
         <%- include('phone-field', { dialCode: _phoneDial, phoneNum: _phoneNum, countries: countries }) %>
       </div>
       <div class="col-md-6">
-        <label class="form-label">Email *</label>
+        <label class="form-label"><%= t('form.email') %> *</label>
         <input type="email" name="email" class="form-control" value="<%= v.email || '' %>" required>
       </div>
       <div class="col-12">
-        <label class="form-label">Address (Chinese / 中文地址)</label>
+        <label class="form-label"><%= t('form.address_zh') %></label>
         <input type="text" name="address_zh" class="form-control" value="<%= v.address_zh || '' %>"
                placeholder="e.g. 臺北市大安區信義路四段1號">
-        <div class="form-text">As printed on ARC card. Filled automatically by OCR scan.</div>
+        <div class="form-text"><%= t('form.address_zh_hint') %></div>
       </div>
       <div class="col-12">
-        <label class="form-label">Address (English)</label>
+        <label class="form-label"><%= t('form.address_en') %></label>
         <input type="text" name="address" class="form-control" value="<%= v.address || '' %>">
       </div>
       <div class="col-12">
-        <label class="form-label">Profile Photo</label>
+        <label class="form-label"><%= t('form.photo') %></label>
         <% if (isEdit && v.photo_path) { %>
         <div class="mb-2">
           <img src="/<%= v.photo_path.replace(/\\/g, '/') %>" alt="Current photo"
                class="rounded" style="height:80px;width:80px;object-fit:cover;">
-          <small class="text-muted ms-2">Upload a new photo to replace</small>
+          <small class="text-muted ms-2"><%= t('form.photo_replace_hint') %></small>
         </div>
         <% } %>
         <input type="file" name="photo" class="form-control" accept="image/jpeg,image/png,image/webp">
-        <div class="form-text">JPEG, PNG or WebP. Max 2 MB.</div>
+        <div class="form-text"><%= t('form.photo_hint') %></div>
       </div>
     </div>
   </div>
@@ -76,28 +76,28 @@
 
 <!-- ── 2. Membership Info ────────────────────────────────────── -->
 <%
-  const feeStatusLabels = { paid: 'Paid', unpaid: 'Unpaid', renewal_incoming: 'Renewal Incoming' };
+  const feeStatusLabels = { paid: t('fee.status_paid'), unpaid: t('fee.status_unpaid'), renewal_incoming: t('fee.status_renewal') };
   const feeStatusColors = { paid: 'success', unpaid: 'danger', renewal_incoming: 'warning' };
   const currentFeeStatus = v.fee_status || 'unpaid';
   const isHonoraryForm = v.user_position === 'honorary';
 %>
 <div class="card mb-3">
-  <div class="card-header fw-semibold">Membership Info</div>
+  <div class="card-header fw-semibold"><%= t('form.section_membership') %></div>
   <div class="card-body">
     <div class="row g-3">
       <div class="col-md-6">
-        <label class="form-label"><%= isEdit ? 'New Password (leave blank to keep)' : 'Password *' %></label>
+        <label class="form-label"><%= isEdit ? t('form.password_edit') : t('form.password_new') + ' *' %></label>
         <input type="password" name="<%= isEdit ? 'new_password' : 'password' %>" class="form-control"
           <% if (!isEdit) { %>required<% } %> minlength="6" autocomplete="new-password">
       </div>
       <% if (isEdit) { %>
       <div class="col-md-4">
-        <label class="form-label">Member ID</label>
+        <label class="form-label"><%= t('form.member_id') %></label>
         <input type="text" class="form-control" value="<%= v.member_id %>" disabled>
       </div>
       <% } %>
       <div class="col-md-4">
-        <label class="form-label">Join Date</label>
+        <label class="form-label"><%= t('form.join_date') %></label>
         <input type="date" name="join_date" class="form-control"
           value="<%= v.join_date ? v.join_date.slice(0,10) : new Date().toISOString().slice(0,10) %>">
       </div>
@@ -107,12 +107,12 @@
       <div class="col-12">
         <div class="alert alert-secondary py-2 mb-0 d-flex align-items-center gap-2">
           <i class="bi bi-star-fill text-honorary"></i>
-          <span><strong>Honorary Member</strong> — annual fees are not applicable for this member.</span>
+          <span><%= t('form.honorary_notice') %></span>
         </div>
       </div>
       <% } else { %>
       <div class="col-md-4">
-        <label class="form-label">Annual Fee</label>
+        <label class="form-label"><%= t('form.annual_fee') %></label>
         <%
           const _feeRaw   = parseInt(v.fee_amount);
           const _stdFee   = (typeof defaultFee !== 'undefined' && !isNaN(parseInt(defaultFee))) ? parseInt(defaultFee) : 300;
@@ -121,22 +121,22 @@
         %>
         <select name="fee_amount" class="form-select">
           <option value="<%= _feeDisplay %>" <%= !_feeIsZero ? 'selected' : '' %>><%= _feeDisplay %> TWD</option>
-          <option value="0" <%= _feeIsZero ? 'selected' : '' %>>0 TWD — Honorary Member</option>
+          <option value="0" <%= _feeIsZero ? 'selected' : '' %>><%= t('fee.honorary_option') %></option>
         </select>
       </div>
       <div class="col-md-4">
-        <label class="form-label">Date Last Paid</label>
+        <label class="form-label"><%= t('form.date_last_paid') %></label>
         <input type="date" name="fee_last_paid" class="form-control"
           value="<%= v.fee_last_paid ? v.fee_last_paid.slice(0,10) : '' %>">
-        <div class="form-text">Leave blank if not yet paid.</div>
+        <div class="form-text"><%= t('form.date_last_paid_hint') %></div>
       </div>
       <div class="col-md-4">
-        <label class="form-label">Valid Until <small class="text-muted">(auto)</small></label>
+        <label class="form-label"><%= t('form.valid_until') %> <small class="text-muted"><%= t('form.auto') %></small></label>
         <input type="text" class="form-control"
           value="<%= v.fee_valid_until ? v.fee_valid_until.slice(0,10) : '—' %>" disabled>
       </div>
       <div class="col-md-4">
-        <label class="form-label">Fee Status <small class="text-muted">(auto)</small></label>
+        <label class="form-label"><%= t('form.fee_status') %> <small class="text-muted"><%= t('form.auto') %></small></label>
         <div class="mt-1">
           <span class="badge fs-6 bg-<%= feeStatusColors[currentFeeStatus] || 'secondary' %>">
             <%= feeStatusLabels[currentFeeStatus] || currentFeeStatus %>
@@ -156,14 +156,14 @@
 %>
 <div class="card mb-3">
   <div class="card-header fw-semibold">
-    ARC / APRC / Taiwan Passport
-    <small class="text-muted fw-normal">(Taiwan Residence Document)</small>
+    <%= t('form.section_arc') %>
+    <small class="text-muted fw-normal"><%= t('form.section_arc_sub') %></small>
   </div>
   <div class="card-body">
     <div class="row g-3">
       <!-- Document type selector -->
       <div class="col-12">
-        <label class="form-label fw-semibold mb-1">Document Type</label>
+        <label class="form-label fw-semibold mb-1"><%= t('form.doc_type') %></label>
         <div class="pta-seg w-100" role="group">
           <input type="radio" class="btn-check" name="residence_doc_type" id="docTypeArc"
                  value="arc" <%= _docType === 'arc' ? 'checked' : '' %> onchange="arcDocTypeChanged()">
@@ -177,38 +177,38 @@
         </div>
       </div>
       <div class="col-md-6">
-        <label class="form-label" id="arcNumberLabel"><%= _docType === 'tw_passport' ? 'ARC / APRC Number' : 'ARC / APRC Number' %></label>
+        <label class="form-label" id="arcNumberLabel"><%= t('form.arc_number') %></label>
         <input type="text" name="arc_number" class="form-control" value="<%= v.arc_number || '' %>">
       </div>
       <div class="col-md-6">
-        <label class="form-label">Chinese Name</label>
+        <label class="form-label"><%= t('form.chinese_name') %></label>
         <input type="text" name="arc_chinese_name" class="form-control" value="<%= v.arc_chinese_name || '' %>">
       </div>
       <div class="col-12">
-        <label class="form-label">English Name</label>
+        <label class="form-label"><%= t('form.arc_english_name') %></label>
         <input type="text" name="arc_name_en" class="form-control" value="<%= v.arc_name_en || '' %>">
       </div>
       <div class="col-md-4">
-        <label class="form-label">Date of Issue</label>
+        <label class="form-label"><%= t('form.issue_date') %></label>
         <input type="date" name="arc_issue_date" class="form-control"
           value="<%= v.arc_issue_date ? v.arc_issue_date.slice(0,10) : '' %>">
       </div>
       <div class="col-md-4">
-        <label class="form-label" id="arcExpiryLabel"><%= _docType === 'tw_passport' ? 'Passport Expiry Date' : 'Date of Expiry' %></label>
+        <label class="form-label" id="arcExpiryLabel"><%= _docType === 'tw_passport' ? t('form.passport_expiry') : t('form.expiry_date') %></label>
         <div id="arcExpiryInput" class="<%= _docType === 'aprc' ? 'd-none' : '' %>">
           <input type="date" name="arc_expiry_date" id="arcExpiryDate" class="form-control"
             value="<%= _docType !== 'aprc' && v.arc_expiry_date ? v.arc_expiry_date.slice(0,10) : '' %>">
         </div>
         <div id="arcExpiryPermanent" class="<%= _docType === 'aprc' ? '' : 'd-none' %>">
-          <span class="badge bg-info text-dark px-3 py-2 fs-6">Permanent — APRC</span>
+          <span class="badge bg-info text-dark px-3 py-2 fs-6"><%= t('form.aprc_permanent') %></span>
         </div>
       </div>
       <div class="col-md-4">
-        <label class="form-label" id="passportLabel"><%= _docType === 'tw_passport' ? 'Taiwan Passport No.' : 'Passport Number' %></label>
+        <label class="form-label" id="passportLabel"><%= _docType === 'tw_passport' ? t('form.tw_passport_number') : t('form.passport_number') %></label>
         <input type="text" name="passport_number" class="form-control" value="<%= v.passport_number || '' %>">
       </div>
       <div class="col-md-6">
-        <label class="form-label">Serial Number</label>
+        <label class="form-label"><%= t('form.serial_number') %></label>
         <input type="text" name="arc_serial_number" class="form-control" value="<%= v.arc_serial_number || '' %>">
       </div>
     </div>
@@ -231,31 +231,31 @@ function arcDocTypeChanged() {
     permBadge.classList.add('d-none');
     dateInput.disabled = false;
   }
-  expiryLbl.textContent = type === 'tw_passport' ? 'Passport Expiry Date' : 'Date of Expiry';
-  passLbl.textContent   = type === 'tw_passport' ? 'Taiwan Passport No.'  : 'Passport Number';
+  expiryLbl.textContent = type === 'tw_passport' ? '<%= t("form.passport_expiry") %>' : '<%= t("form.expiry_date") %>';
+  passLbl.textContent   = type === 'tw_passport' ? '<%= t("form.tw_passport_number") %>'  : '<%= t("form.passport_number") %>';
 }
 </script>
 
 <!-- ── 4. Cartão de Cidadão ──────────────────────────────────── -->
 <div class="card mb-3">
-  <div class="card-header fw-semibold">Cartão de Cidadão <small class="text-muted fw-normal">(Portuguese Citizen Card)</small></div>
+  <div class="card-header fw-semibold"><%= t('form.section_cc') %> <small class="text-muted fw-normal"><%= t('form.section_cc_sub') %></small></div>
   <div class="card-body">
     <div class="row g-3">
       <div class="col-md-6">
-        <label class="form-label">CC Number</label>
+        <label class="form-label"><%= t('form.cc_number') %></label>
         <input type="text" name="cc_number" class="form-control" value="<%= v.cc_number || '' %>">
       </div>
       <div class="col-md-6">
-        <label class="form-label">Date of Expiry</label>
+        <label class="form-label"><%= t('form.expiry_date') %></label>
         <input type="date" name="cc_expiry_date" class="form-control"
           value="<%= v.cc_expiry_date ? v.cc_expiry_date.slice(0,10) : '' %>">
       </div>
       <div class="col-md-6">
-        <label class="form-label">NIF <small class="text-muted">(Número de Identificação Fiscal)</small></label>
+        <label class="form-label"><%= t('form.nif') %> <small class="text-muted"><%= t('form.nif_full') %></small></label>
         <input type="text" name="nif" class="form-control" value="<%= v.nif || '' %>">
       </div>
       <div class="col-md-6">
-        <label class="form-label">NISS <small class="text-muted">(Número de Identificação de Segurança Social)</small></label>
+        <label class="form-label"><%= t('form.niss') %> <small class="text-muted"><%= t('form.niss_full') %></small></label>
         <input type="text" name="niss" class="form-control" value="<%= v.niss || '' %>">
       </div>
     </div>
@@ -264,8 +264,8 @@ function arcDocTypeChanged() {
 
 <!-- ── 5. Notes ──────────────────────────────────────────────── -->
 <div class="card mb-3">
-  <div class="card-header fw-semibold">Notes</div>
+  <div class="card-header fw-semibold"><%= t('form.section_notes') %></div>
   <div class="card-body">
-    <textarea name="notes" class="form-control" rows="4" placeholder="Internal notes (visible to admins only)…"><%= v.notes || '' %></textarea>
+    <textarea name="notes" class="form-control" rows="4" placeholder="<%= t('form.notes_placeholder') %>"><%= v.notes || '' %></textarea>
   </div>
 </div>

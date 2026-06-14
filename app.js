@@ -31,6 +31,7 @@ const {
   requireAdmin,
   requireViewAll,
 } = require("./middleware/auth");
+const i18n = require("./utils/i18n");
 const authRouter = require("./routes/auth");
 const adminRouter = require("./routes/admin");
 const { router: userRouter, contentDispositionFilename: cdFilename } = require("./routes/user");
@@ -104,6 +105,20 @@ app.get("/uploads/thumbs/:filename", requireAuth, (req, res) => {
   );
   if (!fs.existsSync(filePath)) return res.status(404).send("Not found.");
   res.sendFile(filePath);
+});
+
+// i18n — attach t() and lang to res.locals on every request
+app.use(i18n);
+
+// Language switcher — sets cookie and redirects back
+app.get("/lang/:code", (req, res) => {
+  const SUPPORTED = ["en", "pt", "zh-TW"];
+  const code = req.params.code;
+  if (SUPPORTED.includes(code)) {
+    res.cookie("lang", code, { maxAge: 365 * 24 * 60 * 60 * 1000, httpOnly: false, sameSite: "lax" });
+  }
+  const back = req.headers.referer || "/";
+  res.redirect(back);
 });
 
 // Routes

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="<%= typeof lang !== 'undefined' ? lang : 'en' %>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -31,43 +31,48 @@
 
   <% if (canViewAll) { %>
   <nav class="pta-nav">
-    <a class="pta-nav__item <%= _navActive === 'dashboard' ? 'is-active' : '' %>" href="/admin"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
-    <a class="pta-nav__item <%= _navActive === 'members'   ? 'is-active' : '' %>" href="/admin/members"><i class="bi bi-people-fill"></i><span>Members</span></a>
-    <a class="pta-nav__item <%= _navActive === 'vault'     ? 'is-active' : '' %>" href="/vault"><i class="bi bi-archive-fill"></i><span>Documents</span></a>
+    <a class="pta-nav__item <%= _navActive === 'dashboard' ? 'is-active' : '' %>" href="/admin"><i class="bi bi-speedometer2"></i><span><%= t('nav.dashboard') %></span></a>
+    <a class="pta-nav__item <%= _navActive === 'members'   ? 'is-active' : '' %>" href="/admin/members"><i class="bi bi-people-fill"></i><span><%= t('nav.members') %></span></a>
+    <a class="pta-nav__item <%= _navActive === 'vault'     ? 'is-active' : '' %>" href="/vault"><i class="bi bi-archive-fill"></i><span><%= t('nav.documents') %></span></a>
     <% if (canWrite) { %>
-    <a class="pta-nav__item <%= _navActive === 'audit'     ? 'is-active' : '' %>" href="/admin/audit"><i class="bi bi-clock-history"></i><span>Audit Log</span></a>
+    <a class="pta-nav__item <%= _navActive === 'audit'     ? 'is-active' : '' %>" href="/admin/audit"><i class="bi bi-clock-history"></i><span><%= t('nav.audit_log') %></span></a>
     <% } %>
   </nav>
   <% } else { %>
   <nav class="pta-nav">
-    <a class="pta-nav__item <%= title === 'My Profile' ? 'is-active' : '' %>" href="/profile"><i class="bi bi-person-circle"></i><span>My Profile</span></a>
+    <a class="pta-nav__item <%= title === 'My Profile' ? 'is-active' : '' %>" href="/profile"><i class="bi bi-person-circle"></i><span><%= t('nav.my_profile') %></span></a>
   </nav>
   <% } %>
 
   <div class="pta-topbar__right">
     <% if (currentUser.role === 'super_admin') { %>
-    <span class="pta-badge pta-badge--solid pta-tone-danger">Super Admin <span style="opacity:.55;font-size:.8em;letter-spacing:.03em">v1.3</span></span>
+    <span class="pta-badge pta-badge--solid pta-tone-danger"><%= t('nav.super_admin') %> <span style="opacity:.55;font-size:.8em;letter-spacing:.03em">v1.7</span></span>
     <% } else if (currentUser.role === 'admin') { %>
-    <span class="pta-badge pta-badge--solid pta-tone-gold">Admin</span>
+    <span class="pta-badge pta-badge--solid pta-tone-gold"><%= t('nav.admin') %></span>
     <% } %>
     <% if (currentUser.role === 'super_admin') { %>
-    <button class="pta-topbar__bell pta-console-toggle" id="pta-console-btn" type="button" title="Server logs">
+    <button class="pta-topbar__bell pta-console-toggle" id="pta-console-btn" type="button" title="<%= t('nav.server_logs') %>">
       <i class="bi bi-terminal-fill"></i>
     </button>
     <% } %>
-    <a href="/profile#notifications" class="pta-topbar__bell" title="Notifications">
+    <a href="/profile#notifications" class="pta-topbar__bell" title="<%= t('nav.notifications') %>">
       <i class="bi bi-bell<%= pendingInviteCount > 0 ? '-fill' : '' %>"></i>
       <% if (pendingInviteCount > 0) { %>
       <span class="pta-bell__badge"><%= pendingInviteCount %></span>
       <% } %>
     </a>
+    <nav class="pta-langsw" aria-label="Language">
+      <a href="/lang/en"    class="pta-langsw__btn<%= lang === 'en'    ? ' pta-langsw__btn--active' : '' %>" title="English"><span class="fi fi-gb"></span></a>
+      <a href="/lang/pt"    class="pta-langsw__btn<%= lang === 'pt'    ? ' pta-langsw__btn--active' : '' %>" title="Português"><span class="fi fi-pt"></span></a>
+      <a href="/lang/zh-TW" class="pta-langsw__btn<%= lang === 'zh-TW' ? ' pta-langsw__btn--active' : '' %>" title="中文"><span class="fi fi-tw"></span></a>
+    </nav>
     <span class="pta-user">
       <span class="pta-user__email"><%= currentUser.email %></span>
       <% if (currentUser.role === 'member') { %>
-      <a href="/profile/edit" class="pta-user__logout" title="Edit profile"><i class="bi bi-pencil"></i></a>
+      <a href="/profile/edit" class="pta-user__logout" title="<%= t('nav.edit_profile') %>"><i class="bi bi-pencil"></i></a>
       <% } %>
       <form action="/logout" method="POST" class="d-inline">
-        <button class="pta-user__logout" type="submit" title="Log out"><i class="bi bi-box-arrow-right"></i></button>
+        <button class="pta-user__logout" type="submit" title="<%= t('nav.logout') %>"><i class="bi bi-box-arrow-right"></i></button>
       </form>
     </span>
   </div>

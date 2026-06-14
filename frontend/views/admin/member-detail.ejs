@@ -4,24 +4,24 @@
   // --- Helpers ---
   function feeBadge(status) {
     if (status === 'paid')
-      return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>Paid</span>';
+      return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>' + t('fee.status_paid') + '</span>';
     if (status === 'renewal_incoming')
-      return '<span class="pta-badge pta-badge--soft pta-tone-gold"><span class="pta-badge__dot"></span>Renewal incoming</span>';
+      return '<span class="pta-badge pta-badge--soft pta-tone-gold"><span class="pta-badge__dot"></span>' + t('fee.status_renewal') + '</span>';
     if (status === 'unpaid')
-      return '<span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>Unpaid</span>';
-    return '<span class="pta-badge pta-badge--soft pta-tone-honorary">Honorary Member</span>';
+      return '<span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>' + t('fee.status_unpaid') + '</span>';
+    return '<span class="pta-badge pta-badge--soft pta-tone-honorary">' + t('fee.status_honorary') + '</span>';
   }
 
   function docValidity(dateStr) {
     if (!dateStr) return null;
     const daysLeft = Math.floor((new Date(dateStr) - new Date()) / 86400000);
-    if (daysLeft < 0)   return { label: 'EXPIRED',       tone: 'danger'  };
-    if (daysLeft <= 60) return { label: 'EXPIRING SOON', tone: 'warning' };
-    return                     { label: 'VALID',          tone: 'success' };
+    if (daysLeft < 0)   return { label: t('detail.doc_validity_expired'),  tone: 'danger'  };
+    if (daysLeft <= 60) return { label: t('detail.doc_validity_expiring'), tone: 'warning' };
+    return                     { label: t('detail.doc_validity_valid'),    tone: 'success' };
   }
 
   const arcValidity = member.is_aprc
-    ? { label: 'APRC — PERMANENT', tone: 'info' }
+    ? { label: t('detail.aprc_permanent'), tone: 'info' }
     : docValidity(member.arc_expiry_date);
   const ccValidity  = docValidity(member.cc_expiry_date);
   const isHonorary  = member.user_position === 'honorary';
@@ -39,7 +39,7 @@
 <!-- Page head -->
 <div class="pta-pagehead">
   <div class="pta-pagehead__titles">
-    <a class="pta-chip" style="align-self:flex-start" href="/admin/members"><i class="bi bi-arrow-left"></i> Members</a>
+    <a class="pta-chip" style="align-self:flex-start" href="/admin/members"><i class="bi bi-arrow-left"></i> <%= t('member.back_to_list') %></a>
     <h1><%= _displayName %></h1>
     <% if (member.arc_chinese_name) { %>
     <span class="pta-pagehead__sub"><%= member.arc_chinese_name %> · <span class="pta-id"><%= member.member_id %></span></span>
@@ -49,7 +49,7 @@
   </div>
   <div style="display:flex;gap:.5rem;align-items:flex-start">
     <% if (canWrite) { %>
-    <a class="pta-btn pta-btn--secondary" href="/admin/members/<%= member.id %>/edit"><i class="bi bi-pencil"></i> Edit</a>
+    <a class="pta-btn pta-btn--secondary" href="/admin/members/<%= member.id %>/edit"><i class="bi bi-pencil"></i> <%= t('member.edit_btn') %></a>
     <% } %>
   </div>
 </div>
@@ -79,23 +79,23 @@
             <% } %>
           </div>
           <% if (isHonorary) { %>
-          <span class="pta-badge pta-badge--soft pta-tone-honorary">Honorary Member</span>
+          <span class="pta-badge pta-badge--soft pta-tone-honorary"><%= t('fee.status_honorary') %></span>
           <% } else { %>
           <%- feeBadge(member.fee_status) %>
           <% } %>
           <div class="pta-profilecard__meta">
-            Joined <%= member.join_date ? member.join_date.slice(0,10) : '—' %><br>
-            Account created <%= member.account_created ? member.account_created.slice(0,10) : '—' %>
+            <%= t('member.joined') %> <%= member.join_date ? member.join_date.slice(0,10) : '—' %><br>
+            <%= t('member.account_created') %> <%= member.account_created ? member.account_created.slice(0,10) : '—' %>
           </div>
           <% if (canWrite) { %>
           <% if (member.is_aprc || member.is_tw_passport) { %>
           <div class="small text-muted mt-1 d-flex align-items-center gap-1">
             <i class="bi bi-info-circle"></i>
-            NIA photo fetch is not available for <%= member.is_aprc ? 'APRC' : 'Taiwan Passport' %> holders.
+            <%= t('member.nia_not_available') %> <%= member.is_aprc ? 'APRC' : 'Taiwan Passport' %> <%= t('member.nia_holders') %>
           </div>
           <% } else { %>
           <button class="pta-btn pta-btn--secondary pta-btn--block" id="fetchArcPhotoBtn">
-            <i class="bi bi-camera"></i> Fetch NIA Photo
+            <i class="bi bi-camera"></i> <%= t('member.fetch_nia') %>
           </button>
           <% } %>
           <% } %>
@@ -108,43 +108,43 @@
     <div class="pta-card">
       <header class="pta-card__head">
         <i class="bi bi-shield-lock"></i>
-        <div class="pta-card__titles"><span class="pta-card__title">Account Settings</span></div>
+        <div class="pta-card__titles"><span class="pta-card__title"><%= t('account.settings_title') %></span></div>
       </header>
       <div class="pta-card__body">
         <form action="/admin/members/<%= member.id %>/change-role" method="POST">
           <div class="pta-field">
-            <label class="pta-field__label">Permission Role</label>
+            <label class="pta-field__label"><%= t('account.permission_role') %></label>
             <select name="role" class="pta-control">
               <% [
-                { val: 'super_admin', label: 'Super Admin' },
-                { val: 'admin',       label: 'Admin' },
-                { val: 'member',      label: 'Member' },
+                { val: 'super_admin', label: t('detail.role_super_admin') },
+                { val: 'admin',       label: t('detail.role_admin') },
+                { val: 'member',      label: t('detail.role_member') },
               ].forEach(function(r) { %>
               <option value="<%= r.val %>" <%= member.user_role === r.val ? 'selected' : '' %>><%= r.label %></option>
               <% }); %>
             </select>
-            <span class="pta-field__hint">Controls what they can do in the system.</span>
+            <span class="pta-field__hint"><%= t('account.permission_hint') %></span>
           </div>
           <div class="pta-field">
-            <label class="pta-field__label">Association Position</label>
+            <label class="pta-field__label"><%= t('account.position') %></label>
             <select name="position" class="pta-control">
               <% [
-                { val: 'member',    label: 'Member' },
-                { val: 'honorary',  label: 'Honorary Member' },
-                { val: 'gestao',    label: 'Gestão' },
-                { val: 'board',     label: 'Board' },
-                { val: 'president', label: 'President' },
-                { val: 'treasurer', label: 'Treasurer' },
-                { val: 'secretary', label: 'Secretary' },
+                { val: 'member',    label: t('detail.pos_member') },
+                { val: 'honorary',  label: t('detail.pos_honorary') },
+                { val: 'gestao',    label: t('detail.pos_gestao') },
+                { val: 'board',     label: t('detail.pos_board') },
+                { val: 'president', label: t('detail.pos_president') },
+                { val: 'treasurer', label: t('detail.pos_treasurer') },
+                { val: 'secretary', label: t('detail.pos_secretary') },
               ].forEach(function(p) { %>
               <option value="<%= p.val %>" <%= member.user_position === p.val ? 'selected' : '' %>><%= p.label %></option>
               <% }); %>
             </select>
-            <span class="pta-field__hint">Gestão grants view-all access.</span>
+            <span class="pta-field__hint"><%= t('account.position_hint') %></span>
           </div>
           <button type="submit" class="pta-btn pta-btn--secondary pta-btn--block"
                   onclick="return confirm('Update account settings for <%= _delName.replace(/'/g, '\\\'') %>?')">
-            <i class="bi bi-arrow-repeat"></i> Save Changes
+            <i class="bi bi-arrow-repeat"></i> <%= t('account.save_changes') %>
           </button>
         </form>
 
@@ -152,20 +152,20 @@
 
         <form action="/admin/members/<%= member.id %>/set-password" method="POST"
               id="resetPwForm" onsubmit="return validatePwReset()">
-          <p class="pta-field__hint" style="margin-bottom:.75rem">Reset this member's login password.</p>
+          <p class="pta-field__hint" style="margin-bottom:.75rem"><%= t('account.reset_pw_hint') %></p>
           <div class="pta-field">
-            <label class="pta-field__label">New Password</label>
+            <label class="pta-field__label"><%= t('account.new_password') %></label>
             <input type="password" name="new_password" id="rpNewPw" class="pta-control"
                    minlength="6" autocomplete="new-password" required>
-            <span class="pta-field__hint">Minimum 6 characters.</span>
+            <span class="pta-field__hint"><%= t('account.new_password_hint') %></span>
           </div>
           <div class="pta-field" style="margin-bottom:.75rem">
-            <label class="pta-field__label">Confirm Password</label>
+            <label class="pta-field__label"><%= t('account.confirm_password') %></label>
             <input type="password" name="confirm_password" id="rpConfirmPw" class="pta-control"
                    minlength="6" autocomplete="new-password" required>
           </div>
           <button type="submit" class="pta-btn pta-btn--danger pta-btn--block">
-            <i class="bi bi-key"></i> Set New Password
+            <i class="bi bi-key"></i> <%= t('account.set_password') %>
           </button>
         </form>
       </div>
@@ -186,13 +186,13 @@ function validatePwReset() {
     <div class="pta-card">
       <header class="pta-card__head" style="color:var(--vermelho-500,#BE3A2B)">
         <i class="bi bi-exclamation-triangle-fill"></i>
-        <div class="pta-card__titles"><span class="pta-card__title">Danger Zone</span></div>
+        <div class="pta-card__titles"><span class="pta-card__title"><%= t('account.danger_zone') %></span></div>
       </header>
       <div class="pta-card__body">
         <form action="/admin/members/<%= member.id %>/delete" method="POST"
               onsubmit="return confirm('Permanently delete <%= _delName.replace(/'/g, '\\\'') %> and all their data?')">
           <button type="submit" class="pta-btn pta-btn--danger pta-btn--block">
-            <i class="bi bi-trash"></i> Delete Member
+            <i class="bi bi-trash"></i> <%= t('member.delete_btn') %>
           </button>
         </form>
       </div>
@@ -208,20 +208,20 @@ function validatePwReset() {
     <div class="pta-card">
       <header class="pta-card__head">
         <i class="bi bi-person-lines-fill"></i>
-        <div class="pta-card__titles"><span class="pta-card__title">Contact</span></div>
+        <div class="pta-card__titles"><span class="pta-card__title"><%= t('detail.contact_title') %></span></div>
       </header>
       <div class="pta-card__body">
         <dl class="pta-dl pta-dl--split">
-          <dt>Phone</dt><dd class="mono"><%= member.phone || '—' %></dd>
-          <dt>Email</dt><dd><%= member.email || '—' %></dd>
+          <dt><%= t('detail.phone') %></dt><dd class="mono"><%= member.phone || '—' %></dd>
+          <dt><%= t('detail.email') %></dt><dd><%= member.email || '—' %></dd>
         </dl>
         <div class="pta-fieldset">
           <div>
-            <div class="pta-fieldset__lbl">Address · 中文</div>
+            <div class="pta-fieldset__lbl"><%= t('detail.address_zh') %></div>
             <div class="pta-fieldset__val"><%= member.address_zh || '—' %></div>
           </div>
           <div>
-            <div class="pta-fieldset__lbl">Address · EN</div>
+            <div class="pta-fieldset__lbl"><%= t('detail.address_en') %></div>
             <div class="pta-fieldset__val"><%= member.address || '—' %></div>
           </div>
         </div>
@@ -232,45 +232,45 @@ function validatePwReset() {
     <div class="pta-card">
       <header class="pta-card__head">
         <i class="bi bi-card-checklist"></i>
-        <div class="pta-card__titles"><span class="pta-card__title">Membership &amp; Fees</span></div>
+        <div class="pta-card__titles"><span class="pta-card__title"><%= t('detail.membership_title') %></span></div>
       </header>
       <div class="pta-card__body">
         <dl class="pta-dl pta-dl--split">
-          <dt>Member ID</dt><dd class="mono"><%= member.member_id %></dd>
-          <dt>Join date</dt><dd class="mono"><%= member.join_date ? member.join_date.slice(0,10) : '—' %></dd>
+          <dt><%= t('detail.member_id') %></dt><dd class="mono"><%= member.member_id %></dd>
+          <dt><%= t('detail.join_date') %></dt><dd class="mono"><%= member.join_date ? member.join_date.slice(0,10) : '—' %></dd>
           <% if (isHonorary) { %>
-          <dt>Fee Status</dt><dd><span class="pta-badge pta-badge--soft pta-tone-honorary">Honorary Member</span></dd>
+          <dt><%= t('fee.status_honorary') %></dt><dd><span class="pta-badge pta-badge--soft pta-tone-honorary"><%= t('fee.status_honorary') %></span></dd>
           <% } else { %>
-          <dt>Annual fee</dt><dd>
-            <% if (member.fee_amount === 0) { %>Honorary Member<% } else { %>
+          <dt><%= t('fee.amount') %></dt><dd>
+            <% if (member.fee_amount === 0) { %><%= t('fee.status_honorary') %><% } else { %>
             <span data-esc-twd="<%= member.fee_amount || 300 %>"><span class="esc-amt"><%= member.fee_amount || 300 %></span> <span class="js-esc-twd">TWD</span></span>
             <% } %>
           </dd>
-          <dt>Last paid</dt><dd class="mono"><%= member.fee_last_paid ? member.fee_last_paid.slice(0,10) : '—' %></dd>
-          <dt>Valid until</dt><dd class="mono"><%= member.fee_valid_until ? member.fee_valid_until.slice(0,10) : '—' %></dd>
-          <dt>Status</dt><dd><%- feeBadge(member.fee_status) %></dd>
+          <dt><%= t('fee.last_paid') %></dt><dd class="mono"><%= member.fee_last_paid ? member.fee_last_paid.slice(0,10) : '—' %></dd>
+          <dt><%= t('fee.valid_until') %></dt><dd class="mono"><%= member.fee_valid_until ? member.fee_valid_until.slice(0,10) : '—' %></dd>
+          <dt><%= t('profile.fee_status') %></dt><dd><%- feeBadge(member.fee_status) %></dd>
           <% } %>
         </dl>
 
         <% if (canViewAll && !isHonorary) { %>
         <hr style="margin:1rem 0;border-color:var(--surface-sunken,#d6d1c4)">
-        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em">Update Payment</p>
+        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em"><%= t('fee.update_payment') %></p>
         <form action="/admin/members/<%= member.id %>/fee" method="POST">
           <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;align-items:end">
             <div class="pta-field">
-              <label class="pta-field__label">Annual Fee</label>
+              <label class="pta-field__label"><%= t('fee.annual_fee') %></label>
               <select name="fee_amount" class="pta-control">
                 <option value="300" <%= (member.fee_amount || 300) === 300 ? 'selected' : '' %>>300 TWD</option>
-                <option value="0"   <%= member.fee_amount === 0 ? 'selected' : '' %>>0 TWD — Honorary Member</option>
+                <option value="0"   <%= member.fee_amount === 0 ? 'selected' : '' %>><%= t('fee.honorary_option') %></option>
               </select>
             </div>
             <div class="pta-field">
-              <label class="pta-field__label">Date Last Paid</label>
+              <label class="pta-field__label"><%= t('fee.date_last_paid') %></label>
               <input type="date" name="fee_last_paid" class="pta-control"
                      value="<%= member.fee_last_paid ? member.fee_last_paid.slice(0,10) : '' %>">
             </div>
             <button type="submit" class="pta-btn pta-btn--secondary">
-              <i class="bi bi-check-circle"></i> Save
+              <i class="bi bi-check-circle"></i> <%= t('fee.save_btn') %>
             </button>
           </div>
         </form>
@@ -283,21 +283,21 @@ function validatePwReset() {
       <header class="pta-card__head">
         <i class="bi bi-person-vcard"></i>
         <div class="pta-card__titles">
-          <span class="pta-card__eyebrow"><%= member.is_aprc ? 'Alien Permanent Resident Certificate' : member.is_tw_passport ? 'Taiwan Passport' : 'Alien Resident Certificate' %></span>
-          <span class="pta-card__title">Residence — <%= member.is_aprc ? 'APRC' : member.is_tw_passport ? 'TW Passport' : 'ARC' %></span>
+          <span class="pta-card__eyebrow"><%= member.is_aprc ? t('detail.arc_title_aprc') : member.is_tw_passport ? t('detail.arc_title_passport') : t('detail.arc_title_arc') %></span>
+          <span class="pta-card__title">Residence — <%= member.is_aprc ? t('detail.arc_section_aprc') : member.is_tw_passport ? t('detail.arc_section_passport') : t('detail.arc_section_arc') %></span>
         </div>
       </header>
       <div class="pta-card__body">
         <dl class="pta-dl pta-dl--split">
-          <dt>ARC Number</dt><dd class="mono"><%= member.arc_number || '—' %></dd>
-          <dt>Serial No.</dt><dd class="mono"><%= member.arc_serial_number || '—' %></dd>
-          <dt>English Name</dt><dd><%= member.arc_name_en || '—' %></dd>
-          <dt>Chinese Name</dt><dd><%= member.arc_chinese_name || '—' %></dd>
-          <dt>Passport No.</dt><dd class="mono"><%= member.passport_number || '—' %></dd>
-          <dt>Issue date</dt><dd class="mono"><%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '—' %></dd>
-          <dt><%= member.is_tw_passport ? 'Passport Expiry' : 'Expiry date' %></dt>
+          <dt><%= t('detail.arc_number') %></dt><dd class="mono"><%= member.arc_number || '—' %></dd>
+          <dt><%= t('detail.serial_no') %></dt><dd class="mono"><%= member.arc_serial_number || '—' %></dd>
+          <dt><%= t('detail.english_name') %></dt><dd><%= member.arc_name_en || '—' %></dd>
+          <dt><%= t('detail.chinese_name') %></dt><dd><%= member.arc_chinese_name || '—' %></dd>
+          <dt><%= t('detail.passport_no') %></dt><dd class="mono"><%= member.passport_number || '—' %></dd>
+          <dt><%= t('detail.issue_date') %></dt><dd class="mono"><%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '—' %></dd>
+          <dt><%= member.is_tw_passport ? t('detail.passport_expiry') : t('detail.expiry_date') %></dt>
           <dd class="mono">
-            <% if (member.is_aprc) { %>Permanent<% } else { %><%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %><% } %>
+            <% if (member.is_aprc) { %><%= t('detail.permanent') %><% } else { %><%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %><% } %>
             <% if (arcValidity) { %>
             <span class="pta-badge pta-badge--soft pta-tone-<%= arcValidity.tone %>" style="margin-left:.4rem"><%= arcValidity.label %></span>
             <% } %>
@@ -311,16 +311,16 @@ function validatePwReset() {
       <header class="pta-card__head">
         <i class="bi bi-credit-card"></i>
         <div class="pta-card__titles">
-          <span class="pta-card__eyebrow">Portuguese ID</span>
-          <span class="pta-card__title">Cartão de Cidadão</span>
+          <span class="pta-card__eyebrow"><%= t('detail.cc_eyebrow') %></span>
+          <span class="pta-card__title"><%= t('detail.cc_title') %></span>
         </div>
       </header>
       <div class="pta-card__body">
         <dl class="pta-dl pta-dl--split">
-          <dt>CC Number</dt><dd class="mono"><%= member.cc_number || '—' %></dd>
-          <dt>NIF</dt><dd class="mono"><%= member.nif || '—' %></dd>
-          <dt>NISS</dt><dd class="mono"><%= member.niss || '—' %></dd>
-          <dt>Expiry date</dt>
+          <dt><%= t('detail.cc_number') %></dt><dd class="mono"><%= member.cc_number || '—' %></dd>
+          <dt><%= t('detail.nif') %></dt><dd class="mono"><%= member.nif || '—' %></dd>
+          <dt><%= t('detail.niss') %></dt><dd class="mono"><%= member.niss || '—' %></dd>
+          <dt><%= t('detail.expiry_date') %></dt>
           <dd class="mono">
             <%= member.cc_expiry_date ? member.cc_expiry_date.slice(0,10) : '—' %>
             <% if (ccValidity) { %>
@@ -335,13 +335,13 @@ function validatePwReset() {
     <div class="pta-card">
       <header class="pta-card__head">
         <i class="bi bi-chat-left-text"></i>
-        <div class="pta-card__titles"><span class="pta-card__title">Notes</span></div>
+        <div class="pta-card__titles"><span class="pta-card__title"><%= t('detail.notes_title') %></span></div>
       </header>
       <div class="pta-card__body">
         <% if (member.notes) { %>
         <p class="mb-0" style="white-space:pre-wrap"><%= member.notes %></p>
         <% } else { %>
-        <p class="mb-0" style="color:var(--text-muted)">No notes.</p>
+        <p class="mb-0" style="color:var(--text-muted)"><%= t('detail.no_notes') %></p>
         <% } %>
       </div>
     </div>
@@ -350,12 +350,12 @@ function validatePwReset() {
     <div class="pta-card">
       <header class="pta-card__head">
         <i class="bi bi-folder2-open"></i>
-        <div class="pta-card__titles"><span class="pta-card__title">Documents</span></div>
+        <div class="pta-card__titles"><span class="pta-card__title"><%= t('detail.docs_title') %></span></div>
       </header>
       <div class="pta-card__body">
 
         <!-- Identity card slots -->
-        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em">Identity Cards</p>
+        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em"><%= t('detail.identity_cards') %></p>
         <div class="pta-docslots">
           <% for (const [type, label] of Object.entries(CARD_LABELS)) { %>
           <%   const doc = cardDocs[type]; %>
@@ -376,7 +376,7 @@ function validatePwReset() {
                 <% if (canWrite) { %>
                 <button class="pta-btn pta-btn--ghost pta-btn--sm"
                         onclick="ocrExtract('<%= type %>', '<%= doc.id %>')">
-                  <i class="bi bi-cpu"></i> Extract
+                  <i class="bi bi-cpu"></i> <%= t('detail.extract') %>
                 </button>
                 <% } %>
                 <a href="/admin/members/<%= member.id %>/documents/<%= doc.id %>/download"
@@ -395,7 +395,7 @@ function validatePwReset() {
               </div>
               <% if (canWrite) { %>
               <label class="pta-btn pta-btn--secondary pta-btn--sm pta-btn--block" style="cursor:pointer">
-                <i class="bi bi-arrow-repeat"></i> Replace
+                <i class="bi bi-arrow-repeat"></i> <%= t('common.replace') %>
                 <input type="file" accept="image/*" style="display:none"
                        onchange="uploadCard('<%= type %>', this)">
               </label>
@@ -406,7 +406,7 @@ function validatePwReset() {
               </div>
               <% if (canWrite) { %>
               <label class="pta-btn pta-btn--secondary pta-btn--sm pta-btn--block" style="cursor:pointer">
-                <i class="bi bi-upload"></i> Upload
+                <i class="bi bi-upload"></i> <%= t('common.upload') %>
                 <input type="file" accept="image/*" style="display:none"
                        onchange="uploadCard('<%= type %>', this)">
               </label>
@@ -419,7 +419,7 @@ function validatePwReset() {
         <hr style="margin:1.25rem 0;border-color:var(--surface-sunken,#d6d1c4)">
 
         <!-- Miscellaneous documents -->
-        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em">Miscellaneous</p>
+        <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em"><%= t('detail.miscellaneous') %></p>
         <% if (miscDocs.length) { %>
         <ul class="list-group list-group-flush mb-3">
           <% miscDocs.forEach(function(doc) { %>
@@ -453,7 +453,7 @@ function validatePwReset() {
           <% }); %>
         </ul>
         <% } else { %>
-        <p class="text-muted small mb-3">No miscellaneous documents.</p>
+        <p class="text-muted small mb-3"><%= t('detail.no_misc_docs') %></p>
         <% } %>
 
         <% if (canWrite) { %>
@@ -462,10 +462,10 @@ function validatePwReset() {
             <input type="file" name="documents" class="form-control" multiple
                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
             <button class="pta-btn" type="submit">
-              <i class="bi bi-upload"></i> Upload
+              <i class="bi bi-upload"></i> <%= t('common.upload') %>
             </button>
           </div>
-          <div class="form-text">PDF, Word, images or text. Max 10 MB each. Up to 5 files.</div>
+          <div class="form-text"><%= t('detail.upload_docs_hint') %></div>
         </form>
         <% } %>
 
@@ -522,7 +522,7 @@ function validatePwReset() {
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="ocrModalTitle">Extracted Fields</h5>
+        <h5 class="modal-title" id="ocrModalTitle"><%= t('ocr.modal_title') %></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">

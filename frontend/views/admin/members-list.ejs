@@ -4,21 +4,21 @@
   var sort = (typeof sort !== 'undefined') ? sort : 'name_az';
   function feeBadge(status) {
     if (status === 'paid')
-      return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>Paid</span>';
+      return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>' + t('fee.status_paid') + '</span>';
     if (status === 'renewal_incoming')
-      return '<span class="pta-badge pta-badge--soft pta-tone-gold"><span class="pta-badge__dot"></span>Renewal incoming</span>';
+      return '<span class="pta-badge pta-badge--soft pta-tone-gold"><span class="pta-badge__dot"></span>' + t('fee.status_renewal') + '</span>';
     if (status === 'unpaid')
-      return '<span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>Unpaid</span>';
-    return '<span class="pta-badge pta-badge--soft pta-tone-honorary">Honorary Member</span>';
+      return '<span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>' + t('fee.status_unpaid') + '</span>';
+    return '<span class="pta-badge pta-badge--soft pta-tone-honorary">' + t('fee.status_honorary') + '</span>';
   }
 %>
 
 <div class="pta-pagehead">
   <div class="pta-pagehead__titles">
-    <h1>Members <span style="font-size:1rem;font-weight:400;color:var(--text-muted)">(<%= total %>)</span></h1>
+    <h1><%= t('member.title') %> <span style="font-size:1rem;font-weight:400;color:var(--text-muted)">(<%= total %>)</span></h1>
   </div>
   <% if (canWrite) { %>
-  <a href="/admin/members/new" class="pta-btn"><i class="bi bi-person-plus"></i> New Member</a>
+  <a href="/admin/members/new" class="pta-btn"><i class="bi bi-person-plus"></i> <%= t('member.new') %></a>
   <% } %>
 </div>
 
@@ -36,33 +36,35 @@
 <div class="pta-toolbar">
   <form method="GET" action="/admin/members" class="pta-search">
     <i class="bi bi-search"></i>
-    <input class="pta-control" name="search" placeholder="Search name, ID or email…" value="<%= search %>">
+    <input class="pta-control" name="search" placeholder="<%= t('member.search_placeholder') %>" value="<%= search %>">
     <% if (feeFilter) { %><input type="hidden" name="fee" value="<%= feeFilter %>"><% } %>
     <% if (sort && sort !== 'name_az') { %><input type="hidden" name="sort" value="<%= sort %>"><% } %>
   </form>
   <select class="form-select form-select-sm" style="width:auto;min-width:9rem"
-          onchange="location.href=this.value" aria-label="Sort order">
-    <% [
-      ['name_az',     'Name A → Z'],
-      ['name_za',     'Name Z → A'],
-      ['newest',      'Recently Added'],
-      ['oldest',      'Oldest First'],
-      ['joined_desc', 'Join Date ↓'],
-      ['joined_asc',  'Join Date ↑'],
-    ].forEach(function(opt) { %>
+          onchange="location.href=this.value" aria-label="<%= t('member.sort_label') %>">
+    <%
+    var _sortOpts = [
+      ['name_az',     t('member.sort_name_az')],
+      ['name_za',     t('member.sort_name_za')],
+      ['newest',      t('member.sort_recent')],
+      ['oldest',      t('member.sort_oldest')],
+      ['joined_desc', t('member.sort_join_desc')],
+      ['joined_asc',  t('member.sort_join_asc')],
+    ];
+    _sortOpts.forEach(function(opt) { %>
     <option value="<%= memberListUrl({ sort: opt[0] }) %>"
             <%= sort === opt[0] ? 'selected' : '' %>><%= opt[1] %></option>
     <% }); %>
   </select>
   <div class="pta-filterchips">
     <a href="<%= memberListUrl({ fee: '' }) %>"
-       class="pta-chip <%= !feeFilter ? 'is-active' : '' %>">All</a>
+       class="pta-chip <%= !feeFilter ? 'is-active' : '' %>"><%= t('member.filter_all') %></a>
     <a href="<%= memberListUrl({ fee: 'paid' }) %>"
-       class="pta-chip <%= feeFilter === 'paid' ? 'is-active' : '' %>">Paid</a>
+       class="pta-chip <%= feeFilter === 'paid' ? 'is-active' : '' %>"><%= t('member.filter_paid') %></a>
     <a href="<%= memberListUrl({ fee: 'renewal_incoming' }) %>"
-       class="pta-chip <%= feeFilter === 'renewal_incoming' ? 'is-active' : '' %>">Renewal</a>
+       class="pta-chip <%= feeFilter === 'renewal_incoming' ? 'is-active' : '' %>"><%= t('fee.status_renewal') %></a>
     <a href="<%= memberListUrl({ fee: 'unpaid' }) %>"
-       class="pta-chip <%= feeFilter === 'unpaid' ? 'is-active' : '' %>">Unpaid</a>
+       class="pta-chip <%= feeFilter === 'unpaid' ? 'is-active' : '' %>"><%= t('member.filter_unpaid') %></a>
   </div>
 </div>
 
@@ -71,14 +73,14 @@
   <table class="pta-table">
     <thead>
       <tr>
-        <th>Member</th>
-        <th>Member ID</th>
-        <th>Email</th>
-        <th>Position</th>
-        <th>ID Type</th>
-        <th>Fee Status</th>
-        <th>Warnings</th>
-        <th>Joined</th>
+        <th><%= t('member.col_member') %></th>
+        <th><%= t('member.col_id') %></th>
+        <th><%= t('member.col_email') %></th>
+        <th><%= t('member.col_position') %></th>
+        <th><%= t('member.col_id_type') %></th>
+        <th><%= t('member.col_fee') %></th>
+        <th><%= t('member.col_warnings') %></th>
+        <th><%= t('member.col_joined') %></th>
         <th></th>
       </tr>
     </thead>
@@ -86,10 +88,10 @@
       <% members.forEach(function(m) {
         const _initials = ((m.arc_name_en || (m.first_name + ' ' + m.last_name)) || '?')
           .trim().split(/\s+/).map(function(s){return s[0]||'';}).slice(0,2).join('').toUpperCase();
-        const _roleLabels = { super_admin: 'Super Admin', admin: 'Admin' };
-        const _posLabels  = { honorary: 'Honorary Member', gestao: 'Gestão',
-                              board: 'Board', president: 'President',
-                              treasurer: 'Treasurer', secretary: 'Secretary', member: 'Member' };
+        const _roleLabels = { super_admin: t('detail.role_super_admin'), admin: t('detail.role_admin') };
+        const _posLabels  = { honorary: t('detail.pos_honorary'), gestao: t('detail.pos_gestao'),
+                              board: t('detail.pos_board'), president: t('detail.pos_president'),
+                              treasurer: t('detail.pos_treasurer'), secretary: t('detail.pos_secretary'), member: t('detail.pos_member') };
         const _ptone = m.user_role === 'super_admin' ? 'gold'
           : m.user_role === 'admin' ? 'info'
           : m.position === 'honorary' ? 'honorary'
@@ -102,15 +104,14 @@
         if (!m.is_aprc && m.arc_expiry_date) {
           const _arcExp  = new Date(m.arc_expiry_date);
           const _arcDays = Math.floor((_arcExp - _today) / 86400000);
-          const _arcLbl  = m.is_tw_passport ? 'Passport' : 'ARC';
-          if      (_arcDays < 0)   _docWarnings.push({ label: _arcLbl + ' Expired',       tone: 'danger'  });
-          else if (_arcDays <= 60) _docWarnings.push({ label: _arcLbl + ' Expiring Soon', tone: 'warning' });
+          if      (_arcDays < 0)   _docWarnings.push({ label: m.is_tw_passport ? t('member.warn_arc_expired') : t('member.warn_arc_expired'),   tone: 'danger'  });
+          else if (_arcDays <= 60) _docWarnings.push({ label: m.is_tw_passport ? t('member.warn_arc_expiring') : t('member.warn_arc_expiring'), tone: 'warning' });
         }
         if (m.cc_expiry_date) {
           const _ccExp  = new Date(m.cc_expiry_date);
           const _ccDays = Math.floor((_ccExp - _today) / 86400000);
-          if      (_ccDays < 0)   _docWarnings.push({ label: 'CC Expired',       tone: 'danger'  });
-          else if (_ccDays <= 60) _docWarnings.push({ label: 'CC Expiring Soon', tone: 'warning' });
+          if      (_ccDays < 0)   _docWarnings.push({ label: t('member.warn_cc_expired'),   tone: 'danger'  });
+          else if (_ccDays <= 60) _docWarnings.push({ label: t('member.warn_cc_expiring'),  tone: 'warning' });
         }
       %>
       <tr class="is-clickable" onclick="location.href='/admin/members/<%= m.id %>'">
@@ -135,11 +136,11 @@
         <td><span class="pta-badge pta-badge--soft pta-tone-<%= _ptone %>"><%= _plabel %></span></td>
         <td>
           <% if (m.is_aprc) { %>
-          <span class="pta-badge pta-badge--soft pta-tone-info">APRC</span>
+          <span class="pta-badge pta-badge--soft pta-tone-info"><%= t('member.id_aprc') %></span>
           <% } else if (m.is_tw_passport) { %>
-          <span class="pta-badge pta-badge--soft pta-tone-neutral">TW Passport</span>
+          <span class="pta-badge pta-badge--soft pta-tone-neutral"><%= t('member.id_tw_passport') %></span>
           <% } else { %>
-          <span class="pta-badge pta-badge--soft pta-tone-neutral">ARC</span>
+          <span class="pta-badge pta-badge--soft pta-tone-neutral"><%= t('member.id_arc') %></span>
           <% } %>
         </td>
         <td>
@@ -151,7 +152,7 @@
         </td>
         <td>
           <% if (_docWarnings.length === 0) { %>
-          <span class="pta-badge pta-badge--soft pta-tone-success">No Warning</span>
+          <span class="pta-badge pta-badge--soft pta-tone-success"><%= t('member.warn_none') %></span>
           <% } else { _docWarnings.forEach(function(w) { %>
           <span class="pta-badge pta-badge--soft pta-tone-<%= w.tone %>" style="margin:.1rem .2rem .1rem 0;display:inline-block"><%= w.label %></span>
           <% }); } %>
@@ -159,7 +160,7 @@
         <td><span class="pta-id"><%= m.join_date ? m.join_date.slice(0,10) : '—' %></span></td>
         <td onclick="event.stopPropagation()">
           <% if (canWrite) { %>
-          <a href="/admin/members/<%= m.id %>/edit" class="pta-btn pta-btn--ghost pta-btn--sm" title="Edit">
+          <a href="/admin/members/<%= m.id %>/edit" class="pta-btn pta-btn--ghost pta-btn--sm" title="<%= t('common.edit') %>">
             <i class="bi bi-pencil"></i>
           </a>
           <% } %>
@@ -167,7 +168,7 @@
       </tr>
       <% }); %>
       <% if (!members.length) { %>
-      <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:3rem">No members found.</td></tr>
+      <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:3rem"><%= t('member.no_results') %></td></tr>
       <% } %>
     </tbody>
   </table>

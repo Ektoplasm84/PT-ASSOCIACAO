@@ -1040,3 +1040,53 @@ button.pta-topbar__bell{background:none;border:none;padding:0;cursor:pointer;}
 
 /* Search bar: full width when toolbar wraps */
 @media (max-width:640px){ .pta-search{ max-width:100%; width:100%; } }
+
+/* ── Language switcher (.pta-langsw) ── */
+.pta-langsw{
+  display:flex; align-items:center; gap:.15rem;
+  margin-left:.5rem;
+}
+.pta-langsw__btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:2rem; height:1.55rem;
+  border:1px solid rgba(255,255,255,.25); border-radius:var(--radius-sm);
+  background:transparent; color:rgba(255,255,255,.7);
+  font-size:.7rem; font-weight:var(--weight-semibold);
+  text-decoration:none; cursor:pointer;
+  transition:background var(--duration-fast) var(--ease-out),
+             border-color var(--duration-fast) var(--ease-out),
+             color var(--duration-fast) var(--ease-out);
+  padding:0;
+}
+.pta-langsw__btn .fi{ font-size:.85rem; border-radius:1px; }
+.pta-langsw__btn:hover{
+  background:rgba(255,255,255,.15);
+  border-color:rgba(255,255,255,.5);
+  color:#fff;
+}
+.pta-langsw__btn--active{
+  background:rgba(255,255,255,.2);
+  border-color:rgba(255,255,255,.6);
+  color:#fff;
+}
+
+/* CJK font stack for Traditional Chinese */
+:lang(zh-TW){
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",var(--font-sans),sans-serif;
+}
+
+/* Lang switcher on light background (login page) */
+.pta-langsw--light .pta-langsw__btn{
+  border-color:rgba(0,0,0,.2);
+  color:rgba(0,0,0,.55);
+}
+.pta-langsw--light .pta-langsw__btn:hover{
+  background:rgba(0,0,0,.07);
+  border-color:rgba(0,0,0,.35);
+  color:rgba(0,0,0,.8);
+}
+.pta-langsw--light .pta-langsw__btn--active{
+  background:rgba(0,0,0,.1);
+  border-color:rgba(0,0,0,.4);
+  color:rgba(0,0,0,.85);
+}

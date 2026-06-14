@@ -12,21 +12,21 @@
 
   function feeBadge(status) {
     if (status === 'paid')
-      return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>Paid</span>';
+      return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>' + t('fee.status_paid') + '</span>';
     if (status === 'renewal_incoming')
-      return '<span class="pta-badge pta-badge--soft pta-tone-gold"><span class="pta-badge__dot"></span>Renewal incoming</span>';
+      return '<span class="pta-badge pta-badge--soft pta-tone-gold"><span class="pta-badge__dot"></span>' + t('fee.status_renewal') + '</span>';
     if (status === 'unpaid')
-      return '<span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>Unpaid</span>';
-    return '<span class="pta-badge pta-badge--soft pta-tone-honorary">Honorary Member</span>';
+      return '<span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>' + t('fee.status_unpaid') + '</span>';
+    return '<span class="pta-badge pta-badge--soft pta-tone-honorary">' + t('fee.status_honorary') + '</span>';
   }
 %>
 
 <div class="pta-pagehead">
   <div class="pta-pagehead__titles">
-    <h1>Dashboard</h1>
+    <h1><%= t('dashboard.title') %></h1>
   </div>
   <% if (canWrite) { %>
-  <a href="/admin/members/new" class="pta-btn"><i class="bi bi-person-plus"></i> New Member</a>
+  <a href="/admin/members/new" class="pta-btn"><i class="bi bi-person-plus"></i> <%= t('dashboard.new_member') %></a>
   <% } %>
 </div>
 
@@ -34,22 +34,20 @@
 <div class="pta-card pta-card--flush" style="margin-bottom:1.5rem">
   <div class="pta-statsbar">
     <div class="pta-stat">
-      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-people-fill"></i></span><span class="pta-stat__label">Total Members</span></div>
+      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-people-fill"></i></span><span class="pta-stat__label"><%= t('stat.total') %></span></div>
       <span class="pta-stat__value"><%= stats.total %></span>
     </div>
     <div class="pta-stat pta-stat--success">
-      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-check2-circle"></i></span><span class="pta-stat__label">Fee Paid</span></div>
+      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-check2-circle"></i></span><span class="pta-stat__label"><%= t('stat.paid') %></span></div>
       <span class="pta-stat__value"><%= stats.paid %></span>
     </div>
     <div class="pta-stat pta-stat--danger">
-      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-exclamation-circle"></i></span><span class="pta-stat__label">Unpaid</span></div>
+      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-exclamation-circle"></i></span><span class="pta-stat__label"><%= t('stat.unpaid') %></span></div>
       <span class="pta-stat__value"><%= stats.unpaid %></span>
-      <span class="pta-stat__sub">incl. expired</span>
     </div>
     <div class="pta-stat pta-stat--honorary">
-      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-award"></i></span><span class="pta-stat__label">Honorary</span></div>
+      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-award"></i></span><span class="pta-stat__label"><%= t('stat.honorary') %></span></div>
       <span class="pta-stat__value"><%= stats.honorary %></span>
-      <span class="pta-stat__sub">fee exempt</span>
     </div>
   </div>
 </div>
@@ -58,17 +56,17 @@
 <div class="pta-card" style="margin-bottom:1.5rem">
   <header class="pta-card__head">
     <i class="bi bi-exclamation-triangle-fill" style="color:var(--gold-400)"></i>
-    <div class="pta-card__titles"><span class="pta-card__title">Warnings &amp; Advisories</span></div>
+    <div class="pta-card__titles"><span class="pta-card__title"><%= t('dashboard.warnings_title') %></span></div>
     <% if (warnings.length) { %><span class="pta-badge pta-badge--solid pta-tone-danger"><%= warnings.length %></span><% } %>
   </header>
   <% if (!warnings.length) { %>
   <div class="pta-card__body" style="color:var(--text-muted)">
-    <i class="bi bi-check-circle" style="color:var(--success)"></i> No active warnings.
+    <i class="bi bi-check-circle" style="color:var(--success)"></i> <%= t('dashboard.warnings_none') %>
   </div>
   <% } else { %>
   <div class="pta-card__body" style="padding:0">
     <div class="pta-table-wrap"><table class="pta-table">
-      <thead><tr><th>Member</th><th>Fee</th><th>ARC</th><th>CC</th><th></th></tr></thead>
+      <thead><tr><th><%= t('dashboard.warnings_col_member') %></th><th><%= t('dashboard.warnings_col_fee') %></th><th><%= t('dashboard.warnings_col_arc') %></th><th><%= t('dashboard.warnings_col_cc') %></th><th></th></tr></thead>
       <tbody>
         <% warnings.forEach(function(w) {
           const arcLbl = daysLabel(w.arc_expiry_date);
@@ -94,7 +92,7 @@
             <span class="pta-badge pta-badge--soft pta-tone-<%= ccLbl.tone %>"><span class="pta-badge__dot"></span><%= ccLbl.text %></span>
             <% } else { %><span style="color:var(--text-muted)">—</span><% } %>
           </td>
-          <td><a href="/admin/members/<%= w.id %>" class="pta-btn pta-btn--secondary pta-btn--sm">View</a></td>
+          <td><a href="/admin/members/<%= w.id %>" class="pta-btn pta-btn--secondary pta-btn--sm"><%= t('common.view') %></a></td>
         </tr>
         <% }); %>
       </tbody>
@@ -108,14 +106,14 @@
 <div class="pta-card" style="margin-bottom:1.5rem" id="modelHealthCard">
   <header class="pta-card__head">
     <i class="bi bi-cpu" style="color:var(--text-muted)"></i>
-    <div class="pta-card__titles"><span class="pta-card__title">Vision Model Health</span></div>
+    <div class="pta-card__titles"><span class="pta-card__title"><%= t('ocr.health_title') %></span></div>
     <% if (modelWarnings.length) { %>
     <span class="pta-badge pta-badge--solid pta-tone-danger" id="modelWarnBadge"><%= modelWarnings.length %></span>
     <% } else { %>
     <span class="pta-badge pta-badge--soft pta-tone-success" id="modelWarnBadge" style="display:none"></span>
     <% } %>
     <button class="pta-btn pta-btn--ghost pta-btn--sm" id="runModelCheckBtn">
-      <i class="bi bi-arrow-repeat" id="checkSpinnerIcon"></i> Run Check
+      <i class="bi bi-arrow-repeat" id="checkSpinnerIcon"></i> <%= t('ocr.check_btn') %>
     </button>
   </header>
   <div id="modelHealthBody">
@@ -126,14 +124,14 @@
     <% } else { %>
     <div class="pta-card__body" style="padding:0" id="modelHealthTable">
       <div class="pta-table-wrap"><table class="pta-table">
-        <thead><tr><th>Model</th><th>Status</th><th>Error</th><th>Detected</th><th></th></tr></thead>
+        <thead><tr><th><%= t('ocr.col_model') %></th><th><%= t('ocr.col_status') %></th><th><%= t('ocr.col_error') %></th><th><%= t('ocr.col_detected') %></th><th></th></tr></thead>
         <tbody id="modelHealthRows">
           <% modelWarnings.forEach(function(w) { %>
           <tr data-model-row="<%= encodeURIComponent(w.model) %>">
             <td class="fw-semibold"><%= w.display %></td>
             <td>
               <% if (w.status === 'offline') { %>
-              <span class="pta-badge pta-badge--soft pta-tone-danger">Offline</span>
+              <span class="pta-badge pta-badge--soft pta-tone-danger"><%= t('ocr.status_offline') %></span>
               <% } else { %>
               <span class="pta-badge pta-badge--soft pta-tone-gold">Rate limited</span>
               <% } %>
@@ -143,7 +141,7 @@
             <td>
               <button class="pta-btn pta-btn--ghost pta-btn--sm js-dismiss-model"
                       data-model="<%= encodeURIComponent(w.model) %>">
-                <i class="bi bi-x-lg"></i> Dismiss
+                <i class="bi bi-x-lg"></i> <%= t('ocr.dismiss_btn') %>
               </button>
             </td>
           </tr>
@@ -453,22 +451,22 @@
         </p>
 
         <div class="pta-table-wrap"><table class="pta-table" style="margin-bottom:1rem">
-          <thead><tr><th>#</th><th>Model ID</th><th>Role</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th><%= t('ocr.col_model') %></th><th><%= t('ocr.col_role') %></th><th></th></tr></thead>
           <tbody id="modelConfigRows"></tbody>
         </table></div>
 
         <div style="display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:.5rem">
           <div style="flex:1;min-width:240px">
-            <label class="pta-field__label" style="margin-bottom:.25rem">Add Model ID</label>
+            <label class="pta-field__label" style="margin-bottom:.25rem"><%= t('ocr.add_btn') %></label>
             <input type="text" id="newModelInput" class="pta-control"
-                   placeholder="e.g. provider/model-name:free" style="width:100%">
+                   placeholder="<%= t('ocr.add_placeholder') %>" style="width:100%">
           </div>
           <button type="button" class="pta-btn pta-btn--secondary pta-btn--sm" id="testNewModelBtn"
                   onclick="_testNewModel()">
-            <i class="bi bi-wifi"></i> Test
+            <i class="bi bi-wifi"></i> <%= t('ocr.test_btn') %>
           </button>
           <button type="button" class="pta-btn pta-btn--sm" onclick="_addModel()">
-            <i class="bi bi-plus-lg"></i> Add to list
+            <i class="bi bi-plus-lg"></i> <%= t('common.add') %>
           </button>
         </div>
         <div id="testNewModelResult" class="small mb-3" style="display:none"></div>
@@ -477,7 +475,7 @@
           <div id="saveModelsInputs"></div>
           <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:.75rem">
             <div>
-              <label class="pta-field__label" style="margin-bottom:.25rem">Timeout per model (seconds)</label>
+              <label class="pta-field__label" style="margin-bottom:.25rem"><%= t('ocr.timeout_label') %> (<%= t('ocr.timeout_unit') %>)</label>
               <input type="number" id="timeoutSecInput" name="timeout_sec" class="pta-control pta-control--mono"
                      style="width:110px" value="<%= ocrTimeoutSec %>" min="10" max="120" step="5">
             </div>
@@ -486,7 +484,7 @@
             </p>
           </div>
           <button type="submit" id="saveModelListBtn" class="pta-btn pta-btn--sm">
-            <i class="bi bi-floppy"></i> Save Model List
+            <i class="bi bi-floppy"></i> <%= t('ocr.save_btn') %>
           </button>
         </form>
       </div>
@@ -499,19 +497,19 @@
       <header class="pta-card__head">
         <i class="bi bi-cash-coin" style="color:var(--text-muted)"></i>
         <div class="pta-card__titles">
-          <span class="pta-card__title">Default Annual Fee</span>
+          <span class="pta-card__title"><%= t('fee.config_title') %></span>
         </div>
       </header>
       <div class="pta-card__body">
         <form method="POST" action="/admin/settings/fee"
               style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap">
           <div>
-            <label class="pta-field__label" style="margin-bottom:.25rem">Amount (TWD)</label>
+            <label class="pta-field__label" style="margin-bottom:.25rem"><%= t('fee.currency') %></label>
             <input type="number" name="fee_amount" class="pta-control pta-control--mono"
                    style="width:130px" value="<%= defaultFee %>" min="0" step="50" required>
           </div>
           <button type="submit" class="pta-btn pta-btn--sm">
-            <i class="bi bi-floppy"></i> Save
+            <i class="bi bi-floppy"></i> <%= t('fee.config_save') %>
           </button>
         </form>
         <p class="small mt-3 mb-0" style="color:var(--text-muted)">
@@ -532,12 +530,12 @@
     <div class="pta-card h-100">
       <header class="pta-card__head">
         <i class="bi bi-calendar3" style="color:var(--green-500)"></i>
-        <div class="pta-card__titles"><span class="pta-card__title">Association Calendar</span></div>
+        <div class="pta-card__titles"><span class="pta-card__title"><%= t('calendar.title') %></span></div>
         <button class="pta-btn pta-btn--ghost pta-btn--sm" id="calToday">Today</button>
         <% if (canWrite || ['gestao','board','president','treasurer','secretary'].includes(currentUser.position)) { %>
         <button class="pta-btn pta-btn--sm" id="openNewEvent"
                 data-bs-toggle="modal" data-bs-target="#newEventModal">
-          <i class="bi bi-plus-lg"></i> New Event
+          <i class="bi bi-plus-lg"></i> <%= t('calendar.new_event') %>
         </button>
         <% } %>
       </header>
@@ -563,7 +561,7 @@
     <div class="pta-card h-100">
       <header class="pta-card__head">
         <i class="bi bi-megaphone" style="color:var(--green-500)"></i>
-        <div class="pta-card__titles"><span class="pta-card__title">Upcoming Events</span></div>
+        <div class="pta-card__titles"><span class="pta-card__title"><%= t('calendar.upcoming_title') %></span></div>
       </header>
       <div class="pta-card__body">
         <div class="pta-upcoming" id="calUpcoming">
@@ -580,50 +578,50 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="newEventModalLabel"><i class="bi bi-calendar-plus me-2"></i>New Event</h5>
+        <h5 class="modal-title" id="newEventModalLabel"><i class="bi bi-calendar-plus me-2"></i><%= t('calendar.modal_title') %></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <form id="newEventForm">
           <div class="mb-3">
-            <label class="pta-field__label" style="margin-bottom:.25rem">Title <span class="text-danger">*</span></label>
+            <label class="pta-field__label" style="margin-bottom:.25rem"><%= t('calendar.event_title') %> <span class="text-danger">*</span></label>
             <input type="text" id="evTitle" class="pta-control" placeholder="e.g. Annual Meeting" required style="width:100%">
           </div>
           <div class="row g-2 mb-3">
             <div class="col-12 col-sm-6">
-              <label class="pta-field__label" style="margin-bottom:.25rem">Start Date <span class="text-danger">*</span></label>
+              <label class="pta-field__label" style="margin-bottom:.25rem"><%= t('calendar.event_start') %> <span class="text-danger">*</span></label>
               <input type="date" id="evStartDate" class="pta-control" required style="width:100%">
             </div>
             <div class="col-12 col-sm-6">
-              <label class="pta-field__label" style="margin-bottom:.25rem">End Date</label>
+              <label class="pta-field__label" style="margin-bottom:.25rem"><%= t('calendar.event_end') %></label>
               <input type="date" id="evEndDate" class="pta-control" style="width:100%">
             </div>
           </div>
           <div class="mb-3">
-            <label class="pta-field__label" style="margin-bottom:.25rem">Location</label>
+            <label class="pta-field__label" style="margin-bottom:.25rem"><%= t('calendar.event_location') %></label>
             <input type="text" id="evLocation" class="pta-control" placeholder="e.g. Taipei, AIT" style="width:100%">
           </div>
           <div class="mb-3">
-            <label class="pta-field__label" style="margin-bottom:.25rem">Description</label>
+            <label class="pta-field__label" style="margin-bottom:.25rem"><%= t('calendar.event_desc') %></label>
             <textarea id="evDescription" class="pta-control" rows="2" style="width:100%"></textarea>
           </div>
           <div class="mb-0">
-            <label class="pta-field__label" style="margin-bottom:.25rem">Invite</label>
+            <label class="pta-field__label" style="margin-bottom:.25rem"><%= t('calendar.event_invite') %></label>
             <div class="d-flex flex-wrap gap-3 mt-1">
               <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
-                <input type="checkbox" id="audAll" value="all" class="form-check-input mt-0"> All Members
+                <input type="checkbox" id="audAll" value="all" class="form-check-input mt-0"> <%= t('calendar.invite_all') %>
               </label>
               <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
-                <input type="checkbox" value="paid" class="form-check-input mt-0 aud-filter"> Paid
+                <input type="checkbox" value="paid" class="form-check-input mt-0 aud-filter"> <%= t('calendar.invite_paid') %>
               </label>
               <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
-                <input type="checkbox" value="unpaid" class="form-check-input mt-0 aud-filter"> Unpaid
+                <input type="checkbox" value="unpaid" class="form-check-input mt-0 aud-filter"> <%= t('calendar.invite_unpaid') %>
               </label>
               <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
-                <input type="checkbox" value="honorary" class="form-check-input mt-0 aud-filter"> Honorary
+                <input type="checkbox" value="honorary" class="form-check-input mt-0 aud-filter"> <%= t('calendar.invite_honorary') %>
               </label>
               <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
-                <input type="checkbox" value="non_honorary" class="form-check-input mt-0 aud-filter"> Non-Honorary
+                <input type="checkbox" value="non_honorary" class="form-check-input mt-0 aud-filter"> <%= t('calendar.invite_non_honorary') %>
               </label>
             </div>
             <div class="small mt-2" style="color:var(--text-muted)">
@@ -634,9 +632,9 @@
         <div id="evResult" class="small mt-3" style="display:none"></div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="pta-btn pta-btn--secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="pta-btn pta-btn--secondary" data-bs-dismiss="modal"><%= t('calendar.cancel_btn') %></button>
         <button type="button" class="pta-btn" id="evSubmitBtn">
-          <i class="bi bi-send"></i> Create &amp; Send Invites
+          <i class="bi bi-send"></i> <%= t('calendar.create_btn') %>
         </button>
       </div>
     </div>
