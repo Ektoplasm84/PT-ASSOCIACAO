@@ -999,3 +999,20 @@ button.pta-topbar__bell{background:none;border:none;padding:0;cursor:pointer;}
 .pta-topbar__bell:hover,.pta-console-toggle:hover{ background:rgba(255,255,255,.10); }
 .pta-user__logout:hover{ background:rgba(255,255,255,.10); }
 @media (max-width:768px){ .pta-nav{ background:#313131; border-top-color:var(--gold-400); } }
+
+/* ── Mobile fixes (R4 pass 2) ── */
+
+/* ARC doc-type radio group: hide "(Permanent)" subtext so 3 buttons fit on narrow screens */
+@media (max-width:480px){ .btn-group[role="group"] .btn small{ display:none; } }
+
+/* Invite action buttons: stack full-width on phones */
+@media (max-width:480px){
+  .pta-invite__actions{ flex-direction:column; }
+  .pta-invite__actions .pta-btn{ width:100%; justify-content:center; }
+}
+
+/* Doc slots: single column on very small screens */
+@media (max-width:380px){ .pta-docslots{ grid-template-columns:1fr; } }
+
+/* Search bar: full width when toolbar wraps */
+@media (max-width:640px){ .pta-search{ max-width:100%; width:100%; } }
