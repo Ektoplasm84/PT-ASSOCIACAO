@@ -24,10 +24,14 @@
     <form action="/admin/members/<%= member.id %>" method="POST" enctype="multipart/form-data" novalidate>
       <%- include('../partials/member-form', { data: member, countries: countries, taiwanLocations: taiwanLocations }) %>
       <hr>
-      <button type="submit" class="btn btn-primary">
-        <i class="bi bi-save"></i> Save Changes
-      </button>
-      <a href="/admin/members/<%= member.id %>" class="btn btn-outline-secondary ms-2">Cancel</a>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem">
+        <button type="submit" class="pta-btn pta-btn--lg">
+          <i class="bi bi-floppy-fill"></i> Save Changes
+        </button>
+        <a href="/admin/members/<%= member.id %>" class="pta-btn pta-btn--secondary pta-btn--lg">
+          <i class="bi bi-x-lg"></i> Cancel
+        </a>
+      </div>
     </form>
   </div>
 </div>
