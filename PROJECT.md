@@ -51,7 +51,7 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - **Members list improvements** — Warnings column (doc expiry badges), ID Type column (ARC/APRC/TW Passport), Sort dropdown (name A-Z/Z-A, recently added, oldest, join date ↑↓)
 - **File Vault** — two-section document vault: Public (all members can view/download; admin/SA/management can upload) and Administration (admin/SA only); dashboard cards for upload + manage; `/vault` member page; all actions audited; files stored under `uploads/vault/{section}/`
 - **Design System R4** — responsive shell: fluid `.pta-main`, mobile bottom tab nav (`.pta-nav` transforms to fixed bottom bar at ≤768px), copper/charcoal login, mobile calendar agenda (`.pta-agenda` / `renderAgendaMobile()`), `pta-table-wrap` on dashboard tables, profile single-scroll layout (`profile-layout` CSS grid, Bootstrap tabs removed), audit log DS upgrade (pta-pagehead + pta-badge tones + pta-card wrappers); charcoal topbar `#313131`; brand "Associação Cultural Portuguesa / na Formosa"; emblem updated to `logo-emblem.png`
-- **Version V1.7**
+- **Version V1.8** — Cookie-based EN/PT/ZH-TW language switcher (zero-dependency i18n middleware, `locales/` JSON files, `.pta-langsw` DS component); security: open-redirect hardening on `/lang/:code`
 
 ### Not Yet Built
 - Email notifications to members
