@@ -886,7 +886,7 @@ select.pta-control{appearance:none;background-image:url("data:image/svg+xml;char
   box-shadow:var(--shadow-xl);padding:var(--space-7) var(--space-7) var(--space-6);
 }
 .pta-login__brand{display:flex;flex-direction:column;align-items:center;gap:var(--space-3);margin-bottom:var(--space-6);text-align:center;}
-.pta-login__title{font-family:var(--font-display);font-weight:var(--weight-semibold);font-size:var(--text-xl);line-height:var(--leading-tight);color:var(--text-strong);white-space:nowrap;}
+.pta-login__title{font-family:var(--font-display);font-weight:var(--weight-semibold);font-size:var(--text-xl);line-height:var(--leading-tight);color:var(--text-strong);text-align:center;overflow-wrap:break-word;}
 .pta-login__sub{font-size:var(--text-sm);color:var(--text-muted);letter-spacing:.04em;}
 .pta-login__form{display:flex;flex-direction:column;gap:var(--space-4);}
 .pta-login__hint{margin-top:var(--space-5);padding-top:var(--space-4);border-top:1px solid var(--border-subtle);font-size:var(--text-xs);color:var(--text-faint);text-align:center;line-height:1.6;}
