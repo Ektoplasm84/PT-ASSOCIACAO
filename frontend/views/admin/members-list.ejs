@@ -101,7 +101,7 @@
 
         const _today = new Date(); _today.setHours(0,0,0,0);
         const _docWarnings = [];
-        if (!m.is_aprc && m.arc_expiry_date) {
+        if (!m.is_aprc && !m.is_tw_id && m.arc_expiry_date) {
           const _arcExp  = new Date(m.arc_expiry_date);
           const _arcDays = Math.floor((_arcExp - _today) / 86400000);
           if      (_arcDays < 0)   _docWarnings.push({ label: m.is_tw_passport ? t('member.warn_arc_expired') : t('member.warn_arc_expired'),   tone: 'danger'  });
@@ -139,6 +139,8 @@
           <span class="pta-badge pta-badge--soft pta-tone-info"><%= t('member.id_aprc') %></span>
           <% } else if (m.is_tw_passport) { %>
           <span class="pta-badge pta-badge--soft pta-tone-neutral"><%= t('member.id_tw_passport') %></span>
+          <% } else if (m.is_tw_id) { %>
+          <span class="pta-badge pta-badge--soft pta-tone-neutral"><%= t('member.id_tw_id') %></span>
           <% } else { %>
           <span class="pta-badge pta-badge--soft pta-tone-neutral"><%= t('member.id_arc') %></span>
           <% } %>

@@ -1,0 +1,232 @@
+<%- include('../partials/header') %>
+
+<div class="pta-pagehead">
+  <div class="pta-pagehead__titles">
+    <h1><%= t('export.title') %></h1>
+    <span class="pta-pagehead__sub"><%= t('export.desc') %></span>
+  </div>
+</div>
+
+<!-- Selection card -->
+<div class="pta-card mb-3" id="selectionCard">
+  <header class="pta-card__head">
+    <i class="bi bi-people-fill"></i>
+    <div class="pta-card__titles">
+      <span class="pta-card__title"><%= t('export.select_title') %></span>
+    </div>
+  </header>
+  <div class="pta-card__body">
+
+    <div class="mb-3 d-flex gap-4">
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="exportScope" id="scopeAll" value="all" checked onchange="onScopeChange()">
+        <label class="form-check-label fw-semibold" for="scopeAll"><%= t('export.scope_all') %></label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="exportScope" id="scopeSelected" value="selected" onchange="onScopeChange()">
+        <label class="form-check-label fw-semibold" for="scopeSelected"><%= t('export.scope_selected') %></label>
+      </div>
+    </div>
+
+    <!-- Member search (hidden by default) -->
+    <div id="memberSearchWrap" style="display:none" class="mb-3">
+      <div class="pta-search mb-2">
+        <i class="bi bi-search pta-search__icon"></i>
+        <input type="text" id="memberSearchInput" class="pta-search__input"
+               placeholder="<%= t('export.search_ph') %>" autocomplete="off">
+      </div>
+      <div id="searchResults" class="list-group mb-2" style="max-height:240px;overflow-y:auto"></div>
+      <div id="selectedChips" class="d-flex flex-wrap gap-2"></div>
+    </div>
+
+    <div id="exportErrMsg" class="alert alert-danger py-2 mb-3" style="display:none"></div>
+
+    <button class="pta-btn pta-btn--secondary" id="exportBtn" onclick="startExport()">
+      <i class="bi bi-box-arrow-up"></i> <%= t('export.generate_btn') %>
+    </button>
+  </div>
+</div>
+
+<!-- Progress card -->
+<div id="progressCard" class="pta-card" style="display:none">
+  <header class="pta-card__head">
+    <i class="bi bi-arrow-repeat" id="progressIcon"></i>
+    <div class="pta-card__titles">
+      <span class="pta-card__title"><%= t('export.progress_title') %></span>
+    </div>
+  </header>
+  <div class="pta-card__body">
+    <p id="progressStage" class="text-muted small mb-2">—</p>
+    <div class="progress mb-3" style="height:1.25rem;border-radius:.375rem">
+      <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+           role="progressbar" style="width:0%;transition:width .4s ease">0%</div>
+    </div>
+    <div id="progressDone" style="display:none">
+      <a id="downloadBtn" href="#" class="pta-btn pta-btn--secondary">
+        <i class="bi bi-download"></i> <%= t('export.download_btn') %>
+      </a>
+      <span class="text-muted small ms-3"><%= t('export.download_hint') %></span>
+    </div>
+    <p id="progressError" class="text-danger mb-0" style="display:none"></p>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<script>
+const _selectedMap = new Map(); // id → { id, member_id, display_name, chinese_name }
+let   _pollTimer   = null;
+let   _searchTimer = null;
+
+// ── Scope toggle ──────────────────────────────────────────────────────────────
+function onScopeChange() {
+  const isSelected = document.getElementById('scopeSelected').checked;
+  document.getElementById('memberSearchWrap').style.display = isSelected ? '' : 'none';
+}
+
+// ── Typeahead search ──────────────────────────────────────────────────────────
+document.getElementById('memberSearchInput').addEventListener('input', function () {
+  clearTimeout(_searchTimer);
+  const q = this.value.trim();
+  if (q.length < 2) { document.getElementById('searchResults').innerHTML = ''; return; }
+  _searchTimer = setTimeout(() => fetchSearch(q), 280);
+});
+
+async function fetchSearch(q) {
+  const r    = await fetch('/admin/export/search?q=' + encodeURIComponent(q));
+  const items = await r.json();
+  const el   = document.getElementById('searchResults');
+  el.innerHTML = '';
+
+  if (!items.length) {
+    const d = document.createElement('div');
+    d.className = 'list-group-item text-muted small';
+    d.textContent = '<%= t("export.no_results") %>';
+    el.appendChild(d);
+    return;
+  }
+
+  for (const m of items) {
+    if (_selectedMap.has(m.id)) continue;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'list-group-item list-group-item-action py-2';
+
+    const strong = document.createElement('strong');
+    strong.textContent = m.member_id;
+    btn.appendChild(strong);
+    btn.appendChild(document.createTextNode(' — ' + m.display_name + (m.chinese_name ? ' (' + m.chinese_name + ')' : '')));
+    btn.addEventListener('click', () => selectMember(m));
+    el.appendChild(btn);
+  }
+}
+
+function selectMember(m) {
+  _selectedMap.set(m.id, m);
+  document.getElementById('searchResults').innerHTML = '';
+  document.getElementById('memberSearchInput').value = '';
+  renderChips();
+}
+
+function renderChips() {
+  const el = document.getElementById('selectedChips');
+  el.innerHTML = '';
+  for (const [id, m] of _selectedMap) {
+    const wrap = document.createElement('span');
+    wrap.className = 'pta-badge pta-badge--soft pta-tone-info d-inline-flex align-items-center gap-1';
+    wrap.style.fontSize = '.82rem';
+    wrap.textContent = m.member_id + ' — ' + m.display_name;
+
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.style.cssText = 'background:none;border:none;padding:0 0 0 .3rem;cursor:pointer;line-height:1;font-size:.85em;color:inherit;opacity:.7';
+    rm.textContent = '✕';
+    rm.addEventListener('click', () => { _selectedMap.delete(id); renderChips(); });
+    wrap.appendChild(rm);
+    el.appendChild(wrap);
+  }
+}
+
+// ── Start export ──────────────────────────────────────────────────────────────
+async function startExport() {
+  const errEl = document.getElementById('exportErrMsg');
+  errEl.style.display = 'none';
+
+  const scope = document.querySelector('input[name="exportScope"]:checked').value;
+  if (scope === 'selected' && _selectedMap.size === 0) {
+    errEl.textContent = '<%= t("export.err_none_selected") %>';
+    errEl.style.display = '';
+    return;
+  }
+
+  document.getElementById('exportBtn').disabled = true;
+  document.getElementById('progressCard').style.display = '';
+  document.getElementById('progressDone').style.display = 'none';
+  document.getElementById('progressError').style.display = 'none';
+  setProgress(0, 0, 'Starting…');
+
+  const body = {
+    scope,
+    memberIds: [..._selectedMap.keys()].join(','),
+  };
+
+  try {
+    const r   = await fetch('/admin/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const { jobId, error } = await r.json();
+    if (error) throw new Error(error);
+    _pollTimer = setInterval(() => pollStatus(jobId), 750);
+  } catch (e) {
+    showError(e.message || 'Export failed.');
+  }
+}
+
+// ── Poll status ───────────────────────────────────────────────────────────────
+async function pollStatus(jobId) {
+  try {
+    const r   = await fetch('/admin/export/status/' + jobId);
+    const job = await r.json();
+
+    if (job.error) {
+      clearInterval(_pollTimer);
+      showError(job.error);
+      return;
+    }
+
+    const pct = (job.total > 0) ? Math.round((job.progress / job.total) * 100) : 0;
+    setProgress(pct, job.total, job.stage || '');
+
+    if (job.done) {
+      clearInterval(_pollTimer);
+      const bar = document.getElementById('progressBar');
+      bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+      bar.style.width = '100%';
+      bar.textContent = '100%';
+      document.getElementById('progressStage').textContent = job.stage || 'Done';
+      document.getElementById('progressIcon').className = 'bi bi-check-circle-fill text-success';
+      const dlBtn = document.getElementById('downloadBtn');
+      dlBtn.href = '/admin/export/download/' + jobId;
+      document.getElementById('progressDone').style.display = '';
+    }
+  } catch (e) {
+    // ignore transient network errors
+  }
+}
+
+function setProgress(pct, total, stage) {
+  const bar = document.getElementById('progressBar');
+  bar.style.width = pct + '%';
+  bar.textContent = pct + '%';
+  document.getElementById('progressStage').textContent = stage;
+}
+
+function showError(msg) {
+  const el = document.getElementById('progressError');
+  el.textContent = msg;
+  el.style.display = '';
+  document.getElementById('exportBtn').disabled = false;
+}
+</script>

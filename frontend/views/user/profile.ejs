@@ -100,13 +100,31 @@
       <div class="card-header fw-semibold"><%= t('profile.arc_data_title') %> <small class="text-muted fw-normal"><%= t('profile.arc_taiwan') %></small></div>
       <div class="card-body">
         <div class="row g-2">
+          <% if (!member.is_tw_passport && !member.is_tw_id) { %>
           <div class="col-sm-6"><span class="text-muted small"><%= t('profile.arc_number') %></span><div><%= member.arc_number || '—' %></div></div>
+          <% } %>
+          <% if (member.is_tw_id || member.is_tw_passport) { %>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('form.tw_id_number') %></span><div><%= member.tw_id_number || '—' %></div></div>
+          <% } %>
           <div class="col-sm-6"><span class="text-muted small"><%= t('profile.arc_chinese_name') %></span><div><%= member.arc_chinese_name || '—' %></div></div>
+          <% if (!member.is_tw_id) { %>
           <div class="col-12"><span class="text-muted small"><%= t('profile.arc_name_en') %></span><div><%= member.arc_name_en || '—' %></div></div>
+          <% } %>
           <div class="col-sm-4"><span class="text-muted small"><%= t('profile.arc_issue_date') %></span><div><%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '—' %></div></div>
-          <div class="col-sm-4"><span class="text-muted small"><%= t('profile.arc_expiry') %></span><div><% if (member.is_aprc) { %><span class="badge bg-info text-dark px-2 py-1"><%= t('profile.aprc_permanent') %></span><% } else { %><%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %><% } %></div></div>
-          <div class="col-sm-4"><span class="text-muted small"><%= t('profile.passport_number') %></span><div><%= member.passport_number || '—' %></div></div>
+          <% if (!member.is_tw_id) { %>
+          <div class="col-sm-4"><span class="text-muted small"><%= member.is_tw_passport ? t('profile.passport_expiry') : t('profile.arc_expiry') %></span><div><% if (member.is_aprc) { %><span class="badge bg-info text-dark px-2 py-1"><%= t('profile.aprc_permanent') %></span><% } else { %><%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '—' %><% } %></div></div>
+          <div class="col-sm-4"><span class="text-muted small"><%= member.is_tw_passport ? t('form.tw_passport_number') : t('profile.passport_number') %></span><div><%= member.passport_number || '—' %></div></div>
+          <% } %>
+          <% if (!member.is_tw_passport && !member.is_tw_id) { %>
           <div class="col-sm-6"><span class="text-muted small"><%= t('profile.serial_number') %></span><div><%= member.arc_serial_number || '—' %></div></div>
+          <% } %>
+          <% if (member.date_of_birth || member.gender) { %>
+          <div class="col-sm-4"><span class="text-muted small"><%= t('profile.date_of_birth') %></span><div><%= member.date_of_birth ? member.date_of_birth.slice(0,10) : '—' %></div></div>
+          <div class="col-sm-4"><span class="text-muted small"><%= t('profile.gender') %></span><div><%= member.gender || '—' %></div></div>
+          <% } %>
+          <% if (member.is_tw_id || member.is_tw_passport) { %>
+          <div class="col-sm-4"><span class="text-muted small"><%= t('profile.birthplace_tw') %></span><div><%= member.birthplace_tw || '—' %></div></div>
+          <% } %>
         </div>
       </div>
     </div>

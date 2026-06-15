@@ -17,20 +17,40 @@
         <input type="text" id="input_last_name" name="last_name" class="form-control" value="<%= v.last_name || '' %>" required>
       </div>
       <% if (v.arc_name_en) {
-           const _arcFull  = v.arc_name_en.trim();
-           const _arcParts = _arcFull.split(/\s+/);
-           const _arcLast  = _arcParts.length > 1 ? _arcParts[_arcParts.length - 1] : '';
-           const _arcFirst = _arcParts.length > 1 ? _arcParts.slice(0, -1).join(' ') : _arcFull;
-           const _currentFull = ((v.first_name || '') + ' ' + (v.last_name || '')).trim();
-           if (_arcFull !== _currentFull) { %>
+           const _enFull       = v.arc_name_en.trim();
+           const _enParts      = _enFull.split(/\s+/);
+           const _enLast       = _enParts.length > 1 ? _enParts[_enParts.length - 1] : '';
+           const _enFirst      = _enParts.length > 1 ? _enParts.slice(0, -1).join(' ') : _enFull;
+           const _enIsPassport = v.residence_doc_type === 'tw_passport';
+           const _enCurrent    = ((v.first_name || '') + ' ' + (v.last_name || '')).trim();
+           if (_enFull !== _enCurrent) { %>
       <div class="col-12">
         <div class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2">
           <i class="bi bi-person-vcard"></i>
-          <span><%= t('form.arc_name_banner') %>: <strong><%= v.arc_name_en %></strong></span>
+          <span><%= _enIsPassport ? t('form.passport_name_banner') : t('form.arc_name_banner') %>: <strong><%= v.arc_name_en %></strong></span>
           <button type="button" class="btn btn-sm btn-outline-primary ms-auto"
-            data-arc-first="<%= _arcFirst %>" data-arc-last="<%= _arcLast %>"
+            data-arc-first="<%= _enFirst %>" data-arc-last="<%= _enLast %>"
             onclick="document.getElementById('input_first_name').value=this.dataset.arcFirst;document.getElementById('input_last_name').value=this.dataset.arcLast;">
-            <%= t('form.use_arc_name') %>
+            <%= _enIsPassport ? t('form.use_passport_name') : t('form.use_arc_name') %>
+          </button>
+        </div>
+      </div>
+      <% } } %>
+      <% if (v.arc_chinese_name) {
+           const _zhFull    = v.arc_chinese_name.trim();
+           const _zhFirst   = _zhFull.length > 1 ? _zhFull.slice(1) : '';
+           const _zhLast    = _zhFull.charAt(0);
+           const _zhSplit   = (_zhFirst + ' ' + _zhLast).trim();
+           const _zhCurrent = ((v.first_name || '') + ' ' + (v.last_name || '')).trim();
+           if (_zhSplit !== _zhCurrent) { %>
+      <div class="col-12">
+        <div class="alert alert-secondary py-2 mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-translate"></i>
+          <span><%= t('form.zh_name_banner') %>: <strong><%= v.arc_chinese_name %></strong></span>
+          <button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+            data-zh-first="<%= _zhFirst %>" data-zh-last="<%= _zhLast %>"
+            onclick="document.getElementById('input_first_name').value=this.dataset.zhFirst;document.getElementById('input_last_name').value=this.dataset.zhLast;">
+            <%= t('form.use_zh_name') %>
           </button>
         </div>
       </div>
@@ -148,17 +168,19 @@
   </div>
 </div>
 
-<!-- ── 3. ARC / APRC / Taiwan Passport ───────────────────────── -->
+<!-- ── 3. ARC / APRC / Taiwan Passport / TW National ID ──────── -->
 <%
   const _isAprc       = !!(v.is_aprc       && v.is_aprc       != '0');
   const _isTwPassport = !!(v.is_tw_passport && v.is_tw_passport != '0');
-  const _docType      = _isAprc ? 'aprc' : _isTwPassport ? 'tw_passport' : 'arc';
+  const _isTwId       = !!(v.is_tw_id       && v.is_tw_id       != '0');
+  const _docType      = _isAprc ? 'aprc' : _isTwPassport ? 'tw_passport' : _isTwId ? 'tw_id' : 'arc';
 %>
 <div class="card mb-3">
   <div class="card-header fw-semibold">
     <%= t('form.section_arc') %>
     <small class="text-muted fw-normal"><%= t('form.section_arc_sub') %></small>
   </div>
+
   <div class="card-body">
     <div class="row g-3">
       <!-- Document type selector -->
@@ -174,18 +196,28 @@
           <input type="radio" class="btn-check" name="residence_doc_type" id="docTypeTwPassport"
                  value="tw_passport" <%= _docType === 'tw_passport' ? 'checked' : '' %> onchange="arcDocTypeChanged()">
           <label class="pta-seg__opt" for="docTypeTwPassport"><i class="bi bi-passport-fill"></i> TW Passport</label>
+          <input type="radio" class="btn-check" name="residence_doc_type" id="docTypeTwId"
+                 value="tw_id" <%= _docType === 'tw_id' ? 'checked' : '' %> onchange="arcDocTypeChanged()">
+          <label class="pta-seg__opt" for="docTypeTwId"><i class="bi bi-person-vcard-fill"></i> TW ID</label>
         </div>
       </div>
-      <div class="col-md-6">
-        <label class="form-label" id="arcNumberLabel"><%= t('form.arc_number') %></label>
+      <!-- ARC / APRC number — hidden for tw_passport and tw_id -->
+      <div class="col-md-6" id="arcNumWrap" <%= (_docType === 'tw_passport' || _docType === 'tw_id') ? 'style="display:none"' : '' %>>
+        <label class="form-label"><%= t('form.arc_number') %></label>
         <input type="text" name="arc_number" class="form-control" value="<%= v.arc_number || '' %>">
+      </div>
+      <!-- TW National ID number — shown for tw_id and tw_passport (both have 統一編號) -->
+      <div class="col-md-6" id="twIdNumWrap" <%= (_docType !== 'tw_id' && _docType !== 'tw_passport') ? 'style="display:none"' : '' %>>
+        <label class="form-label"><%= t('form.tw_id_number') %></label>
+        <input type="text" name="tw_id_number" class="form-control" value="<%= v.tw_id_number || '' %>">
       </div>
       <div class="col-md-6">
         <label class="form-label"><%= t('form.chinese_name') %></label>
         <input type="text" name="arc_chinese_name" class="form-control" value="<%= v.arc_chinese_name || '' %>">
       </div>
-      <div class="col-12">
-        <label class="form-label"><%= t('form.arc_english_name') %></label>
+      <!-- English name — hidden for tw_id (TW ID has no English name field) -->
+      <div class="col-12" id="arcNameEnWrap" <%= _docType === 'tw_id' ? 'style="display:none"' : '' %>>
+        <label class="form-label" id="arcNameEnLabel"><%= _docType === 'tw_passport' ? t('form.passport_english_name') : t('form.arc_english_name') %></label>
         <input type="text" name="arc_name_en" class="form-control" value="<%= v.arc_name_en || '' %>">
       </div>
       <div class="col-md-4">
@@ -195,44 +227,94 @@
       </div>
       <div class="col-md-4">
         <label class="form-label" id="arcExpiryLabel"><%= _docType === 'tw_passport' ? t('form.passport_expiry') : t('form.expiry_date') %></label>
-        <div id="arcExpiryInput" class="<%= _docType === 'aprc' ? 'd-none' : '' %>">
+        <div id="arcExpiryInput" class="<%= (_docType === 'aprc' || _docType === 'tw_id') ? 'd-none' : '' %>">
           <input type="date" name="arc_expiry_date" id="arcExpiryDate" class="form-control"
-            value="<%= _docType !== 'aprc' && v.arc_expiry_date ? v.arc_expiry_date.slice(0,10) : '' %>">
+            value="<%= (_docType !== 'aprc' && _docType !== 'tw_id') && v.arc_expiry_date ? v.arc_expiry_date.slice(0,10) : '' %>">
         </div>
-        <div id="arcExpiryPermanent" class="<%= _docType === 'aprc' ? '' : 'd-none' %>">
-          <span class="badge bg-info text-dark px-3 py-2 fs-6"><%= t('form.aprc_permanent') %></span>
+        <div id="arcExpiryPermanent" class="<%= (_docType === 'aprc' || _docType === 'tw_id') ? '' : 'd-none' %>">
+          <span class="badge bg-info text-dark px-3 py-2 fs-6"><%= _docType === 'tw_id' ? t('form.tw_id_permanent') : t('form.aprc_permanent') %></span>
         </div>
       </div>
-      <div class="col-md-4">
+      <!-- Passport number — hidden for tw_id -->
+      <div class="col-md-4" id="passportNumWrap" <%= _docType === 'tw_id' ? 'style="display:none"' : '' %>>
         <label class="form-label" id="passportLabel"><%= _docType === 'tw_passport' ? t('form.tw_passport_number') : t('form.passport_number') %></label>
         <input type="text" name="passport_number" class="form-control" value="<%= v.passport_number || '' %>">
       </div>
-      <div class="col-md-6">
+      <!-- Serial number — shown only for arc and aprc -->
+      <div class="col-md-6" id="arcSerialWrap" <%= (_docType === 'tw_passport' || _docType === 'tw_id') ? 'style="display:none"' : '' %>>
         <label class="form-label"><%= t('form.serial_number') %></label>
         <input type="text" name="arc_serial_number" class="form-control" value="<%= v.arc_serial_number || '' %>">
+      </div>
+      <!-- DOB + gender — shown for all doc types -->
+      <div class="col-md-4">
+        <label class="form-label"><%= t('form.date_of_birth') %></label>
+        <input type="date" name="date_of_birth" class="form-control"
+          value="<%= v.date_of_birth ? v.date_of_birth.slice(0,10) : '' %>">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label"><%= t('form.gender') %></label>
+        <select name="gender" class="form-select">
+          <option value="" <%= !v.gender ? 'selected' : '' %>>—</option>
+          <option value="男" <%= v.gender === '男' ? 'selected' : '' %>>男</option>
+          <option value="女" <%= v.gender === '女' ? 'selected' : '' %>>女</option>
+        </select>
+      </div>
+      <!-- Place of birth — TW ID / TW Passport only (printed on those documents) -->
+      <div class="col-md-4" id="birthplaceTwWrap" <%= (_docType !== 'tw_id' && _docType !== 'tw_passport') ? 'style="display:none"' : '' %>>
+        <label class="form-label"><%= t('form.birthplace_tw') %></label>
+        <input type="text" name="birthplace_tw" class="form-control" value="<%= v.birthplace_tw || '' %>"
+               placeholder="e.g. 臺灣省花蓮縣">
       </div>
     </div>
   </div>
 </div>
 <script>
 function arcDocTypeChanged() {
-  var type       = document.querySelector('input[name="residence_doc_type"]:checked').value;
-  var dateInput  = document.getElementById('arcExpiryDate');
-  var inputWrap  = document.getElementById('arcExpiryInput');
-  var permBadge  = document.getElementById('arcExpiryPermanent');
-  var expiryLbl  = document.getElementById('arcExpiryLabel');
-  var passLbl    = document.getElementById('passportLabel');
-  if (type === 'aprc') {
+  var type            = document.querySelector('input[name="residence_doc_type"]:checked').value;
+  var dateInput       = document.getElementById('arcExpiryDate');
+  var inputWrap       = document.getElementById('arcExpiryInput');
+  var permBadge       = document.getElementById('arcExpiryPermanent');
+  var expiryLbl       = document.getElementById('arcExpiryLabel');
+  var passLbl         = document.getElementById('passportLabel');
+  var arcNumWrap      = document.getElementById('arcNumWrap');
+  var twIdNumWrap     = document.getElementById('twIdNumWrap');
+  var passNumWrap     = document.getElementById('passportNumWrap');
+  var serialWrap      = document.getElementById('arcSerialWrap');
+  var arcNameEnWrap   = document.getElementById('arcNameEnWrap');
+  var arcNameEnLabel  = document.getElementById('arcNameEnLabel');
+  var birthplaceTwWrap= document.getElementById('birthplaceTwWrap');
+
+  // Expiry: permanent for aprc and tw_id
+  if (type === 'aprc' || type === 'tw_id') {
     inputWrap.classList.add('d-none');
     permBadge.classList.remove('d-none');
     dateInput.disabled = true;
+    permBadge.querySelector('span').textContent = type === 'tw_id'
+      ? '<%= t("form.tw_id_permanent") %>'
+      : '<%= t("form.aprc_permanent") %>';
   } else {
     inputWrap.classList.remove('d-none');
     permBadge.classList.add('d-none');
     dateInput.disabled = false;
   }
+
   expiryLbl.textContent = type === 'tw_passport' ? '<%= t("form.passport_expiry") %>' : '<%= t("form.expiry_date") %>';
-  passLbl.textContent   = type === 'tw_passport' ? '<%= t("form.tw_passport_number") %>'  : '<%= t("form.passport_number") %>';
+  if (passLbl) passLbl.textContent = type === 'tw_passport' ? '<%= t("form.tw_passport_number") %>' : '<%= t("form.passport_number") %>';
+
+  var isTwId           = type === 'tw_id';
+  var isTwIdOrPassport = (type === 'tw_id' || type === 'tw_passport');
+
+  // Show/hide dedicated field groups
+  arcNumWrap.style.display      = isTwIdOrPassport ? 'none' : '';
+  twIdNumWrap.style.display     = isTwIdOrPassport ? '' : 'none';
+  passNumWrap.style.display     = isTwId ? 'none' : '';
+  serialWrap.style.display      = isTwIdOrPassport ? 'none' : '';
+  arcNameEnWrap.style.display   = isTwId ? 'none' : '';
+  if (arcNameEnLabel) arcNameEnLabel.textContent = type === 'tw_passport'
+    ? '<%= t("form.passport_english_name") %>'
+    : '<%= t("form.arc_english_name") %>';
+  // birthplace — only on TW ID / Passport cards; DOB + gender are on all doc types (always visible)
+  birthplaceTwWrap.style.display= isTwIdOrPassport ? '' : 'none';
 }
 </script>
 

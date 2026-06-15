@@ -36,6 +36,7 @@
     <a class="pta-nav__item <%= _navActive === 'vault'     ? 'is-active' : '' %>" href="/vault"><i class="bi bi-archive-fill"></i><span><%= t('nav.documents') %></span></a>
     <% if (canWrite) { %>
     <a class="pta-nav__item <%= _navActive === 'audit'     ? 'is-active' : '' %>" href="/admin/audit"><i class="bi bi-clock-history"></i><span><%= t('nav.audit_log') %></span></a>
+    <a class="pta-nav__item <%= _navActive === 'export'    ? 'is-active' : '' %>" href="/admin/export"><i class="bi bi-box-arrow-up"></i><span><%= t('nav.export') %></span></a>
     <% } %>
   </nav>
   <% } else { %>

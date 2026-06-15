@@ -258,6 +258,32 @@ if (!memberCols4.includes('is_tw_passport')) {
   db.prepare('ALTER TABLE members ADD COLUMN is_tw_passport INTEGER NOT NULL DEFAULT 0').run();
 }
 
+// --- Migration: add is_tw_id flag to members ---
+const memberCols5 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols5.includes('is_tw_id')) {
+  db.prepare('ALTER TABLE members ADD COLUMN is_tw_id INTEGER NOT NULL DEFAULT 0').run();
+}
+
+// --- Migration: add tw_id_number to members (dedicated field for Taiwan National ID 統一編號) ---
+const memberCols6 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols6.includes('tw_id_number')) {
+  db.prepare('ALTER TABLE members ADD COLUMN tw_id_number TEXT').run();
+}
+
+// --- Migration: add date_of_birth, gender, birthplace_tw to members ---
+const memberCols7 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols7.includes('date_of_birth')) {
+  db.prepare('ALTER TABLE members ADD COLUMN date_of_birth TEXT').run();
+}
+const memberCols8 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols8.includes('gender')) {
+  db.prepare('ALTER TABLE members ADD COLUMN gender TEXT').run();
+}
+const memberCols9 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols9.includes('birthplace_tw')) {
+  db.prepare('ALTER TABLE members ADD COLUMN birthplace_tw TEXT').run();
+}
+
 // --- Migration: add doc_type and thumb_path to documents ---
 const docCols = db.prepare('PRAGMA table_info(documents)').all().map(c => c.name);
 if (!docCols.includes('doc_type')) {

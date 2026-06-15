@@ -1,5 +1,20 @@
 <%- include('../partials/header') %>
 
+<%
+  const _profCardSlots = ['arc_front', 'arc_back', 'cc_front', 'cc_back', 'tw_passport_front', 'tw_id_front', 'tw_id_back'];
+  const _profCardLabelMap = {
+    arc_front:        t('profile.card_arc_front'),
+    arc_back:         t('profile.card_arc_back'),
+    cc_front:         t('profile.card_cc_front'),
+    cc_back:          t('profile.card_cc_back'),
+    tw_passport_front:t('profile.card_tw_passport_front'),
+    tw_id_front:      t('profile.card_tw_id_front'),
+    tw_id_back:       t('profile.card_tw_id_back'),
+  };
+  const _profCardDocs = {};
+  documents.forEach(function(d){ if (d.doc_type && d.doc_type !== 'misc') _profCardDocs[d.doc_type] = d; });
+%>
+
 <div class="row mb-3">
   <div class="col">
     <h2 class="fw-bold"><%= t('profile.edit_profile_title') %></h2>
@@ -65,41 +80,77 @@
     </div>
   </div>
 
-  <!-- 3. ARC Data -->
+  <!-- 3. Taiwan ID / ARC Data -->
   <div class="card mb-3">
     <div class="card-header fw-semibold"><%= t('profile.arc_data_title') %> <small class="text-muted fw-normal"><%= t('profile.arc_taiwan') %></small></div>
     <div class="card-body">
       <div class="row g-3">
+        <% if (!member.is_tw_passport && !member.is_tw_id) { %>
         <div class="col-md-6">
           <label class="form-label"><%= t('form.arc_number') %></label>
           <input type="text" name="arc_number" class="form-control" value="<%= member.arc_number || '' %>">
         </div>
+        <% } %>
+        <% if (member.is_tw_id) { %>
+        <div class="col-md-6">
+          <label class="form-label"><%= t('form.tw_id_number') %></label>
+          <input type="text" name="tw_id_number" class="form-control" value="<%= member.tw_id_number || '' %>">
+        </div>
+        <% } %>
         <div class="col-md-6">
           <label class="form-label"><%= t('form.chinese_name') %></label>
           <input type="text" name="arc_chinese_name" class="form-control" value="<%= member.arc_chinese_name || '' %>">
         </div>
+        <% if (!member.is_tw_id) { %>
         <div class="col-12">
           <label class="form-label"><%= t('form.arc_english_name') %></label>
           <input type="text" name="arc_name_en" class="form-control" value="<%= member.arc_name_en || '' %>">
         </div>
+        <% } %>
         <div class="col-md-4">
           <label class="form-label"><%= t('form.issue_date') %></label>
           <input type="date" name="arc_issue_date" class="form-control"
             value="<%= member.arc_issue_date ? member.arc_issue_date.slice(0,10) : '' %>">
         </div>
+        <% if (!member.is_aprc && !member.is_tw_id) { %>
         <div class="col-md-4">
-          <label class="form-label"><%= t('form.expiry_date') %></label>
+          <label class="form-label"><%= member.is_tw_passport ? t('form.passport_expiry') : t('form.expiry_date') %></label>
           <input type="date" name="arc_expiry_date" class="form-control"
             value="<%= member.arc_expiry_date ? member.arc_expiry_date.slice(0,10) : '' %>">
         </div>
+        <% } %>
+        <% if (!member.is_tw_id) { %>
         <div class="col-md-4">
-          <label class="form-label"><%= t('form.passport_number') %></label>
+          <label class="form-label"><%= member.is_tw_passport ? t('form.tw_passport_number') : t('form.passport_number') %></label>
           <input type="text" name="passport_number" class="form-control" value="<%= member.passport_number || '' %>">
         </div>
+        <% } %>
+        <% if (!member.is_tw_passport && !member.is_tw_id) { %>
         <div class="col-md-6">
           <label class="form-label"><%= t('form.serial_number') %></label>
           <input type="text" name="arc_serial_number" class="form-control" value="<%= member.arc_serial_number || '' %>">
         </div>
+        <% } %>
+        <% if (member.is_tw_id) { %>
+        <div class="col-md-4">
+          <label class="form-label"><%= t('profile.date_of_birth') %></label>
+          <input type="date" name="date_of_birth" class="form-control"
+            value="<%= member.date_of_birth ? member.date_of_birth.slice(0,10) : '' %>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label"><%= t('profile.gender') %></label>
+          <select name="gender" class="form-select">
+            <option value="" <%= !member.gender ? 'selected' : '' %>>—</option>
+            <option value="男" <%= member.gender === '男' ? 'selected' : '' %>>男</option>
+            <option value="女" <%= member.gender === '女' ? 'selected' : '' %>>女</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label"><%= t('profile.birthplace_tw') %></label>
+          <input type="text" name="birthplace_tw" class="form-control" value="<%= member.birthplace_tw || '' %>"
+                 placeholder="e.g. 臺灣省花蓮縣">
+        </div>
+        <% } %>
       </div>
     </div>
   </div>
@@ -154,5 +205,443 @@
   <a href="/profile" class="btn btn-outline-secondary ms-2"><%= t('profile.cancel_btn') %></a>
 
 </form>
+
+<!-- Identity Card Upload & OCR -->
+<div class="card mt-3">
+  <div class="card-header fw-semibold"><i class="bi bi-cpu me-1"></i> <%= t('detail.identity_cards') %> — Upload &amp; Scan</div>
+  <div class="card-body">
+    <p class="small text-muted mb-3"><%= t('detail.card_ocr_hint') %></p>
+    <div class="pta-docslots">
+      <% for (const _pct of _profCardSlots) { %>
+      <%   const _pcLabel = _profCardLabelMap[_pct]; %>
+      <%   const _pcDoc   = _profCardDocs[_pct]; %>
+      <div class="pta-docslot" data-slot-type="<%= _pct %>">
+        <div class="small fw-semibold" style="color:var(--text-muted);margin-bottom:.4rem"><%= _pcLabel %></div>
+        <% if (_pcDoc) { %>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;margin-bottom:.5rem">
+            <% if (_pcDoc.thumb_path) { %>
+            <img src="/<%= _pcDoc.thumb_path.replace(/\\/g, '/') %>"
+                 class="img-fluid rounded" style="max-height:75px;max-width:100%;object-fit:contain;cursor:pointer"
+                 onclick="openProfLightbox('/profile/documents/<%= _pcDoc.id %>/view','<%= _pcLabel %>')"
+                 title="Click to view">
+            <% } else { %>
+            <i class="bi bi-file-image" style="font-size:2.2rem;color:var(--text-muted)"></i>
+            <% } %>
+          </div>
+          <div style="display:flex;gap:.25rem;flex-wrap:wrap;justify-content:center;margin-bottom:.25rem">
+            <button class="pta-btn pta-btn--ghost pta-btn--sm"
+                    onclick="profOcrRescan('<%= _pct %>', '<%= _pcDoc.id %>')">
+              <i class="bi bi-cpu"></i> Re-scan
+            </button>
+            <a href="/profile/documents/<%= _pcDoc.id %>/download"
+               class="pta-btn pta-btn--ghost pta-btn--sm">
+              <i class="bi bi-download"></i>
+            </a>
+          </div>
+          <label class="pta-btn pta-btn--secondary pta-btn--sm pta-btn--block" style="cursor:pointer">
+            <i class="bi bi-arrow-repeat"></i> Replace &amp; Scan
+            <input type="file" accept="image/*" style="display:none"
+                   onchange="profUploadAndScan('<%= _pct %>', this)">
+          </label>
+        <% } else { %>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center">
+            <i class="bi bi-card-image" style="font-size:2.5rem;color:var(--text-muted)"></i>
+          </div>
+          <label class="pta-btn pta-btn--secondary pta-btn--sm pta-btn--block" style="cursor:pointer">
+            <i class="bi bi-upload"></i> Upload &amp; Scan
+            <input type="file" accept="image/*" style="display:none"
+                   onchange="profUploadAndScan('<%= _pct %>', this)">
+          </label>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="modal fade" id="profImgModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title mb-0" id="profImgModalTitle"></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center p-2">
+        <img id="profImgModalImg" src="" alt="" class="img-fluid rounded" style="max-height:75vh">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OCR Review Modal -->
+<div class="modal fade" id="profOcrModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="profOcrModalTitle"><%= t('ocr.modal_title') %></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="profOcrSpinner" class="py-3">
+          <div class="text-center">
+            <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+          </div>
+          <div id="profOcrStepLog" class="pta-minilog mt-2"></div>
+        </div>
+        <div id="profOcrResults" style="display:none">
+          <div class="alert alert-info py-2 small mb-2">
+            <i class="bi bi-info-circle me-1"></i>
+            Checked fields will be filled into the edit form above. Save the form to keep them.
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+            <span class="small text-muted">
+              <span class="badge bg-success">+</span> new &nbsp;
+              <span class="badge bg-warning text-dark">!</span> differs &nbsp;
+              <span class="badge bg-info text-dark">?</span> models disagree.
+            </span>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-success btn-sm" id="profOcrAcceptAll">
+                <i class="bi bi-check-all"></i> Accept All
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="profOcrRejectAll">
+                <i class="bi bi-x-lg"></i> Reject All
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:22%">Field</th>
+                  <th style="width:34%">Current in Form</th>
+                  <th style="width:34%">OCR Result</th>
+                  <th style="width:10%" class="text-center">Apply?</th>
+                </tr>
+              </thead>
+              <tbody id="profOcrFieldsContainer"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="profOcrErr" style="display:none">
+          <div class="alert alert-danger py-2 small mb-0">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <span id="profOcrErrMsg"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" id="profOcrFooter" style="display:none">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-success btn-sm" id="profOcrApplyBtn">
+          <i class="bi bi-pencil-square"></i> Apply to Form
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var _imgModal = null;
+  function profImgModal() {
+    if (!_imgModal) _imgModal = new bootstrap.Modal(document.getElementById('profImgModal'));
+    return _imgModal;
+  }
+  window.openProfLightbox = function (viewUrl, label) {
+    document.getElementById('profImgModalTitle').textContent = label;
+    document.getElementById('profImgModalImg').src = viewUrl;
+    profImgModal().show();
+  };
+
+  var _ocrModal = null;
+  function profOcrModal() {
+    if (!_ocrModal) _ocrModal = new bootstrap.Modal(document.getElementById('profOcrModal'));
+    return _ocrModal;
+  }
+  var elTitle     = document.getElementById('profOcrModalTitle');
+  var elSpinner   = document.getElementById('profOcrSpinner');
+  var elStepLog   = document.getElementById('profOcrStepLog');
+  var elResults   = document.getElementById('profOcrResults');
+  var elContainer = document.getElementById('profOcrFieldsContainer');
+  var elErr       = document.getElementById('profOcrErr');
+  var elErrMsg    = document.getElementById('profOcrErrMsg');
+  var elFooter    = document.getElementById('profOcrFooter');
+  var elApply     = document.getElementById('profOcrApplyBtn');
+
+  var STATE_ICON = { ok: '✓', warn: '⚠', error: '✗', info: '→' };
+  function renderSteps(steps) {
+    if (!steps || !steps.length || !elStepLog) return;
+    elStepLog.innerHTML = steps.map(function (s) {
+      return '<div class="pta-minilog__line pta-minilog__line--' + (s.state || 'info') + '">' +
+        '<span class="pta-minilog__icon">' + (STATE_ICON[s.state] || '→') + '</span>' +
+        '<span>' + s.msg + '</span></div>';
+    }).join('');
+    elStepLog.scrollTop = elStepLog.scrollHeight;
+  }
+
+  var CARD_LABELS = {
+    arc_front:        '<%= t("profile.card_arc_front") %>',
+    arc_back:         '<%= t("profile.card_arc_back") %>',
+    cc_front:         '<%= t("profile.card_cc_front") %>',
+    cc_back:          '<%= t("profile.card_cc_back") %>',
+    tw_passport_front:'<%= t("profile.card_tw_passport_front") %>',
+    tw_id_front:      '<%= t("profile.card_tw_id_front") %>',
+    tw_id_back:       '<%= t("profile.card_tw_id_back") %>',
+  };
+  var CARD_FIELDS = {
+    arc_front:        ['arc_number', 'arc_chinese_name', 'arc_name_en', 'gender', 'date_of_birth', 'arc_issue_date', 'arc_expiry_date', 'passport_number', 'address_zh'],
+    arc_back:         ['arc_serial_number'],
+    cc_front:         ['cc_number', 'cc_expiry_date'],
+    cc_back:          ['nif', 'niss'],
+    tw_passport_front:['passport_number', 'tw_id_number', 'arc_name_en', 'arc_chinese_name', 'date_of_birth', 'gender', 'arc_issue_date', 'arc_expiry_date', 'birthplace_tw'],
+    tw_id_front:      ['tw_id_number', 'arc_chinese_name', 'date_of_birth', 'gender', 'arc_issue_date'],
+    tw_id_back:       ['address_zh', 'birthplace_tw'],
+  };
+  var FIELD_LABELS = {
+    arc_number: 'ARC Number',           arc_name_en: 'English Name',
+    arc_chinese_name: 'Chinese Name → Last / First Name',
+    arc_issue_date: 'Issue Date',       arc_expiry_date: 'Expiry Date',
+    passport_number: 'Passport Number', arc_serial_number: 'Serial Number',
+    tw_id_number: 'TW National ID No.',address_zh: 'Address (ZH)',
+    cc_number: 'CC Number',             cc_expiry_date: 'CC Expiry Date',
+    nif: 'NIF',                         niss: 'NISS',
+    date_of_birth: 'Date of Birth',     gender: 'Gender',
+    birthplace_tw: 'Place of Birth',
+  };
+
+  function currentFormValues() {
+    var fields = ['arc_number','arc_name_en','arc_chinese_name','arc_issue_date','arc_expiry_date',
+                  'passport_number','arc_serial_number','tw_id_number','address_zh',
+                  'cc_number','cc_expiry_date','nif','niss',
+                  'date_of_birth','gender','birthplace_tw'];
+    var out = {};
+    fields.forEach(function (f) {
+      var el = document.querySelector('[name="' + f + '"]');
+      out[f] = el ? el.value : '';
+    });
+    return out;
+  }
+
+  function setOcrState(state) {
+    elSpinner.style.display = state === 'loading' ? '' : 'none';
+    elResults.style.display = state === 'results' ? '' : 'none';
+    elErr.style.display     = state === 'error'   ? '' : 'none';
+    elFooter.style.display  = state === 'results' ? '' : 'none';
+  }
+
+  function buildFieldRow(key, ocrVal, modelConflict, currentMember) {
+    var currentVal      = currentMember[key] || '';
+    var hasOcr          = !!(ocrVal && ocrVal.trim());
+    var isNew           = hasOcr && !currentVal;
+    var isDbConflict    = hasOcr && !!currentVal && currentVal !== ocrVal;
+    var isModelConflict = !!(modelConflict && modelConflict.length === 2);
+
+    var tr = document.createElement('tr');
+    if      (isModelConflict) tr.className = 'table-info';
+    else if (isDbConflict)    tr.className = 'table-warning';
+    else if (isNew)           tr.className = 'table-success';
+
+    var tdField = document.createElement('td');
+    tdField.className = 'fw-semibold small align-middle';
+    tdField.textContent = FIELD_LABELS[key] || key;
+    if (isModelConflict) {
+      var badge = document.createElement('span');
+      badge.className = 'badge bg-info text-dark ms-1';
+      badge.textContent = '?';
+      tdField.appendChild(badge);
+    }
+    tr.appendChild(tdField);
+
+    var tdCurrent = document.createElement('td');
+    tdCurrent.className = 'small align-middle font-monospace';
+    if (currentVal) {
+      tdCurrent.textContent = currentVal;
+      if (isDbConflict && !isModelConflict) tdCurrent.className += ' text-danger text-decoration-line-through';
+    } else {
+      var emC = document.createElement('em');
+      emC.className = 'text-muted fw-normal';
+      emC.textContent = 'empty';
+      tdCurrent.appendChild(emC);
+    }
+    tr.appendChild(tdCurrent);
+
+    var tdOcr = document.createElement('td');
+    tdOcr.className = 'small align-middle';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'form-check-input';
+    cb.dataset.field = key;
+
+    if (isModelConflict) {
+      var sel = document.createElement('select');
+      sel.className = 'form-select form-select-sm font-monospace fw-semibold';
+      modelConflict.forEach(function (v, i) {
+        var opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = (i === 0 ? 'Model A: ' : 'Model B: ') + v;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', function () { cb.dataset.value = sel.value; });
+      cb.dataset.value = modelConflict[0];
+      tdOcr.appendChild(sel);
+    } else if (hasOcr) {
+      tdOcr.className += ' font-monospace fw-semibold';
+      tdOcr.textContent = ocrVal;
+      if (isNew)             tdOcr.className += ' text-success';
+      else if (isDbConflict) tdOcr.className += ' text-dark';
+      cb.dataset.value = ocrVal;
+    } else {
+      var emO = document.createElement('em');
+      emO.className = 'text-muted fw-normal';
+      emO.textContent = 'not found';
+      tdOcr.appendChild(emO);
+      cb.dataset.value = '';
+    }
+    tr.appendChild(tdOcr);
+
+    var tdCheck = document.createElement('td');
+    tdCheck.className = 'text-center align-middle';
+    cb.checked  = hasOcr || isModelConflict;
+    cb.disabled = !hasOcr && !isModelConflict;
+    tdCheck.appendChild(cb);
+    tr.appendChild(tdCheck);
+    return tr;
+  }
+
+  function showResults(type, extracted) {
+    var currentMember   = currentFormValues();
+    elTitle.textContent = (CARD_LABELS[type] || type) + ' — Review Extracted Fields';
+    while (elContainer.firstChild) elContainer.removeChild(elContainer.firstChild);
+    var conflicts      = extracted._conflicts || {};
+    var expectedFields = CARD_FIELDS[type] || Object.keys(extracted).filter(function(k) { return k.charAt(0) !== '_'; });
+    expectedFields.forEach(function (key) {
+      elContainer.appendChild(buildFieldRow(key, extracted[key] || '', conflicts[key] || null, currentMember));
+    });
+    Object.keys(extracted).forEach(function (key) {
+      if (key.charAt(0) === '_') return;
+      if (expectedFields.indexOf(key) === -1 && (extracted[key] || conflicts[key])) {
+        elContainer.appendChild(buildFieldRow(key, extracted[key] || '', conflicts[key] || null, currentMember));
+      }
+    });
+    setOcrState('results');
+  }
+
+  document.getElementById('profOcrAcceptAll').addEventListener('click', function () {
+    elContainer.querySelectorAll('input[type=checkbox][data-field]').forEach(function (cb) {
+      if (!cb.disabled) cb.checked = true;
+    });
+  });
+  document.getElementById('profOcrRejectAll').addEventListener('click', function () {
+    elContainer.querySelectorAll('input[type=checkbox][data-field]').forEach(function (cb) {
+      cb.checked = false;
+    });
+  });
+
+  var OCR_POLL_INTERVAL = 3000;
+  var OCR_POLL_MAX      = 40;
+
+  function pollOcr(docId, type, attempt) {
+    if (attempt >= OCR_POLL_MAX) {
+      elErrMsg.textContent = 'Vision model took too long — use Re-scan to retry.';
+      setOcrState('error');
+      return;
+    }
+    var elapsed = Math.round(attempt * OCR_POLL_INTERVAL / 1000);
+    elTitle.textContent = 'Scanning ' + (CARD_LABELS[type] || type) + '… (' + elapsed + 's)';
+    if (attempt === 0 && elStepLog) elStepLog.innerHTML = '';
+    setTimeout(function () {
+      fetch('/profile/documents/' + docId + '/ocr-status')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          renderSteps(d.steps);
+          if (d.done) showResults(type, d.extracted || {});
+          else        pollOcr(docId, type, attempt + 1);
+        })
+        .catch(function () { pollOcr(docId, type, attempt + 1); });
+    }, OCR_POLL_INTERVAL);
+  }
+
+  function updateProfSlotAfterUpload(type, docId, file) {
+    var slot = document.querySelector('[data-slot-type="' + type + '"]');
+    if (!slot) return;
+    var label   = CARD_LABELS[type] || type;
+    var preview = URL.createObjectURL(file);
+    var viewUrl = '/profile/documents/' + docId + '/view';
+    var dlUrl   = '/profile/documents/' + docId + '/download';
+    slot.innerHTML =
+      '<div class="small fw-semibold" style="color:var(--text-muted);margin-bottom:.4rem">' + label + '</div>' +
+      '<div style="flex:1;display:flex;align-items:center;justify-content:center;margin-bottom:.5rem">' +
+        '<img src="' + preview + '" class="img-fluid rounded"' +
+        ' style="max-height:75px;max-width:100%;object-fit:contain;cursor:pointer"' +
+        ' onclick="openProfLightbox(\'' + viewUrl + '\',\'' + label.replace(/'/g, "\\'") + '\')" title="Click to view">' +
+      '</div>' +
+      '<div style="display:flex;gap:.25rem;flex-wrap:wrap;justify-content:center;margin-bottom:.25rem">' +
+        '<button class="pta-btn pta-btn--ghost pta-btn--sm" onclick="profOcrRescan(\'' + type + '\',' + docId + ')">' +
+          '<i class="bi bi-cpu"></i> Re-scan</button>' +
+        '<a href="' + dlUrl + '" class="pta-btn pta-btn--ghost pta-btn--sm"><i class="bi bi-download"></i></a>' +
+      '</div>' +
+      '<label class="pta-btn pta-btn--secondary pta-btn--sm pta-btn--block" style="cursor:pointer">' +
+        '<i class="bi bi-arrow-repeat"></i> Replace &amp; Scan' +
+        '<input type="file" accept="image/*" style="display:none" onchange="profUploadAndScan(\'' + type + '\', this)">' +
+      '</label>';
+  }
+
+  window.profUploadAndScan = function (type, inputEl) {
+    if (!inputEl.files || !inputEl.files[0]) return;
+    _profCurrentDocType = type;
+    var file = inputEl.files[0];
+    elTitle.textContent = 'Uploading ' + (CARD_LABELS[type] || type) + '…';
+    setOcrState('loading');
+    profOcrModal().show();
+    var fd = new FormData();
+    fd.append('image', file);
+    fd.append('doc_type', type);
+    fetch('/profile/documents/card', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { elErrMsg.textContent = d.error || 'Upload failed.'; setOcrState('error'); return; }
+        updateProfSlotAfterUpload(type, d.docId, file);
+        elTitle.textContent = 'Scanning ' + (CARD_LABELS[type] || type) + '… (0s)';
+        pollOcr(d.docId, type, 0);
+      })
+      .catch(function (e) { elErrMsg.textContent = 'Network error: ' + e.message; setOcrState('error'); })
+      .finally(function () { inputEl.value = ''; });
+  };
+
+  window.profOcrRescan = function (type, docId) {
+    _profCurrentDocType = type;
+    elTitle.textContent = 'Scanning ' + (CARD_LABELS[type] || type) + '… (0s)';
+    setOcrState('loading');
+    profOcrModal().show();
+    fetch('/profile/documents/' + docId + '/ocr-status')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.done && d.extracted) { showResults(type, d.extracted); return; }
+        elErrMsg.textContent = 'No cached result — please upload a new image.';
+        setOcrState('error');
+      })
+      .catch(function (e) { elErrMsg.textContent = 'Network error: ' + e.message; setOcrState('error'); });
+  };
+
+  var _profCurrentDocType = '';
+
+  elApply.addEventListener('click', function () {
+    elContainer.querySelectorAll('input[type=checkbox][data-field]:checked').forEach(function (cb) {
+      var field = cb.dataset.field;
+      var val   = cb.dataset.value;
+      // Chinese name on TW ID / TW Passport: split first char → last_name, rest → first_name
+      if (field === 'arc_chinese_name' && (_profCurrentDocType === 'tw_id_front' || _profCurrentDocType === 'tw_passport_front') && val.length >= 2) {
+        var lnInp = document.querySelector('[name="last_name"]');
+        var fnInp = document.querySelector('[name="first_name"]');
+        if (lnInp) lnInp.value = val.charAt(0);
+        if (fnInp) fnInp.value = val.slice(1);
+      }
+      var inp = document.querySelector('[name="' + field + '"]');
+      if (inp) inp.value = val;
+    });
+    profOcrModal().hide();
+  });
+})();
+</script>
 
 <%- include('../partials/footer') %>

@@ -52,7 +52,8 @@ database/db.js           SQLite schema, migrations, seed admin
 routes/auth.js           /login, /logout
 routes/admin.js          /admin/* — member CRUD, documents, card OCR, NIA photo fetch,
                          role change, password reset, audit log, OCR health check,
-                         settings (fee + models + timeout), calendar events, vault (upload/download/delete)
+                         settings (fee + models + timeout), calendar events, vault (upload/download/delete),
+                         export (GET /export, GET /export/search, POST /export, GET /export/status/:id, GET /export/download/:id)
                          getSetting(key, default) / setSetting(key, value) helpers for settings table.
                          Loads persisted OCR model list + timeout from settings at module init.
                          resolveAudience(groups) → single UNION query → array of user IDs.
@@ -70,13 +71,19 @@ routes/user.js           /profile/* — own profile (single-scroll: profile grid
 middleware/auth.js       requireAuth, requireAdmin, requireSuperAdmin, requireViewAll guards
                          requireAuth also sets res.locals.pendingInviteCount (pending invite count)
 utils/fee.js             computeFeeStatus(fee_amount, fee_last_paid)
-utils/ocr.js             OpenRouter vision API — dual-model parallel scan
+utils/ocr.js             OpenRouter vision API — dual-model parallel scan + background job cache
                          MODEL_TIMEOUT_MS — mutable; default 55s; configurable via dashboard + settings table
-                         Exports: scan(docType, imagePath), checkModels(),
+                         Doc types: arc_front, arc_back, cc_front, cc_back, tw_passport_front, tw_id_front, tw_id_back
+                         Background jobs: startOcrJob(type, path) → jobId; getOcrJob(jobId) → { status, result }
+                         Exports: scan(docType, imagePath), startOcrJob(), getOcrJob(), checkModels(),
                                   getModelWarnings(), dismissModelWarning(model),
                                   getActiveModels(), setActiveModels(models),
                                   testModel(modelId),
                                   getModelTimeout(), setModelTimeout(ms)
+utils/export.js          Data export — startExportJob(members, docsMap) → jobId; _runExport builds 31-col XLSX (ExcelJS)
+                         then ZIP (archiver) with data.xlsx + per-member ASSOC-XXXX/ document folders.
+                         getExportJob(jobId) → job state; deleteExportJob(jobId) → unlinks ZIP + removes Map entry.
+                         _cleanupOrphans() runs at module load to remove leftover export_*.zip from uploads/tmp/.
 utils/audit.js           writeAudit(actorId, actorEmail, memberId, memberRef, action, detail) — 2000-row cap
 utils/countries.js       Full world country list for phone dial-code picker
 utils/taiwan-districts.js All 22 TW cities/counties + districts (ZH/EN/postal)
@@ -92,12 +99,20 @@ frontend/views/partials/phone-field.ejs    Reusable dial-code picker partial
 frontend/views/partials/member-form.ejs   5-section member form; ARC section uses .pta-seg (ARC/APRC/TW Passport)
                                           Icons: bi-credit-card-fill / bi-shield-fill-check / bi-passport-fill
                                           APRC label does NOT say "(Permanent)" — that is implied by the name
+                                          English name banner (alert-info): shown when arc_name_en ≠ stored name;
+                                            label/button text switch between ARC and Passport wording based on residence_doc_type
+                                          Chinese name banner (alert-secondary): shown when arc_chinese_name split ≠ stored name;
+                                            split: first char → last_name, rest → first_name
+                                          Both banners use data-* attributes on the button (XSS-safe); never interpolate into JS
 frontend/views/admin/dashboard.ejs        Stats + Warnings + OCR config (with timeout) + Fee + Calendar + Vault
                                           pta-table-wrap on 4 tables; renderAgendaMobile() populates .pta-agenda on mobile (≤640px)
                                           New-event modal date inputs use col-12 col-sm-6 (stack on phones)
 frontend/views/admin/members-list.ejs     Search + fee filter + sort dropdown + Warnings column + ID Type column
                                           Table wrapped in pta-table-wrap for mobile horizontal scroll
 frontend/views/admin/member-detail.ejs    APRC/TW Passport display; NIA blocked for non-ARC
+frontend/views/admin/member-edit.ejs      Edit form; heading subtitle shows arc_chinese_name + member_id when present
+frontend/views/admin/export.ejs           Export Data page — scope radio + member typeahead + chips + progress card;
+                                          all data fetched client-side; admin/SA only
 frontend/views/admin/audit-log.ejs        Audit log page (paginated, admin+ only)
                                           DS pagehead (pta-pagehead); pta-badge DS tone classes; pta-card wrappers
 frontend/views/user/profile.ejs           Own profile — single-scroll layout; profile-layout CSS grid; notifications at #notifications anchor;
@@ -110,9 +125,10 @@ frontend/public/css/ds/azulejo-tile.svg   Background tile — must stay next to 
 frontend/public/images/logo-emblem.png    Brand emblem (512×512, copper on charcoal) — topbar + login
 frontend/public/images/logo-full.jpg      Full lockup for emails/share
 frontend/public/images/logo-wordmark.svg  Full wordmark
-uploads/                 Runtime only — photos, documents, thumbs, vault/ (never commit)
+uploads/                 Runtime only — photos, documents, thumbs, vault/, tmp/ (never commit)
 uploads/vault/public/    Public vault files — served via authenticated route
 uploads/vault/admin/     Admin vault files — served via authenticated route
+uploads/tmp/             Temporary export ZIPs (export_*.zip) — auto-deleted after download; orphans cleaned on restart
 database/data.db         Runtime only — SQLite file (never commit)
 .env                     API keys — NEVER commit, NEVER upload to cPanel
 
@@ -154,14 +170,17 @@ Events tables (in data.db):
 - **`routes/user.js` exports an object** — `const { router: userRouter, contentDispositionFilename } = require('./routes/user')`; it does NOT export the router as a plain default. Do not revert to `module.exports = router`.
 - **Vault files are NOT static** — served via authenticated routes in `app.js` (`GET /vault/files/:id` for public, `GET /admin/vault/files/:id` for admin). Do not add `express.static` for `uploads/vault/`.
 - **Vault routes live in `app.js`, not `user.js`** — mounting the userRouter at `/vault` would double the prefix (user.js route `/vault` + mount `/vault` = `/vault/vault`). The two member-facing vault routes are defined directly in `app.js`.
-- **NIA fetch is blocked for APRC and TW Passport** — `is_aprc=1` or `is_tw_passport=1` members do not have a searchable NIA ARC record; the captcha and fetch routes return a clear message and do not call NIA.
-- **`is_aprc` and `is_tw_passport` are mutually exclusive** — derived server-side from the `residence_doc_type` radio value (`arc` / `aprc` / `tw_passport`); never both 1 at the same time.
+- **NIA fetch is blocked for APRC, TW Passport, and TW ID** — `is_aprc=1`, `is_tw_passport=1`, or `is_tw_id=1` members do not have a searchable NIA ARC record; the captcha and fetch routes return a clear message and do not call NIA.
+- **`is_aprc`, `is_tw_passport`, `is_tw_id` are mutually exclusive** — derived server-side from the `residence_doc_type` radio value (`arc` / `aprc` / `tw_passport` / `tw_id`); never more than one set at the same time.
 - **OCR model timeout is runtime-configurable** — `MODEL_TIMEOUT_MS` in `ocr.js` is a `let`, not a `const`; changed via `setModelTimeout(ms)`. Persisted as `ocr_timeout_ms` in the settings table. AbortController cleared only after `res.json()` completes — do NOT clear it after `await fetch()` headers arrive.
 - **i18n: `t()` is available in every EJS template** — provided by `utils/i18n.js` via `res.locals`. Call `t('section.key')` with dot notation. Falls back to the key string itself if missing — never throws.
 - **i18n: `locales/en.json` is the source of truth** — add new UI strings there first, then copy and translate into `pt.json` and `zh-TW.json`. All three files must have the same key structure.
 - **i18n: ZH-TW is AI-generated** — `locales/zh-TW.json` contains a `_note` warning key. Do not ship Chinese UI as production-ready without native speaker review.
 - **i18n: `/lang/:code` redirect is hardened** — Referer header is validated same-origin; pathname is normalized (strip leading slashes, re-prefix one); redirect uses absolute same-origin URL (`${req.protocol}://${req.headers.host}${safePath}`). Never revert to `res.redirect(req.headers.referer)`.
 - **`npm install` not needed for i18n changes** — `utils/i18n.js` and `locales/*.json` have zero npm dependencies. Only run `npm install` on the server when `package.json` changes.
+- **Export feature requires `npm install`** — `archiver` and `exceljs` are new dependencies added in V1.9; run `npm install` on cPanel after deploying this version.
+- **Export temp files in `uploads/tmp/`** — ZIPs are auto-deleted after the client downloads them; `_cleanupOrphans()` in `utils/export.js` also deletes leftover ZIPs on every server restart. Never serve `uploads/tmp/` statically.
+- **jimp v1.x API** — use `const { Jimp } = require('jimp')` (named export, NOT default); `Jimp.fromFile(path)` (NOT `Jimp.read()`); `img.resize({ w: 300 })` (NOT `.resize(300, Jimp.AUTO)`); `img.write(dest)`. Do not revert to v0.x patterns.
 
 ---
 
@@ -219,7 +238,7 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - Sessions persist in SQLite via `better-sqlite3-session-store` — survive server restarts
 - `nextMemberId()` reads the last member_id and increments — format is `ASSOC-XXXX` (zero-padded 4 digits); called **inside** the create transaction
 - All user-facing queries in `routes/user.js` scope to `WHERE user_id = req.session.userId` — never trust URL params for ownership
-- Card documents are one-per-type per member (`arc_front`, `arc_back`, `cc_front`, `cc_back`) — uploading a new one deletes the previous file + DB row for that type
+- Card documents are one-per-type per member (`arc_front`, `arc_back`, `cc_front`, `cc_back`, `tw_passport_front`, `tw_id_front`, `tw_id_back`) — uploading a new one deletes the previous file + DB row for that type
 - OCR fields applied via `apply-card-fields` are validated against an ALLOWED list — no freeform field writes
 - Display name throughout app: `arc_name_en || (first_name + ' ' + last_name)`
 - **Audit log is append-only** — never add UPDATE or DELETE routes for `audit_log`; call `writeAudit()` from `utils/audit.js` after every write action on member data
@@ -239,7 +258,7 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - **Notes card on member profile** — gated by `canWrite && member.notes` (not `currentUser.role === 'admin'`); super_admin users also see notes.
 - **Calendar event indicators** — dashboard calendar cells use `.pta-cal-strip` (colored titled strips, not dots); up to 2 strips stacked per day; colors assigned by `CAL_COLORS[event.id % 8]`; "+N more" strip when >2 events. Cells with events get `.has-events` class (light blue tint, bold number). "New Event" button in dashboard is guarded for `canWrite` OR management positions. On mobile (≤640px) `renderAgendaMobile()` builds a `.pta-agenda` list view from `_calEvents` grouped by day; clicking an item calls `selectDay()`.
 - **NIA fetch-error retry** — when the NIA photo fetch fails, a "Try again" button is shown in `member-detail.ejs` that re-runs `loadCaptcha()` without a page reload.
-- **NIA fetch blocked for APRC/TW Passport** — `is_aprc=1` or `is_tw_passport=1` members show an info note instead of the fetch button; the captcha and fetch routes also check and return a descriptive error if called directly.
+- **NIA fetch blocked for APRC/TW Passport/TW ID** — `is_aprc=1`, `is_tw_passport=1`, or `is_tw_id=1` members show an info note instead of the fetch button; the captcha and fetch routes also check and return a descriptive error if called directly.
 - **File Vault** — Public Vault: any logged-in member can view/download; admin/SA/management can upload. Administration Vault: admin/SA only. Delete: admin/SA only. Upload and delete are audited. Max 20 MB per file; allowed: PDF, images, Word, Excel, plain text.
 - **Members list Warnings column** — computed client-side from `m.arc_expiry_date`, `m.cc_expiry_date`, and `m.is_aprc`; APRC members skip the ARC expiry check. Multiple badges can stack in one cell. "No Warning" badge (success) when no issues.
 - **Members list ID Type column** — shows ARC / APRC (info tone) / TW Passport based on `is_aprc` and `is_tw_passport` flags.
@@ -269,6 +288,8 @@ Constraint change (requires full table recreation — see PROJECT.md § SQLite M
 
 ## Card OCR
 
+> OCR prompts revamped for all 7 doc types (ARC ✓ CC ✓ TW Passport ✓ TW ID ✓). Revamp principles: extract in document's own language, layout/format constraints, ROC→CE date conversion only.
+
 Implemented in `utils/ocr.js`. No OCR library — pure HTTPS call to OpenRouter vision API.
 
 ```javascript
@@ -279,7 +300,9 @@ const extracted = await scan('arc_front', '/abs/path/to/image.jpg');
 // → { ..., _conflicts: { arc_name_en: ['valA', 'valB'] } }
 ```
 
-Four doc types: `arc_front`, `arc_back`, `cc_front`, `cc_back`. Each has a distinct prompt in `PROMPTS`.
+Seven doc types: `arc_front`, `arc_back`, `cc_front`, `cc_back`, `tw_passport_front`, `tw_id_front`, `tw_id_back`. Each has a distinct prompt in `PROMPTS`.
+
+**Field extraction language rule**: fields are extracted in the document's own language — no translation. Only date format conversion (ROC→CE calendar) is permitted. `gender` is stored as `男`/`女` exactly as printed. This applies to TW Passport too.
 
 ### Dual-model parallel execution
 The first two active models run **in parallel**. Their results are merged:
@@ -313,6 +336,12 @@ Model IDs are validated against `MODEL_ID_RE = /^[a-zA-Z0-9_\-/:\.]{1,120}$/` on
 ### Post-processing
 - `arc_serial_number`: spaces stripped (models hallucinate a space between letter prefix and digits)
 - `arc_name_en`: prompts instruct models to reorder from ARC SURNAME-FIRST format to Western GIVEN-FIRST
+- `arc_chinese_name` (tw_id_front): spaces stripped (older TW ID cards have spaced characters, e.g. 莊 寅 彩 → 莊寅彩); "Apply to Form" splits first char → Last Name, remainder → First Name (Chinese family-name-first convention). Same split applies for `tw_passport_front`.
+- `arc_issue_date` (tw_id_front, arc_front): any office/reason suffix after the date (e.g. "(北市)補發", "換領") is discarded; ROC→CE conversion applied for TW ID; ARC uses YYYY/MM/DD → YYYY-MM-DD.
+- `arc_expiry_date` (arc_front): "永久" or "PERMANENT" is stored as "9999-12-31"
+- `address_zh` (tw_id_back): two address lines joined into one string
+- `date_of_birth`, `gender`: stored for ALL doc types (arc_front also extracts them); `gender` is 男/女 as printed
+- `birthplace_tw`: TW ID and TW Passport only; null for ARC/APRC/CC
 
 ### Model health (`super_admin` only)
 ```javascript

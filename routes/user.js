@@ -4,10 +4,31 @@ const fs = require('fs');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
+const Jimp = require('jimp');
 const db = require('../database/db');
 const { writeAudit } = require('../utils/audit');
+const { startOcrJob, getOcrJob } = require('../utils/ocr');
 const countries       = require('../utils/countries');
 const taiwanLocations = require('../utils/taiwan-districts');
+
+function fixFilename(name) {
+  return Buffer.from(name, 'latin1').toString('utf8');
+}
+
+async function generateThumb(srcPath, thumbPath) {
+  const img = await Jimp.read(srcPath);
+  await img.resize(300, Jimp.AUTO).writeAsync(thumbPath);
+}
+
+const CARD_TYPES = ['arc_front', 'arc_back', 'cc_front', 'cc_back', 'tw_passport_front', 'tw_id_front', 'tw_id_back'];
+
+const cardUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter(req, file, cb) {
+    cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype));
+  },
+});
 
 const router = express.Router();
 
@@ -85,8 +106,8 @@ router.get('/', (req, res) => {
 router.get('/edit', (req, res) => {
   const member = getOwnMember(req.session.userId);
   if (!member) return res.redirect('/profile');
-
-  res.render('user/profile-edit', { title: 'Edit Profile', member, errors: [], countries, taiwanLocations });
+  const documents = db.prepare(`SELECT * FROM documents WHERE member_id = ? ORDER BY uploaded_at DESC`).all(member.id);
+  res.render('user/profile-edit', { title: 'Edit Profile', member, errors: [], countries, taiwanLocations, documents });
 });
 
 // --- Update own profile ---
@@ -102,7 +123,7 @@ router.post('/', photoUpload.single('photo'), (req, res) => {
     city_zh, district_zh, district_en, address_zh,
     current_password, new_password,
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
-    passport_number, arc_serial_number,
+    passport_number, arc_serial_number, tw_id_number, date_of_birth, gender, birthplace_tw,
     cc_number, cc_expiry_date, nif, niss,
   } = req.body;
   const errors = [];
@@ -122,12 +143,14 @@ router.post('/', photoUpload.single('photo'), (req, res) => {
 
   if (errors.length) {
     if (req.file) fs.unlinkSync(req.file.path);
+    const documents = db.prepare(`SELECT * FROM documents WHERE member_id = ? ORDER BY uploaded_at DESC`).all(member.id);
     return res.render('user/profile-edit', {
       title: 'Edit Profile',
       member: { ...member, ...req.body },
       errors,
       countries,
       taiwanLocations,
+      documents,
     });
   }
 
@@ -155,7 +178,8 @@ router.post('/', photoUpload.single('photo'), (req, res) => {
         city_zh=?, district_zh=?, district_en=?, address_zh=?,
         photo_path=?,
         arc_number=?, arc_name_en=?, arc_chinese_name=?, arc_issue_date=?, arc_expiry_date=?,
-        passport_number=?, arc_serial_number=?,
+        passport_number=?, arc_serial_number=?, tw_id_number=?,
+        date_of_birth=?, gender=?, birthplace_tw=?,
         cc_number=?, cc_expiry_date=?, nif=?, niss=?,
         updated_at=datetime('now')
       WHERE user_id=?
@@ -167,6 +191,10 @@ router.post('/', photoUpload.single('photo'), (req, res) => {
       arc_number || null, arc_name_en || null, arc_chinese_name || null,
       arc_issue_date || null, arc_expiry_date || null,
       passport_number || null, arc_serial_number || null,
+      (member.is_tw_id || member.is_tw_passport) ? (tw_id_number || null) : member.tw_id_number,
+      date_of_birth || null,
+      gender || null,
+      (member.is_tw_id || member.is_tw_passport) ? (birthplace_tw || null) : member.birthplace_tw,
       cc_number || null, cc_expiry_date || null, nif || null, niss || null,
       req.session.userId
     );
@@ -280,6 +308,72 @@ router.post('/invites/:id/respond', (req, res) => {
     `UPDATE event_invites SET status = ?, responded_at = datetime('now') WHERE id = ?`
   ).run(action, req.params.id);
   res.json({ ok: true, status: action });
+});
+
+// --- Upload own card document (AJAX) + auto-OCR ---
+
+router.post('/documents/card', cardUpload.single('image'), async (req, res) => {
+  const member = getOwnMember(req.session.userId);
+  if (!member) return res.status(403).json({ error: 'Unauthorized.' });
+  if (!req.file) return res.status(400).json({ error: 'No image uploaded.' });
+
+  const docType = req.body.doc_type;
+  if (!CARD_TYPES.includes(docType)) return res.status(400).json({ error: 'Invalid card type.' });
+
+  const ext          = path.extname(req.file.originalname).toLowerCase() || '.jpg';
+  const filename     = `${Date.now()}-${uuidv4()}${ext}`;
+  const filePath     = path.join('uploads', 'documents', filename);
+  const thumbRelPath = path.join('uploads', 'thumbs', `thumb-${filename}`);
+  const absFilePath  = path.join(process.cwd(), filePath);
+  const absThumbPath = path.join(process.cwd(), thumbRelPath);
+
+  try {
+    fs.writeFileSync(absFilePath, req.file.buffer);
+
+    let thumbPath = null;
+    try { await generateThumb(absFilePath, absThumbPath); thumbPath = thumbRelPath; } catch (_) {}
+
+    const existing = db.prepare('SELECT * FROM documents WHERE member_id = ? AND doc_type = ?').get(member.id, docType);
+    if (existing) {
+      const oldFile = path.join(process.cwd(), existing.file_path);
+      if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
+      if (existing.thumb_path) {
+        const oldThumb = path.join(process.cwd(), existing.thumb_path);
+        if (fs.existsSync(oldThumb)) fs.unlinkSync(oldThumb);
+      }
+      db.prepare('DELETE FROM documents WHERE id = ?').run(existing.id);
+    }
+
+    const insertRes = db.prepare(`
+      INSERT INTO documents (member_id, file_path, original_name, mime_type, doc_type, thumb_path)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(member.id, filePath, fixFilename(req.file.originalname), req.file.mimetype, docType, thumbPath);
+
+    const docId = insertRes.lastInsertRowid;
+    writeAudit(req.session.userId, member.email, member.id,
+               `${member.member_id} ${member.first_name} ${member.last_name}`,
+               'member.card_uploaded', docType);
+
+    res.json({ ok: true, docId, thumbPath, ocrPending: true });
+    startOcrJob(docId, docType, absFilePath);
+  } catch (err) {
+    try { fs.unlinkSync(absFilePath); } catch (_) {}
+    try { fs.unlinkSync(absThumbPath); } catch (_) {}
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Poll OCR status for own document ---
+
+router.get('/documents/:docId/ocr-status', (req, res) => {
+  const member = getOwnMember(req.session.userId);
+  if (!member) return res.status(403).json({ error: 'Unauthorized.' });
+  const docId = parseInt(req.params.docId, 10);
+  const doc   = db.prepare('SELECT id FROM documents WHERE id = ? AND member_id = ?').get(docId, member.id);
+  if (!doc) return res.status(404).json({ error: 'Document not found.' });
+  const cached = getOcrJob(docId);
+  if (!cached) return res.json({ done: false, notFound: true });
+  res.json(cached);
 });
 
 // --- Download own document ---

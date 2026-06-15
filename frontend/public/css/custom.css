@@ -15,3 +15,23 @@
    avatar tint, and stat tile. */
 .bg-honorary  { background-color: var(--violet-500) !important; }
 .text-honorary { color: var(--violet-500) !important; }
+
+/* OCR status mini-log shown inside the scanning modal */
+.pta-minilog {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: .76rem;
+  line-height: 1.55;
+  background: #f4f5f7;
+  border: 1px solid #dee2e6;
+  border-radius: .375rem;
+  padding: .45rem .7rem;
+  max-height: 130px;
+  min-height: 2.5rem;
+  overflow-y: auto;
+}
+.pta-minilog__line { display: flex; align-items: flex-start; gap: .45rem; }
+.pta-minilog__icon { flex-shrink: 0; width: 1.1em; text-align: center; }
+.pta-minilog__line--ok    { color: #1a6e30; }
+.pta-minilog__line--warn  { color: #7a4f00; }
+.pta-minilog__line--error { color: #842029; }
+.pta-minilog__line--info  { color: #444; }

@@ -6,7 +6,7 @@ A membership management web application for a Portuguese-Taiwanese association. 
 
 ---
 
-## Current Status (as of 2026-06-13)
+## Current Status (as of 2026-06-15)
 
 ### Done
 - Full Node.js + Express backend with SQLite embedded database
@@ -52,13 +52,17 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - **File Vault** — two-section document vault: Public (all members can view/download; admin/SA/management can upload) and Administration (admin/SA only); dashboard cards for upload + manage; `/vault` member page; all actions audited; files stored under `uploads/vault/{section}/`
 - **Design System R4** — responsive shell: fluid `.pta-main`, mobile bottom tab nav (`.pta-nav` transforms to fixed bottom bar at ≤768px), copper/charcoal login, mobile calendar agenda (`.pta-agenda` / `renderAgendaMobile()`), `pta-table-wrap` on dashboard tables, profile single-scroll layout (`profile-layout` CSS grid, Bootstrap tabs removed), audit log DS upgrade (pta-pagehead + pta-badge tones + pta-card wrappers); charcoal topbar `#313131`; brand "Associação Cultural Portuguesa / na Formosa"; emblem updated to `logo-emblem.png`
 - **Version V1.8** — Cookie-based EN/PT/ZH-TW language switcher (zero-dependency i18n middleware, `locales/` JSON files, `.pta-langsw` DS component); security: open-redirect hardening on `/lang/:code`
+- **TW National ID support** — 4-way doc type selector (ARC / APRC / TW Passport / TW National ID); `is_tw_id` flag + `tw_id_number` dedicated column; NIA fetch blocked; ID Type column shows "TW National ID"
+- **OCR on edit page** — card upload + OCR moved from member-detail (read-only) to member-edit; members can also OCR their own cards on `/profile/edit`; "Apply to Form" fills inputs client-side (no server round-trip); card slot updates preview immediately after upload via `URL.createObjectURL()` without waiting for page reload
+- **TW ID OCR revamp** — improved prompts for `tw_id_front` (5 fields: `tw_id_number`, `arc_chinese_name`, `date_of_birth`, `gender`, `arc_issue_date`) and `tw_id_back` (2 fields: `address_zh`, `birthplace_tw`); fields extracted in original language — no translation (gender stored as 男/女); ROC→CE date conversion; new DB columns `date_of_birth`, `gender`, `birthplace_tw`; Chinese name auto-splits to `last_name` / `first_name` on apply (first char = surname)
+- **TW Passport OCR revamp** — improved prompt for `tw_passport_front` (9 fields: `passport_number`, `tw_id_number`, `arc_name_en`, `arc_chinese_name`, `date_of_birth`, `gender`, `arc_issue_date`, `arc_expiry_date`, `birthplace_tw`); gender stored as 男/女 (no translation); Chinese name auto-splits on apply same as TW ID; `date_of_birth`, `gender`, `birthplace_tw` shown in form and stored for both `is_tw_passport` and `is_tw_id` holders; `tw_id_number` (統一編號) shown and stored for both
+- **Version V1.9** — Extended name suggestion banners (English contextual for ARC/Passport + Chinese name from TW ID/Passport); Chinese name + member ID subtitle on member-edit heading; Export Data feature (admin/SA only) at `/admin/export` — selectable scope (all / specific members), ZIP output with 31-column XLSX spreadsheet + per-member document folders, server-side background job with live progress bar; jimp upgraded to v1.6.1 (security fix); `archiver` + `exceljs` added as dependencies
 
 ### Not Yet Built
 - Email notifications to members
 - SMS notifications to members
 - Self-service password reset (forgot password email flow)
 - Member-facing document upload
-- Export / reporting features
 
 ### Calendar & Notifications — Planned Extensions
 
@@ -111,6 +115,9 @@ PT ASSOCIACAO/
 │   │                             Exports: scan, checkModels, getModelWarnings, dismissModelWarning,
 │   │                                      getActiveModels, setActiveModels, testModel,
 │   │                                      getModelTimeout, setModelTimeout
+│   ├── export.js                 Data export — startExportJob(members, docsMap) → jobId; getExportJob(jobId);
+│   │                             deleteExportJob(jobId); builds 31-column XLSX + ZIP with per-member doc folders
+│   │                             Temp ZIPs written to uploads/tmp/; orphan cleanup runs at module load
 │   ├── i18n.js                   Zero-dependency i18n middleware — reads lang cookie, caches locale JSON,
 │   │                             attaches t(dot.key) + lang to res.locals on every request
 │   ├── audit.js                  writeAudit(...) — append-only, 2000-row cap, atomic trim
@@ -136,7 +143,9 @@ PT ASSOCIACAO/
 │   │   │   ├── members-list.ejs  Search + fee filter + sort dropdown + Warnings column + ID Type column
 │   │   │   ├── member-detail.ejs APRC/TW Passport display; NIA blocked message for non-ARC
 │   │   │   ├── member-new.ejs    New member form
-│   │   │   ├── member-edit.ejs   Edit member form
+│   │   │   ├── member-edit.ejs   Edit member form; heading subtitle shows arc_chinese_name + member_id
+│   │   │   ├── export.ejs        Export Data page — scope radio (all/specific) + member typeahead + chips;
+│   │   │   │                     progress card with live bar + download button; admin/SA only
 │   │   │   └── audit-log.ejs     Paginated audit log (admin+ only)
 │   │   └── user/
 │   │       ├── profile.ejs       Own profile — single-scroll layout (no tabs); profile-layout CSS grid; notifications at #notifications anchor; public vault files table at bottom
@@ -158,6 +167,7 @@ PT ASSOCIACAO/
 │   ├── photos/                   Member photos — served via authenticated route only
 │   ├── documents/                Card images + misc documents
 │   ├── thumbs/                   Card image thumbnails — authenticated route only
+│   ├── tmp/                      Temporary export ZIPs (export_*.zip); auto-deleted after download or on restart
 │   └── vault/
 │       ├── public/               Public vault files — any authenticated user can download
 │       └── admin/                Admin vault files — admin/SA only
@@ -222,6 +232,11 @@ On cPanel hosting, set `OPENROUTER_API_KEY`, `SESSION_SECRET`, and `NODE_ENV=pro
 | arc_serial_number | TEXT | Reference number next to barcode on ARC back |
 | is_aprc | INTEGER | 1 = permanent resident; no expiry shown; NIA fetch blocked |
 | is_tw_passport | INTEGER | 1 = Taiwan Passport as primary ID; expiry tracked via arc_expiry_date |
+| is_tw_id | INTEGER | 1 = Taiwan National ID as primary ID; no expiry; NIA fetch blocked |
+| tw_id_number | TEXT | 統一編號 — 1 letter + 9 digits (e.g. `U220596267`); TW ID and TW Passport holders |
+| date_of_birth | TEXT | ISO date — extracted from TW ID front (出生年月日, ROC→CE converted) |
+| gender | TEXT | 男 / 女 — stored as Chinese character exactly as printed on TW ID |
+| birthplace_tw | TEXT | Chinese location string from TW ID back (出生地, e.g. 臺灣省花蓮縣) |
 | cc_number | TEXT | Portuguese Cartão de Cidadão number |
 | cc_issue_date | TEXT | Dormant — not shown in UI |
 | cc_expiry_date | TEXT | ISO date |
@@ -237,7 +252,7 @@ On cPanel hosting, set `OPENROUTER_API_KEY`, `SESSION_SECRET`, and `NODE_ENV=pro
 | file_path | TEXT | Relative: `uploads/documents/<file>` |
 | original_name | TEXT | Shown on download; stored after `fixFilename()` UTF-8 re-encoding |
 | mime_type | TEXT | |
-| doc_type | TEXT | `arc_front` / `arc_back` / `cc_front` / `cc_back` / `misc` |
+| doc_type | TEXT | `arc_front` / `arc_back` / `cc_front` / `cc_back` / `tw_passport_front` / `tw_id_front` / `tw_id_back` / `misc` |
 | thumb_path | TEXT | Nullable: `uploads/thumbs/<file>` |
 | uploaded_at | TEXT | ISO-8601 datetime |
 
@@ -428,6 +443,11 @@ canUploadVault(user)            // returns true for admin/SA/all management posi
 | POST | `/admin/settings/fee` | superAdminOnly | Save default annual fee |
 | POST | `/admin/settings/models` | superAdminOnly | Save OCR model list + timeout |
 | GET | `/admin/audit` | adminOnly | Audit log (paginated) |
+| GET | `/admin/export` | adminOnly | Export Data page |
+| GET | `/admin/export/search` | adminOnly | Typeahead JSON for member search (q ≥ 2 chars) |
+| POST | `/admin/export` | adminOnly | Start export job; returns `{ jobId }` |
+| GET | `/admin/export/status/:jobId` | adminOnly | Poll job state `{ progress, total, stage, done, error }` |
+| GET | `/admin/export/download/:jobId` | adminOnly | Stream ZIP; deletes file + job after close |
 | POST | `/admin/vault/upload` | requireAuth + guard | Upload to vault (section in body); public = canUploadVault; admin = canWrite |
 | GET | `/admin/vault/files/:id` | requireAuth + guard | Download vault file (admin section needs admin/SA/management) |
 | POST | `/admin/vault/files/:id/delete` | canWrite | Delete vault file |
@@ -455,13 +475,28 @@ canUploadVault(user)            // returns true for admin/SA/all management posi
 
 ## Card OCR Feature
 
+> OCR prompts revamped for all 7 doc types. ARC ✓ CC ✓ TW Passport ✓ TW ID ✓.
+> Revamp principles: extract fields in the language they appear on the document (no translation); constrain the model with field location hints and format rules; ROC→CE date conversion is the only allowed processing.
+
 ### Card Types and Fields
 | doc_type | Fields extracted |
 |----------|-----------------|
-| `arc_front` | `arc_number`, `arc_name_en`, `arc_chinese_name`, `arc_issue_date`, `arc_expiry_date`, `passport_number`, `address_zh` |
-| `arc_back` | `arc_serial_number` |
-| `cc_front` | `cc_number`, `cc_expiry_date` |
-| `cc_back` | `nif`, `niss` |
+| `arc_front` ✓ | `arc_number`, `arc_chinese_name`, `arc_name_en`, `gender`, `date_of_birth`, `arc_issue_date`, `arc_expiry_date`, `passport_number`, `address_zh` |
+| `arc_back` ✓ | `arc_serial_number` |
+| `cc_front` ✓ | `cc_number`, `cc_expiry_date` |
+| `cc_back` ✓ | `nif`, `niss` |
+| `tw_passport_front` ✓ | `passport_number`, `tw_id_number`, `arc_name_en`, `arc_chinese_name`, `date_of_birth`, `gender`, `arc_issue_date`, `arc_expiry_date`, `birthplace_tw` |
+| `tw_id_front` ✓ | `tw_id_number`, `arc_chinese_name`, `date_of_birth`, `gender`, `arc_issue_date` |
+| `tw_id_back` ✓ | `address_zh`, `birthplace_tw` |
+
+**TW ID prompt notes:**
+- `tw_id_number` — printed in RED at bottom-right; 1 uppercase letter (county code) + 9 digits, no spaces
+- `arc_chinese_name` — spaces stripped (older cards space each character); stored as continuous string
+- `date_of_birth` — 出生年月日; ROC year + 1911 = CE year; YYYY-MM-DD
+- `gender` — 性別; returned as Chinese character exactly as printed: `男` or `女`; never translated to English
+- `arc_issue_date` — 發證日期; suffix like `(北市)補發` discarded; ROC→CE
+- `address_zh` (back) — 住址; two printed lines joined into one string
+- `birthplace_tw` (back) — 出生地; Chinese location string as-is
 
 ### Implementation (`utils/ocr.js`)
 - Pure HTTP to OpenRouter `/api/v1/chat/completions`
@@ -663,12 +698,27 @@ ARC/ID card:
 #### `admin/member-new.ejs` / `admin/member-edit.ejs`
 Use `partials/member-form.ejs`. Variables include `defaultFee`.
 
+`member-edit.ejs` heading: shows `arc_chinese_name` + `.pta-id` member_id as a subtitle line when `arc_chinese_name` is present.
+
 `partials/member-form.ejs` ARC section:
 - `.pta-seg` segmented control with `btn-check` hidden radio inputs: ARC / APRC / TW Passport
 - Icons: `bi-credit-card-fill` (ARC), `bi-shield-fill-check` (APRC), `bi-passport-fill` (TW Passport)
 - APRC label has no "(Permanent)" suffix — implied by the acronym
 - `arcDocTypeChanged()` JS toggles: expiry label, passport label, APRC permanent badge visibility
 - Selected type submitted as `residence_doc_type` → server derives `is_aprc` and `is_tw_passport`
+
+`partials/member-form.ejs` name suggestion banners (Personal Info section):
+- **English name banner** (`alert-info`, `bi-person-vcard`): shown when `arc_name_en` differs from stored `first_name + last_name`; label switches between ARC and Passport wording based on `residence_doc_type === 'tw_passport'`; button fills `#input_first_name` / `#input_last_name` via `data-arc-first` / `data-arc-last` attributes
+- **Chinese name banner** (`alert-secondary`, `bi-translate`): shown when `arc_chinese_name` split result (first char = family name → `last_name`; rest = given name → `first_name`) differs from stored name; button fills inputs via `data-zh-first` / `data-zh-last` attributes
+- All banner variables are block-scoped inside their `if` blocks to avoid conflict with `const _docType` declared later in the ARC section
+
+#### `admin/export.ejs`
+Variables: none (all data fetched client-side via fetch API).
+
+- Scope radio: All Members / Specific Members
+- When "Specific" selected: `.pta-search` typeahead (debounced 280ms, min 2 chars) builds a chip list of selected members; chips removable
+- Generate button POSTs to `/admin/export`, receives `jobId`, begins polling `/admin/export/status/:jobId` every 750ms
+- Progress card (hidden until job starts): Bootstrap progress bar + stage label; on completion shows download link to `/admin/export/download/:jobId`; on error shows message in red
 
 #### `user/profile.ejs`
 Single-scroll layout — no Bootstrap tabs. Variables: `member`, `documents[]`, `invites[]`, `feeReminder`, `vaultFiles[]`.
@@ -701,6 +751,11 @@ Table: filename + size | description | uploader name | date | download button. E
 | `better-sqlite3-session-store` | Sessions in same SQLite file |
 | `multer ^2.x` | Security fixes vs 1.x |
 | `uuid ^11.x` | Modern ESM-compatible |
+| `jimp ^1.x` | Pure JS image resize (v0.x had a `file-type` vuln); named export `{ Jimp }`, `fromFile()` API |
+| `archiver ^7.x` | Pure JS ZIP builder — no native compile; used by export feature |
+| `exceljs ^4.x` | Pure JS XLSX writer — no native compile; used by export feature |
+
+**npm overrides**: `exceljs` bundles an old `uuid@8`; overridden to `^11.1.1` in `package.json` `overrides` field to avoid the uuid buffer-bounds CVE.
 
 ### Common Dev Issues
 - **Port 3000 EADDRINUSE** → `Get-Process node | Stop-Process -Force`

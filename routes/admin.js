@@ -10,12 +10,13 @@ function fixFilename(name) {
   return Buffer.from(name, 'latin1').toString('utf8');
 }
 const bcrypt = require('bcryptjs');
-const Jimp = require('jimp');
+const { Jimp } = require('jimp');
 const db = require('../database/db');
 const { computeFeeStatus } = require('../utils/fee');
-const { scan: ocrScan, checkModels, getModelWarnings, dismissModelWarning, getActiveModels, setActiveModels, testModel: ocrTestModel, getModelTimeout, setModelTimeout } = require('../utils/ocr');
+const { scan: ocrScan, checkModels, getModelWarnings, dismissModelWarning, getActiveModels, setActiveModels, testModel: ocrTestModel, getModelTimeout, setModelTimeout, startOcrJob, getOcrJob } = require('../utils/ocr');
 const { getLogs, subscribe: logSubscribe } = require('../utils/logstream');
 const { writeAudit } = require('../utils/audit');
+const { startExportJob, getExportJob, deleteExportJob } = require('../utils/export');
 const countries        = require('../utils/countries');
 const taiwanLocations  = require('../utils/taiwan-districts');
 
@@ -48,14 +49,6 @@ function setSetting(key, value) {
   if (savedTimeout) setModelTimeout(parseInt(savedTimeout, 10));
 }
 
-// --- OCR background result cache (keyed by document DB id) ---
-// Entries expire after 10 minutes. This decouples OCR from the HTTP request
-// lifecycle so cPanel's proxy timeout can't drop the result.
-const ocrCache = new Map();
-function ocrCacheSet(docId, value) {
-  ocrCache.set(docId, value);
-  setTimeout(() => ocrCache.delete(docId), 10 * 60 * 1000);
-}
 
 // --- NIA ARC photo sessions (keyed by short-lived token) ---
 
@@ -123,7 +116,7 @@ const cardUpload = multer({
   },
 });
 
-const CARD_TYPES = ['arc_front', 'arc_back', 'cc_front', 'cc_back'];
+const CARD_TYPES = ['arc_front', 'arc_back', 'cc_front', 'cc_back', 'tw_passport_front', 'tw_id_front', 'tw_id_back'];
 
 const vaultStorage = multer.diskStorage({
   destination(req, file, cb) {
@@ -156,8 +149,9 @@ const vaultUpload = multer({
 
 // Generate a 300-wide thumbnail (non-fatal if it fails)
 async function generateThumb(srcPath, thumbPath) {
-  const img = await Jimp.read(srcPath);
-  await img.resize(300, Jimp.AUTO).writeAsync(thumbPath);
+  const img = await Jimp.fromFile(srcPath);
+  img.resize({ w: 300 });
+  await img.write(thumbPath);
 }
 
 // --- Role guards (inline middleware for this router) ---
@@ -241,11 +235,11 @@ router.get('/', (req, res) => {
            m.fee_status, m.arc_expiry_date, m.cc_expiry_date,
            u.position,
            CASE WHEN u.position != 'honorary' AND m.fee_status = 'unpaid' THEN 1 ELSE 0 END as warn_fee,
-           CASE WHEN m.is_aprc = 0 AND m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days') THEN 1 ELSE 0 END as warn_arc,
+           CASE WHEN m.is_aprc = 0 AND m.is_tw_id = 0 AND m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days') THEN 1 ELSE 0 END as warn_arc,
            CASE WHEN m.cc_expiry_date  IS NOT NULL AND date(m.cc_expiry_date)  <= date('now', '+60 days') THEN 1 ELSE 0 END as warn_cc
     FROM members m JOIN users u ON u.id = m.user_id
     WHERE (u.position != 'honorary' AND m.fee_status = 'unpaid')
-       OR (m.is_aprc = 0 AND m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days'))
+       OR (m.is_aprc = 0 AND m.is_tw_id = 0 AND m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days'))
        OR (m.cc_expiry_date  IS NOT NULL AND date(m.cc_expiry_date)  <= date('now', '+60 days'))
     ORDER BY
       CASE WHEN date(m.arc_expiry_date) < date('now') OR date(m.cc_expiry_date) < date('now') THEN 0 ELSE 1 END,
@@ -443,12 +437,14 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
     notes,
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number,
+    tw_id_number, date_of_birth, gender, birthplace_tw,
     cc_number, cc_expiry_date, nif, niss,
     residence_doc_type,
   } = req.body;
 
-  const is_aprc       = residence_doc_type === 'aprc'       ? 1 : 0;
+  const is_aprc        = residence_doc_type === 'aprc'        ? 1 : 0;
   const is_tw_passport = residence_doc_type === 'tw_passport' ? 1 : 0;
+  const is_tw_id       = residence_doc_type === 'tw_id'       ? 1 : 0;
 
   const errors = [];
   if (!first_name) errors.push('First name is required.');
@@ -492,8 +488,9 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
          notes, photo_path,
          arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
          passport_number, arc_serial_number,
-         cc_number, cc_expiry_date, nif, niss, is_aprc, is_tw_passport)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         cc_number, cc_expiry_date, nif, niss, is_aprc, is_tw_passport, is_tw_id, tw_id_number,
+         date_of_birth, gender, birthplace_tw)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       userRes.lastInsertRowid, memberId,
       first_name, last_name, phone,
@@ -503,11 +500,17 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
       parseInt(fee_amount, 10) >= 0 ? parseInt(fee_amount, 10) : 300,
       fee_last_paid || null, feeValidUntil, feeStatus,
       notes || null, photoPath,
-      arc_number || null, arc_name_en || null, arc_chinese_name || null,
-      arc_issue_date || null, is_aprc ? null : (arc_expiry_date || null),
-      passport_number || null, arc_serial_number || null,
+      (is_tw_id || is_tw_passport) ? null : (arc_number || null),
+      is_tw_id ? null : (arc_name_en || null),
+      arc_chinese_name || null,
+      arc_issue_date || null, (is_aprc || is_tw_id) ? null : (arc_expiry_date || null),
+      is_tw_id ? null : (passport_number || null),
+      (is_tw_passport || is_tw_id) ? null : (arc_serial_number || null),
       cc_number || null, cc_expiry_date || null, nif || null, niss || null,
-      is_aprc, is_tw_passport
+      is_aprc, is_tw_passport, is_tw_id, (is_tw_id || is_tw_passport) ? (tw_id_number || null) : null,
+      date_of_birth || null,
+      gender || null,
+      (is_tw_id || is_tw_passport) ? (birthplace_tw || null) : null
     );
 
   });
@@ -549,7 +552,8 @@ router.get('/members/:id/edit', adminOnly, (req, res) => {
   if (!member) return res.status(404).render('404', { title: 'Not Found' });
 
   const defaultFee = parseInt(getSetting('default_fee_amount', '300'), 10);
-  res.render('admin/member-edit', { title: 'Edit Member', member, errors: [], countries, taiwanLocations, defaultFee });
+  const documents = db.prepare(`SELECT * FROM documents WHERE member_id = ? ORDER BY uploaded_at DESC`).all(member.id);
+  res.render('admin/member-edit', { title: 'Edit Member', member, errors: [], countries, taiwanLocations, defaultFee, documents });
 });
 
 // --- Update member ---
@@ -572,12 +576,14 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
     notes,
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number,
+    tw_id_number, date_of_birth, gender, birthplace_tw,
     cc_number, cc_expiry_date, nif, niss,
     residence_doc_type,
   } = req.body;
 
   const is_aprc        = residence_doc_type === 'aprc'        ? 1 : 0;
   const is_tw_passport = residence_doc_type === 'tw_passport' ? 1 : 0;
+  const is_tw_id       = residence_doc_type === 'tw_id'       ? 1 : 0;
 
   const errors = [];
   if (!first_name) errors.push('First name is required.');
@@ -598,6 +604,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
       countries,
       taiwanLocations,
       defaultFee: parseInt(getSetting('default_fee_amount', '300'), 10),
+      documents: db.prepare(`SELECT * FROM documents WHERE member_id = ? ORDER BY uploaded_at DESC`).all(member.id),
     });
   }
 
@@ -634,7 +641,8 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
         arc_number=?, arc_name_en=?, arc_chinese_name=?, arc_issue_date=?, arc_expiry_date=?,
         passport_number=?, arc_serial_number=?,
         cc_number=?, cc_expiry_date=?, nif=?, niss=?,
-        is_aprc=?, is_tw_passport=?,
+        is_aprc=?, is_tw_passport=?, is_tw_id=?, tw_id_number=?,
+        date_of_birth=?, gender=?, birthplace_tw=?,
         updated_at=datetime('now')
       WHERE id=?
     `).run(
@@ -644,11 +652,17 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
       join_date,
       parseInt(fee_amount, 10) >= 0 ? parseInt(fee_amount, 10) : 300, fee_last_paid || null, feeValidUntil, feeStatus,
       notes || null, photoPath,
-      arc_number || null, arc_name_en || null, arc_chinese_name || null,
-      arc_issue_date || null, is_aprc ? null : (arc_expiry_date || null),
-      passport_number || null, arc_serial_number || null,
+      (is_tw_id || is_tw_passport) ? null : (arc_number || null),
+      is_tw_id ? null : (arc_name_en || null),
+      arc_chinese_name || null,
+      arc_issue_date || null, (is_aprc || is_tw_id) ? null : (arc_expiry_date || null),
+      is_tw_id ? null : (passport_number || null),
+      (is_tw_passport || is_tw_id) ? null : (arc_serial_number || null),
       cc_number || null, cc_expiry_date || null, nif || null, niss || null,
-      is_aprc, is_tw_passport,
+      is_aprc, is_tw_passport, is_tw_id, (is_tw_id || is_tw_passport) ? (tw_id_number || null) : null,
+      date_of_birth || null,
+      gender || null,
+      (is_tw_id || is_tw_passport) ? (birthplace_tw || null) : null,
       member.id
     );
   });
@@ -777,12 +791,8 @@ router.post('/members/:id/documents/card', adminOnly, cardUpload.single('image')
 
     // Respond immediately — OCR runs in the background so the cPanel proxy
     // timeout can't drop the result before it reaches the browser.
-    ocrCache.set(docId, { pending: true });
     res.json({ ok: true, docId, thumbPath, ocrPending: true });
-
-    ocrScan(docType, absFilePath)
-      .then(extracted => ocrCacheSet(docId, { done: true, extracted }))
-      .catch(e       => ocrCacheSet(docId, { done: true, extracted: { _ocrError: e.message } }));
+    startOcrJob(docId, docType, absFilePath);
   } catch (err) {
     try { fs.unlinkSync(absFilePath); } catch (_) {}
     try { fs.unlinkSync(absThumbPath); } catch (_) {}
@@ -890,19 +900,15 @@ router.post('/members/:id/documents/:docId/ocr', adminOnly, async (req, res) => 
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File missing from server.' });
 
   const docId = doc.id;
-  ocrCache.set(docId, { pending: true });
   res.json({ ok: true, docId, ocrPending: true });
-
-  ocrScan(doc.doc_type, filePath)
-    .then(extracted => ocrCacheSet(docId, { done: true, extracted }))
-    .catch(e       => ocrCacheSet(docId, { done: true, extracted: { _ocrError: e.message } }));
+  startOcrJob(docId, doc.doc_type, filePath);
 });
 
 // --- OCR polling endpoint ---
 
 router.get('/members/:id/documents/:docId/ocr-status', adminOnly, (req, res) => {
   const docId  = parseInt(req.params.docId, 10);
-  const cached = ocrCache.get(docId);
+  const cached = getOcrJob(docId);
   if (!cached) return res.json({ done: false, notFound: true });
   res.json(cached);
 });
@@ -915,8 +921,9 @@ router.post('/members/:id/apply-card-fields', adminOnly, (req, res) => {
 
   const ALLOWED = [
     'arc_number', 'arc_name_en', 'arc_chinese_name', 'arc_issue_date', 'arc_expiry_date',
-    'arc_serial_number', 'passport_number', 'address_zh',
+    'arc_serial_number', 'passport_number', 'tw_id_number', 'address_zh',
     'cc_number', 'cc_expiry_date', 'nif', 'niss',
+    'date_of_birth', 'gender', 'birthplace_tw',
   ];
   const sets = [];
   const params = [];
@@ -942,7 +949,7 @@ router.post('/members/:id/apply-card-fields', adminOnly, (req, res) => {
 
 router.get('/members/:id/arc-captcha', adminOnly, async (req, res) => {
   const member = db.prepare(
-    'SELECT arc_number, arc_issue_date, arc_expiry_date, arc_serial_number, is_aprc, is_tw_passport FROM members WHERE id = ?'
+    'SELECT arc_number, arc_issue_date, arc_expiry_date, arc_serial_number, is_aprc, is_tw_passport, is_tw_id FROM members WHERE id = ?'
   ).get(req.params.id);
   if (!member) return res.status(404).json({ error: 'Member not found.' });
 
@@ -954,6 +961,11 @@ router.get('/members/:id/arc-captcha', adminOnly, async (req, res) => {
   if (member.is_tw_passport) {
     return res.status(400).json({
       error: 'Taiwan Passport holders are not supported by the NIA photo fetch.'
+    });
+  }
+  if (member.is_tw_id) {
+    return res.status(400).json({
+      error: 'Taiwan National ID holders are not supported by the NIA photo fetch — NIA photo lookup is for foreign residents only.'
     });
   }
 
@@ -1250,6 +1262,97 @@ router.get('/audit', adminOnly, (req, res) => {
   const totalPages = Math.ceil(total / perPage);
 
   res.render('admin/audit-log', { title: 'Audit Log', logs, page, totalPages, total });
+});
+
+// --- Data export ---
+
+router.get('/export', adminOnly, (req, res) => {
+  res.render('admin/export', { title: 'Export Data', _navActive: 'export' });
+});
+
+router.get('/export/search', adminOnly, (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (q.length < 2) return res.json([]);
+  const like = `%${q}%`;
+  const rows = db.prepare(`
+    SELECT m.id, m.member_id, m.first_name, m.last_name, m.arc_name_en, m.arc_chinese_name
+    FROM members m
+    WHERE m.member_id LIKE ? OR m.first_name LIKE ? OR m.last_name LIKE ?
+       OR m.arc_name_en LIKE ? OR m.arc_chinese_name LIKE ?
+    LIMIT 12
+  `).all(like, like, like, like, like);
+  res.json(rows.map(r => ({
+    id:           r.id,
+    member_id:    r.member_id,
+    display_name: r.arc_name_en || `${r.first_name} ${r.last_name}`.trim(),
+    chinese_name: r.arc_chinese_name || '',
+  })));
+});
+
+router.post('/export', adminOnly, (req, res) => {
+  const { scope, memberIds } = req.body;
+
+  let members;
+  if (scope === 'all') {
+    members = db.prepare(`
+      SELECT m.*, u.email, u.role as user_role, u.position as user_position
+      FROM members m JOIN users u ON u.id = m.user_id
+      ORDER BY m.member_id
+    `).all();
+  } else {
+    const ids = (memberIds || '').split(',').map(s => parseInt(s, 10)).filter(n => !isNaN(n));
+    if (ids.length === 0) return res.status(400).json({ error: 'No members selected.' });
+    const ph = ids.map(() => '?').join(',');
+    members = db.prepare(`
+      SELECT m.*, u.email, u.role as user_role, u.position as user_position
+      FROM members m JOIN users u ON u.id = m.user_id
+      WHERE m.id IN (${ph}) ORDER BY m.member_id
+    `).all(...ids);
+  }
+
+  if (members.length === 0) return res.status(400).json({ error: 'No members found.' });
+
+  const mIds = members.map(m => m.id);
+  const ph   = mIds.map(() => '?').join(',');
+  const docs = db.prepare(`
+    SELECT id, member_id, doc_type, file_path, original_name, uploaded_at
+    FROM documents WHERE member_id IN (${ph}) ORDER BY member_id, doc_type
+  `).all(...mIds);
+
+  const documentsMap = {};
+  for (const d of docs) {
+    if (!documentsMap[d.member_id]) documentsMap[d.member_id] = [];
+    documentsMap[d.member_id].push(d);
+  }
+
+  const jobId = startExportJob(members, documentsMap);
+  res.json({ jobId });
+});
+
+router.get('/export/status/:jobId', adminOnly, (req, res) => {
+  const job = getExportJob(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job not found.' });
+  // Strip zipPath from client response
+  const { zipPath, ...safe } = job;
+  res.json(safe);
+});
+
+router.get('/export/download/:jobId', adminOnly, (req, res) => {
+  const job = getExportJob(req.params.jobId);
+  if (!job || !job.done || job.error || !job.zipPath) return res.status(404).send('Export not ready.');
+  if (!fs.existsSync(job.zipPath)) return res.status(404).send('File not found.');
+
+  const date     = new Date().toISOString().slice(0, 10);
+  const filename = `pt-associacao-export-${date}.zip`;
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+  const stream = fs.createReadStream(job.zipPath);
+  stream.pipe(res);
+  stream.on('close', () => {
+    try { fs.unlinkSync(job.zipPath); } catch (_) {}
+    deleteExportJob(req.params.jobId);
+  });
 });
 
 // --- Server log viewer + stream (SSE) — super_admin only ---
