@@ -221,6 +221,7 @@ router.get('/', (req, res) => {
     SELECT
       COUNT(*) as total,
       SUM(CASE WHEN u.position = 'honorary' THEN 1 ELSE 0 END) as honorary,
+      SUM(CASE WHEN u.position = 'associate' THEN 1 ELSE 0 END) as associate,
       SUM(CASE WHEN u.position != 'honorary' AND (m.fee_status='paid' OR m.fee_status='renewal_incoming') THEN 1 ELSE 0 END) as paid,
       SUM(CASE WHEN u.position != 'honorary' AND m.fee_status='unpaid' THEN 1 ELSE 0 END) as unpaid
     FROM members m JOIN users u ON u.id = m.user_id
@@ -233,13 +234,14 @@ router.get('/', (req, res) => {
   const warnings = db.prepare(`
     SELECT m.id, m.member_id, m.first_name, m.last_name, m.arc_name_en,
            m.fee_status, m.arc_expiry_date, m.cc_expiry_date,
+           m.is_aprc, m.is_tw_passport, m.is_tw_id,
            u.position,
            CASE WHEN u.position != 'honorary' AND m.fee_status = 'unpaid' THEN 1 ELSE 0 END as warn_fee,
-           CASE WHEN m.is_aprc = 0 AND m.is_tw_id = 0 AND m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days') THEN 1 ELSE 0 END as warn_arc,
+           CASE WHEN m.is_aprc = 0 AND m.is_tw_passport = 0 AND m.is_tw_id = 0 AND m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days') THEN 1 ELSE 0 END as warn_arc,
            CASE WHEN m.cc_expiry_date  IS NOT NULL AND date(m.cc_expiry_date)  <= date('now', '+60 days') THEN 1 ELSE 0 END as warn_cc
     FROM members m JOIN users u ON u.id = m.user_id
     WHERE (u.position != 'honorary' AND m.fee_status = 'unpaid')
-       OR (m.is_aprc = 0 AND m.is_tw_id = 0 AND m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days'))
+       OR (m.is_aprc = 0 AND m.is_tw_passport = 0 AND m.is_tw_id = 0 AND m.arc_expiry_date IS NOT NULL AND date(m.arc_expiry_date) <= date('now', '+60 days'))
        OR (m.cc_expiry_date  IS NOT NULL AND date(m.cc_expiry_date)  <= date('now', '+60 days'))
     ORDER BY
       CASE WHEN date(m.arc_expiry_date) < date('now') OR date(m.cc_expiry_date) < date('now') THEN 0 ELSE 1 END,
@@ -360,6 +362,7 @@ router.post('/events/:id/delete', calendarWriteGuard, (req, res) => {
 router.get('/members', (req, res) => {
   const search    = req.query.search || '';
   const feeFilter = req.query.fee    || '';
+  const posFilter = req.query.pos    || '';
   const sort      = req.query.sort   || 'name_az';
   const page      = Math.max(1, parseInt(req.query.page) || 1);
   const perPage   = 20;
@@ -375,6 +378,9 @@ router.get('/members', (req, res) => {
   };
   const orderBy = SORT_MAP[sort] || SORT_MAP.name_az;
 
+  const MGMT_POS = ['gestao', 'board', 'president', 'treasurer', 'secretary'];
+  const VALID_POS_FILTERS = ['member', 'associate', 'honorary', 'management'];
+
   let where = 'WHERE 1=1';
   const params = [];
 
@@ -386,6 +392,14 @@ router.get('/members', (req, res) => {
   if (feeFilter) {
     where += ` AND m.fee_status = ?`;
     params.push(feeFilter);
+  }
+  if (posFilter && VALID_POS_FILTERS.includes(posFilter)) {
+    if (posFilter === 'management') {
+      where += ` AND u.position IN ('gestao','board','president','treasurer','secretary')`;
+    } else {
+      where += ` AND u.position = ?`;
+      params.push(posFilter);
+    }
   }
 
   const total = db.prepare(
@@ -403,6 +417,7 @@ router.get('/members', (req, res) => {
     members,
     search,
     feeFilter,
+    posFilter,
     sort,
     page,
     totalPages,
@@ -1084,7 +1099,7 @@ router.post('/members/:id/change-role', superAdminOnly, (req, res) => {
   }
   const { role, position } = req.body;
   const VALID_ROLES     = ['super_admin', 'admin', 'member'];
-  const VALID_POSITIONS = ['member', 'honorary', 'gestao', 'board', 'president', 'treasurer', 'secretary'];
+  const VALID_POSITIONS = ['member', 'associate', 'honorary', 'gestao', 'board', 'president', 'treasurer', 'secretary'];
   if (!VALID_ROLES.includes(role)) {
     req.session.flash = { type: 'danger', message: 'Invalid role.' };
     return res.redirect(`/admin/members/${req.params.id}`);

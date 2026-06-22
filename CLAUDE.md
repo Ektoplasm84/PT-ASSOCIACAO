@@ -8,7 +8,7 @@ Full project context lives in **[PROJECT.md](PROJECT.md)**. Read it before doing
 
 A Node.js membership management web app for a Portuguese-Taiwanese association. SQLite embedded database, EJS templates, Bootstrap 5. Deployed on **HostArmada shared cPanel hosting**.
 
-Permission is controlled by two columns: `users.role` (`super_admin` / `admin` / `member`) and `users.position` (association title — `gestao` is the only position that grants extra access). See § Role System below.
+Permission is controlled by two columns: `users.role` (`super_admin` / `admin` / `member`) and `users.position` (association title — `gestao` and its sub-positions are the only positions that grant extra access; `associate` and `honorary` are display categories only). See § Role System below.
 
 ---
 
@@ -82,6 +82,8 @@ utils/ocr.js             OpenRouter vision API — dual-model parallel scan + ba
                                   getModelTimeout(), setModelTimeout(ms)
 utils/export.js          Data export — startExportJob(members, docsMap) → jobId; _runExport builds 31-col XLSX (ExcelJS)
                          then ZIP (archiver) with data.xlsx + per-member ASSOC-XXXX/ document folders.
+                         DOC_TYPE_LABELS map renames files in ZIP: `ASSOC-XXXX_ARC_Front.jpg`, `ASSOC-XXXX_TW_Passport_Front.jpg`, etc.
+                         Misc documents: `Attachment_01`, `Attachment_02`, … fallback.
                          getExportJob(jobId) → job state; deleteExportJob(jobId) → unlinks ZIP + removes Map entry.
                          _cleanupOrphans() runs at module load to remove leftover export_*.zip from uploads/tmp/.
 utils/audit.js           writeAudit(actorId, actorEmail, memberId, memberRef, action, detail) — 2000-row cap
@@ -90,7 +92,7 @@ utils/taiwan-districts.js All 22 TW cities/counties + districts (ZH/EN/postal)
 utils/i18n.js            Zero-dependency i18n middleware — reads `lang` cookie from raw headers,
                          caches JSON locale files, attaches t(dot.notation.key) + lang to res.locals.
                          Supported: en / pt / zh-TW (default: en). No npm dependencies (fs + path only).
-locales/en.json          English locale — SOURCE OF TRUTH for all ~430 UI keys across every template
+locales/en.json          English locale — SOURCE OF TRUTH for all ~440 UI keys across every template
 locales/pt.json          Portuguese locale
 locales/zh-TW.json       Traditional Chinese locale — AI-generated; has `_note` warning key;
                          needs native speaker review before relying on translations
@@ -104,19 +106,26 @@ frontend/views/partials/member-form.ejs   5-section member form; ARC section use
                                           Chinese name banner (alert-secondary): shown when arc_chinese_name split ≠ stored name;
                                             split: first char → last_name, rest → first_name
                                           Both banners use data-* attributes on the button (XSS-safe); never interpolate into JS
-frontend/views/admin/dashboard.ejs        Stats + Warnings + OCR config (with timeout) + Fee + Calendar + Vault
-                                          pta-table-wrap on 4 tables; renderAgendaMobile() populates .pta-agenda on mobile (≤640px)
+frontend/views/admin/dashboard.ejs        Stats (5 tiles: Total/Paid/Unpaid/Honorary/Associates) + Warnings + OCR config + Fee + Calendar + Vault
+                                          Warnings table: Residence Doc column = full validity badge (Valid/APRC/TW Passport/TW ID/Expiring/Expired);
+                                            CC column same; Fee column full badge states
+                                          pta-table-wrap on all 6 tables (2 vault + warnings + calendar + recent-members + any others)
+                                          5th stat tile: grid-column:1/-1 at ≤768px (spans both columns of 2-col mobile grid)
+                                          renderAgendaMobile() populates .pta-agenda on mobile (≤640px)
                                           New-event modal date inputs use col-12 col-sm-6 (stack on phones)
-frontend/views/admin/members-list.ejs     Search + fee filter + sort dropdown + Warnings column + ID Type column
-                                          Table wrapped in pta-table-wrap for mobile horizontal scroll
-frontend/views/admin/member-detail.ejs    APRC/TW Passport display; NIA blocked for non-ARC
-frontend/views/admin/member-edit.ejs      Edit form; heading subtitle shows arc_chinese_name + member_id when present
+                                          <style> block overrides pta-statsbar to 5-col desktop / 2-col mobile with nth-child border fixes
+frontend/views/admin/members-list.ejs     Search + fee filter chips + TYPE filter chips (separate row below toolbar) + sort dropdown + Warnings column + ID Type column
+                                          TYPE chips: All / Members / Associate / Honorary / Management — posFilter query param; validated against VALID_POS_FILTERS
+                                          "Type" label: d-none d-sm-inline (hides on narrow phones)
+                                          Associate badge: pta-tone-warning (amber); table wrapped in pta-table-wrap
+frontend/views/admin/member-detail.ejs    APRC/TW Passport display; NIA blocked for non-ARC; position dropdown includes associate
+frontend/views/admin/member-edit.ejs      pta-pagehead heading (converted from Bootstrap row/col); subtitle shows arc_chinese_name + member_id
 frontend/views/admin/export.ejs           Export Data page — scope radio + member typeahead + chips + progress card;
                                           all data fetched client-side; admin/SA only
 frontend/views/admin/audit-log.ejs        Audit log page (paginated, admin+ only)
-                                          DS pagehead (pta-pagehead); pta-badge DS tone classes; pta-card wrappers
-frontend/views/user/profile.ejs           Own profile — single-scroll layout; profile-layout CSS grid; notifications at #notifications anchor;
-                                          public vault files table (pta-table-wrap) at bottom; no tabs; no activeTab local
+                                          pta-pagehead + pta-table (DS class) + pta-table-wrap; Detail column d-none d-md-table-cell
+frontend/views/user/profile.ejs           Own profile — pta-pagehead heading; single-scroll layout; profile-layout CSS grid;
+                                          notifications at #notifications anchor; public vault files table (pta-table-wrap) at bottom
 frontend/views/user/vault.ejs             Public document vault — all authenticated members (standalone /vault page)
 frontend/public/css/custom.css            Bootstrap overrides only
 frontend/public/css/ds/pt-design-system.css   PT Design System — tokens + .pta-* components
@@ -156,7 +165,7 @@ Events tables (in data.db):
 - **Use `bcryptjs`**, not `bcrypt` — pure JS, required for shared hosting (no native compile)
 - **All file paths** must use `process.cwd()` not `__dirname` — cPanel working directory differs
 - **No Puppeteer / Chromium** — shared hosting has none; use server-side `fetch` instead
-- **Node 18+** required — NIA photo fetch uses global `fetch`
+- **Node 20+** required — cPanel server runs Node 20 LTS; `engines.node >= 20.0.0` set in `package.json`; global `fetch` available since Node 18
 - **Multi-statement SQLite DDL**: do not use `db.exec` with multiple statements — use a loop of `db.prepare(sql).run()` calls (security hook blocks the other form)
 - **Do not upload** `node_modules/`, `uploads/`, `database/data.db`, or **`.env`** to cPanel
 - **`.env` must never be committed or uploaded** — `OPENROUTER_API_KEY` and `SESSION_SECRET` are in `.env`; on cPanel set them as environment variables in the Node.js App panel
@@ -199,6 +208,7 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 | Position | Notes |
 |----------|-------|
 | `member` | Default |
+| `associate` | Associate member — included in fee stats; amber (`pta-tone-warning`) badge in members list |
 | `honorary` | No fees; fee sections show N/A; excluded from paid/unpaid dashboard stats |
 | `gestao` | Umbrella for all management positions — grants view-all + fee-write access |
 | `board` / `president` / `treasurer` / `secretary` | Sub-positions under the gestao umbrella — same view-all + fee-write access as gestao |
@@ -251,7 +261,8 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - **iCal export** — `GET /profile/invites/:id/export.ics`; RFC 5545 plain text, no library needed; DTEND is always start+1 day for single-day events (iCal all-day exclusive end); ownership verified against `req.session.userId`
 - **Event location is plain text** — no geocoding; WIP: render as `maps.google.com/?q=` link in templates
 - **Fee label for honorary/exempt members** — displays as "Honorary Member" everywhere: fee badge fallback in `feeBadge()`, inline status text in member-detail, fee_amount display in member-detail and profile, dropdown options ("0 TWD — Honorary Member"). Never shows "0 TWD (Exempt)".
-- **Members list Position column** — shows system role when elevated: `super_admin` → "Super Admin" (gold badge), `admin` → "Admin" (info badge); falls back to association position for regular members. The list query selects `u.role as user_role` alongside `u.position`.
+- **Members list Position column** — shows system role when elevated: `super_admin` → "Super Admin" (gold badge), `admin` → "Admin" (info badge); falls back to association position for regular members (`associate` → amber/warning, `honorary` → violet/honorary, management → info). The list query selects `u.role as user_role` alongside `u.position`.
+- **Associate Member category** — `position='associate'` is a display-only category (no extra permissions); included in fee stats (not excluded like honorary); own stat tile on dashboard (info/azure tone); TYPE filter chip on members list; amber (`pta-tone-warning`) badge; position dropdown option on member-detail. Validated in `VALID_POSITIONS` in `routes/admin.js` and `VALID_POS_FILTERS` for the members list `pos` query param.
 - **Admin password reset** — super_admin can set a new password for any member via the password reset form in the Account Settings card on member-detail. Client-side: mismatch alert + confirm dialog. Server-side: min 6 chars + mismatch check + bcrypt hash + audit log.
 - **Fee reminder alert** — shown once at the top of `user/profile.ejs` (tabs removed in DS R4); visible regardless of scroll position.
 - **Profile page restructure (DS R4)** — `user/profile.ejs` removed Bootstrap tabs entirely; layout is `profile-layout` CSS grid (`.profile-sidebar` + `.profile-cards`); notifications section uses `id="notifications"` anchor; public vault files appended at the bottom as a `pta-table-wrap` table; `routes/user.js` profile GET now queries `vault_files WHERE section='public'` and passes `vaultFiles` to render.

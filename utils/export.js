@@ -9,6 +9,16 @@ const crypto   = require('crypto');
 const TMP_DIR = path.join(process.cwd(), 'uploads', 'tmp');
 const _jobs   = new Map();
 
+const DOC_TYPE_LABELS = {
+  arc_front:         'ARC_Front',
+  arc_back:          'ARC_Back',
+  cc_front:          'CC_Front',
+  cc_back:           'CC_Back',
+  tw_passport_front: 'TW_Passport_Front',
+  tw_id_front:       'TW_ID_Front',
+  tw_id_back:        'TW_ID_Back',
+};
+
 function _ensureTmpDir() {
   if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
 }
@@ -139,7 +149,7 @@ async function _runExport(jobId, members, documentsMap) {
       address_zh:        m.address_zh     || '',
       address:           m.address        || '',
       notes:             m.notes          || '',
-      documents:         docs.map(d => d.original_name).join(', '),
+      documents:         docs.map(d => DOC_TYPE_LABELS[d.doc_type] || d.original_name).join(', '),
     });
 
     job.progress = i + 1;
@@ -165,11 +175,14 @@ async function _runExport(jobId, members, documentsMap) {
 
     for (const m of members) {
       const docs = documentsMap[m.id] || [];
+      let attachIdx = 1;
       for (const doc of docs) {
         const abs = path.join(process.cwd(), doc.file_path);
-        if (fs.existsSync(abs)) {
-          archive.file(abs, { name: `${m.member_id}/${doc.original_name}` });
-        }
+        if (!fs.existsSync(abs)) continue;
+        const ext   = path.extname(doc.original_name || doc.file_path) || '';
+        const label = DOC_TYPE_LABELS[doc.doc_type]
+          || `Attachment_${String(attachIdx++).padStart(2, '0')}`;
+        archive.file(abs, { name: `${m.member_id}/${m.member_id}_${label}${ext}` });
       }
     }
 

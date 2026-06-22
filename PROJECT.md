@@ -6,7 +6,7 @@ A membership management web application for a Portuguese-Taiwanese association. 
 
 ---
 
-## Current Status (as of 2026-06-15)
+## Current Status (as of 2026-06-21)
 
 ### Done
 - Full Node.js + Express backend with SQLite embedded database
@@ -57,6 +57,7 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - **TW ID OCR revamp** — improved prompts for `tw_id_front` (5 fields: `tw_id_number`, `arc_chinese_name`, `date_of_birth`, `gender`, `arc_issue_date`) and `tw_id_back` (2 fields: `address_zh`, `birthplace_tw`); fields extracted in original language — no translation (gender stored as 男/女); ROC→CE date conversion; new DB columns `date_of_birth`, `gender`, `birthplace_tw`; Chinese name auto-splits to `last_name` / `first_name` on apply (first char = surname)
 - **TW Passport OCR revamp** — improved prompt for `tw_passport_front` (9 fields: `passport_number`, `tw_id_number`, `arc_name_en`, `arc_chinese_name`, `date_of_birth`, `gender`, `arc_issue_date`, `arc_expiry_date`, `birthplace_tw`); gender stored as 男/女 (no translation); Chinese name auto-splits on apply same as TW ID; `date_of_birth`, `gender`, `birthplace_tw` shown in form and stored for both `is_tw_passport` and `is_tw_id` holders; `tw_id_number` (統一編號) shown and stored for both
 - **Version V1.9** — Extended name suggestion banners (English contextual for ARC/Passport + Chinese name from TW ID/Passport); Chinese name + member ID subtitle on member-edit heading; Export Data feature (admin/SA only) at `/admin/export` — selectable scope (all / specific members), ZIP output with 31-column XLSX spreadsheet + per-member document folders, server-side background job with live progress bar; jimp upgraded to v1.6.1 (security fix); `archiver` + `exceljs` added as dependencies
+- **Version V2.0** — Associate Member category (`position='associate'`): new dashboard stat tile (info/azure tone), position badge (amber/warning tone), TYPE filter row on members list (All / Members / Associate / Honorary / Management), position dropdown option on member-detail; Dashboard Warnings table upgraded: Residence Doc column shows full validity status (Valid / APRC / TW Passport / TW National ID badges; Expiring / Expired for regular ARC), CC column same; Export doc-type file naming: exported ZIP entries renamed to `ASSOC-XXXX_ARC_Front.jpg` etc. via `DOC_TYPE_LABELS` map; Full mobile responsiveness pass: `pta-pagehead` on member-edit and profile headings, `pta-table-wrap` on all dashboard vault + audit log tables, audit log upgraded to `pta-table` DS class with Detail column hidden on mobile (`d-none d-md-table-cell`), 5th stats tile spans full width at ≤768px, nav item wrap on ≤480px, TYPE filter label hides on narrow phones; Node engines field set to `>=20.0.0` (cPanel server runs Node 20 LTS)
 
 ### Not Yet Built
 - Email notifications to members
@@ -201,7 +202,7 @@ On cPanel hosting, set `OPENROUTER_API_KEY`, `SESSION_SECRET`, and `NODE_ENV=pro
 | email | TEXT UNIQUE | Case-insensitive |
 | password_hash | TEXT | bcrypt, cost 10 |
 | role | TEXT | `super_admin` / `admin` / `member` |
-| position | TEXT | `member` / `honorary` / `gestao` / `board` / `president` / `treasurer` / `secretary` |
+| position | TEXT | `member` / `associate` / `honorary` / `gestao` / `board` / `president` / `treasurer` / `secretary` |
 | created_at | TEXT | ISO-8601 datetime |
 
 ### `members`
@@ -343,6 +344,7 @@ Two independent columns on `users`: `role` (system permission) and `position` (a
 | Position | Notes |
 |----------|-------|
 | `member` | Default |
+| `associate` | Associate member — included in fee stats; amber badge in members list |
 | `honorary` | No fees; fee sections show N/A; excluded from paid/unpaid stats |
 | `gestao` | Grants view-all + fee-write + calendar-write + public-vault-upload access |
 | `board` / `president` / `treasurer` / `secretary` | Same access as gestao |

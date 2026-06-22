@@ -1,7 +1,8 @@
 <%- include('../partials/header') %>
 
 <%
-  var sort = (typeof sort !== 'undefined') ? sort : 'name_az';
+  var sort      = (typeof sort      !== 'undefined') ? sort      : 'name_az';
+  var posFilter = (typeof posFilter !== 'undefined') ? posFilter : '';
   function feeBadge(status) {
     if (status === 'paid')
       return '<span class="pta-badge pta-badge--soft pta-tone-success"><span class="pta-badge__dot"></span>' + t('fee.status_paid') + '</span>';
@@ -24,12 +25,14 @@
 
 <%
   function memberListUrl(overrides) {
-    var p = { search: search, fee: feeFilter, sort: sort };
-    Object.assign(p, overrides);
+    var opts = { search: search, fee: feeFilter, pos: posFilter, sort: sort, page: null };
+    Object.assign(opts, overrides);
     var qs = [];
-    if (p.search) qs.push('search=' + encodeURIComponent(p.search));
-    if (p.fee)    qs.push('fee='    + encodeURIComponent(p.fee));
-    if (p.sort && p.sort !== 'name_az') qs.push('sort=' + p.sort);
+    if (opts.search) qs.push('search=' + encodeURIComponent(opts.search));
+    if (opts.fee)    qs.push('fee='    + encodeURIComponent(opts.fee));
+    if (opts.pos)    qs.push('pos='    + encodeURIComponent(opts.pos));
+    if (opts.sort && opts.sort !== 'name_az') qs.push('sort=' + opts.sort);
+    if (opts.page && opts.page > 1) qs.push('page=' + opts.page);
     return '/admin/members' + (qs.length ? '?' + qs.join('&') : '');
   }
 %>
@@ -38,6 +41,7 @@
     <i class="bi bi-search"></i>
     <input class="pta-control" name="search" placeholder="<%= t('member.search_placeholder') %>" value="<%= search %>">
     <% if (feeFilter) { %><input type="hidden" name="fee" value="<%= feeFilter %>"><% } %>
+    <% if (posFilter) { %><input type="hidden" name="pos" value="<%= posFilter %>"><% } %>
     <% if (sort && sort !== 'name_az') { %><input type="hidden" name="sort" value="<%= sort %>"><% } %>
   </form>
   <select class="form-select form-select-sm" style="width:auto;min-width:9rem"
@@ -67,6 +71,21 @@
        class="pta-chip <%= feeFilter === 'unpaid' ? 'is-active' : '' %>"><%= t('member.filter_unpaid') %></a>
   </div>
 </div>
+<div style="display:flex;align-items:center;gap:var(--space-2);margin-top:calc(-1 * var(--space-3));margin-bottom:var(--space-4);flex-wrap:wrap">
+  <span class="d-none d-sm-inline" style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);flex-shrink:0">Type</span>
+  <div class="pta-filterchips" style="margin-left:0">
+    <a href="<%= memberListUrl({ pos: '' }) %>"
+       class="pta-chip <%= !posFilter ? 'is-active' : '' %>"><%= t('member.filter_all') %></a>
+    <a href="<%= memberListUrl({ pos: 'member' }) %>"
+       class="pta-chip <%= posFilter === 'member' ? 'is-active' : '' %>"><%= t('member.filter_member') %></a>
+    <a href="<%= memberListUrl({ pos: 'associate' }) %>"
+       class="pta-chip <%= posFilter === 'associate' ? 'is-active' : '' %>"><%= t('member.filter_associate') %></a>
+    <a href="<%= memberListUrl({ pos: 'honorary' }) %>"
+       class="pta-chip <%= posFilter === 'honorary' ? 'is-active' : '' %>"><%= t('member.filter_honorary') %></a>
+    <a href="<%= memberListUrl({ pos: 'management' }) %>"
+       class="pta-chip <%= posFilter === 'management' ? 'is-active' : '' %>"><%= t('member.filter_management') %></a>
+  </div>
+</div>
 
 <div class="pta-card pta-card--flush">
 <div class="pta-table-wrap">
@@ -89,23 +108,25 @@
         const _initials = ((m.arc_name_en || (m.first_name + ' ' + m.last_name)) || '?')
           .trim().split(/\s+/).map(function(s){return s[0]||'';}).slice(0,2).join('').toUpperCase();
         const _roleLabels = { super_admin: t('detail.role_super_admin'), admin: t('detail.role_admin') };
-        const _posLabels  = { honorary: t('detail.pos_honorary'), gestao: t('detail.pos_gestao'),
+        const _posLabels  = { honorary: t('detail.pos_honorary'), associate: t('detail.pos_associate'),
+                              gestao: t('detail.pos_gestao'),
                               board: t('detail.pos_board'), president: t('detail.pos_president'),
                               treasurer: t('detail.pos_treasurer'), secretary: t('detail.pos_secretary'), member: t('detail.pos_member') };
         const _ptone = m.user_role === 'super_admin' ? 'gold'
           : m.user_role === 'admin' ? 'info'
           : m.position === 'honorary' ? 'honorary'
+          : m.position === 'associate' ? 'warning'
           : ['gestao','board','president','treasurer','secretary'].includes(m.position) ? 'info'
           : 'neutral';
         const _plabel = _roleLabels[m.user_role] || _posLabels[m.position] || 'Member';
 
         const _today = new Date(); _today.setHours(0,0,0,0);
         const _docWarnings = [];
-        if (!m.is_aprc && !m.is_tw_id && m.arc_expiry_date) {
+        if (!m.is_aprc && !m.is_tw_passport && !m.is_tw_id && m.arc_expiry_date) {
           const _arcExp  = new Date(m.arc_expiry_date);
           const _arcDays = Math.floor((_arcExp - _today) / 86400000);
-          if      (_arcDays < 0)   _docWarnings.push({ label: m.is_tw_passport ? t('member.warn_arc_expired') : t('member.warn_arc_expired'),   tone: 'danger'  });
-          else if (_arcDays <= 60) _docWarnings.push({ label: m.is_tw_passport ? t('member.warn_arc_expiring') : t('member.warn_arc_expiring'), tone: 'warning' });
+          if      (_arcDays < 0)   _docWarnings.push({ label: t('member.warn_arc_expired'),   tone: 'danger'  });
+          else if (_arcDays <= 60) _docWarnings.push({ label: t('member.warn_arc_expiring'),  tone: 'warning' });
         }
         if (m.cc_expiry_date) {
           const _ccExp  = new Date(m.cc_expiry_date);
@@ -156,7 +177,7 @@
           <% if (_docWarnings.length === 0) { %>
           <span class="pta-badge pta-badge--soft pta-tone-success"><%= t('member.warn_none') %></span>
           <% } else { _docWarnings.forEach(function(w) { %>
-          <span class="pta-badge pta-badge--soft pta-tone-<%= w.tone %>" style="margin:.1rem .2rem .1rem 0;display:inline-block"><%= w.label %></span>
+          <span class="pta-badge pta-badge--soft pta-tone-<%= w.tone %>" style="margin:.1rem .2rem .1rem 0;display:inline-block"><span class="pta-badge__dot"></span><%= w.label %></span>
           <% }); } %>
         </td>
         <td><span class="pta-id"><%= m.join_date ? m.join_date.slice(0,10) : '—' %></span></td>
@@ -182,7 +203,7 @@
   <ul class="pagination">
     <% for (let p = 1; p <= totalPages; p++) { %>
     <li class="page-item <%= p === page ? 'active' : '' %>">
-      <a class="page-link" href="/admin/members?page=<%= p %>&search=<%= encodeURIComponent(search) %>&fee=<%= feeFilter %>"><%= p %></a>
+      <a class="page-link" href="<%= memberListUrl({ page: p }) %>"><%= p %></a>
     </li>
     <% } %>
   </ul>

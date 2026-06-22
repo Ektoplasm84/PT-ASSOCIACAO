@@ -1,4 +1,14 @@
 <%- include('../partials/header') %>
+<style>
+  .pta-statsbar { grid-template-columns: repeat(5, 1fr); }
+  @media (max-width: 768px) {
+    .pta-statsbar { grid-template-columns: repeat(2, 1fr); }
+    .pta-statsbar > div:nth-child(even) { border-right: none; }
+    .pta-statsbar > div:nth-child(3),
+    .pta-statsbar > div:nth-child(4) { border-bottom: 1px solid var(--border-subtle); }
+    .pta-statsbar > div:nth-child(5) { grid-column: 1 / -1; border-right: none; }
+  }
+</style>
 
 <%
   function daysLabel(dateStr) {
@@ -49,6 +59,10 @@
       <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-award"></i></span><span class="pta-stat__label"><%= t('stat.honorary') %></span></div>
       <span class="pta-stat__value"><%= stats.honorary %></span>
     </div>
+    <div class="pta-stat pta-stat--info">
+      <div class="pta-stat__top"><span class="pta-stat__ico"><i class="bi bi-person-check"></i></span><span class="pta-stat__label"><%= t('stat.associate') %></span></div>
+      <span class="pta-stat__value"><%= stats.associate %></span>
+    </div>
   </div>
 </div>
 
@@ -69,27 +83,47 @@
       <thead><tr><th><%= t('dashboard.warnings_col_member') %></th><th><%= t('dashboard.warnings_col_fee') %></th><th><%= t('dashboard.warnings_col_arc') %></th><th><%= t('dashboard.warnings_col_cc') %></th><th></th></tr></thead>
       <tbody>
         <% warnings.forEach(function(w) {
-          const arcLbl = daysLabel(w.arc_expiry_date);
-          const ccLbl  = daysLabel(w.cc_expiry_date);
+          // Residence doc status
+          var arcStatus;
+          if (w.is_aprc) {
+            arcStatus = { text: t('dashboard.doc_aprc'), tone: 'info', dot: false };
+          } else if (w.is_tw_passport) {
+            arcStatus = { text: t('dashboard.doc_tw_passport'), tone: 'neutral', dot: false };
+          } else if (w.is_tw_id) {
+            arcStatus = { text: t('dashboard.doc_tw_id'), tone: 'neutral', dot: false };
+          } else if (!w.arc_expiry_date) {
+            arcStatus = { text: t('dashboard.doc_no_date'), tone: 'neutral', dot: false };
+          } else {
+            var arcDays = Math.floor((new Date(w.arc_expiry_date) - new Date()) / 86400000);
+            if      (arcDays < 0)   arcStatus = { text: 'Expired ' + Math.abs(arcDays) + 'd ago', tone: 'danger',  dot: true };
+            else if (arcDays === 0) arcStatus = { text: 'Expires today',                           tone: 'danger',  dot: true };
+            else if (arcDays <= 60) arcStatus = { text: 'Expires in ' + arcDays + 'd',            tone: 'warning', dot: true };
+            else                    arcStatus = { text: t('dashboard.doc_valid'),                  tone: 'success', dot: true };
+          }
+          // CC status
+          var ccStatus;
+          if (!w.cc_expiry_date) {
+            ccStatus = null;
+          } else {
+            var ccDays = Math.floor((new Date(w.cc_expiry_date) - new Date()) / 86400000);
+            if      (ccDays < 0)   ccStatus = { text: 'Expired ' + Math.abs(ccDays) + 'd ago', tone: 'danger',  dot: true };
+            else if (ccDays === 0) ccStatus = { text: 'Expires today',                          tone: 'danger',  dot: true };
+            else if (ccDays <= 60) ccStatus = { text: 'Expires in ' + ccDays + 'd',             tone: 'warning', dot: true };
+            else                   ccStatus = { text: t('dashboard.doc_valid'),                  tone: 'success', dot: true };
+          }
         %>
         <tr>
           <td>
             <div style="font-weight:600"><%= w.arc_name_en || (w.first_name + ' ' + w.last_name) %></div>
             <span class="pta-id"><%= w.member_id %></span>
           </td>
+          <td><%- feeBadge(w.position === 'honorary' ? 'honorary' : w.fee_status) %></td>
           <td>
-            <% if (w.warn_fee) { %>
-            <span class="pta-badge pta-badge--soft pta-tone-danger"><span class="pta-badge__dot"></span>Unpaid</span>
-            <% } else { %><span style="color:var(--text-muted)">—</span><% } %>
+            <span class="pta-badge pta-badge--soft pta-tone-<%= arcStatus.tone %>"><% if (arcStatus.dot) { %><span class="pta-badge__dot"></span><% } %><%= arcStatus.text %></span>
           </td>
           <td>
-            <% if (arcLbl) { %>
-            <span class="pta-badge pta-badge--soft pta-tone-<%= arcLbl.tone %>"><span class="pta-badge__dot"></span><%= arcLbl.text %></span>
-            <% } else { %><span style="color:var(--text-muted)">—</span><% } %>
-          </td>
-          <td>
-            <% if (ccLbl) { %>
-            <span class="pta-badge pta-badge--soft pta-tone-<%= ccLbl.tone %>"><span class="pta-badge__dot"></span><%= ccLbl.text %></span>
+            <% if (ccStatus) { %>
+            <span class="pta-badge pta-badge--soft pta-tone-<%= ccStatus.tone %>"><% if (ccStatus.dot) { %><span class="pta-badge__dot"></span><% } %><%= ccStatus.text %></span>
             <% } else { %><span style="color:var(--text-muted)">—</span><% } %>
           </td>
           <td><a href="/admin/members/<%= w.id %>" class="pta-btn pta-btn--secondary pta-btn--sm"><%= t('common.view') %></a></td>
@@ -1136,7 +1170,7 @@
           <% if (vaultPublic.length === 0) { %>
           <p class="small mb-0" style="color:var(--text-muted);text-align:center;padding:1rem 0">No files yet.</p>
           <% } else { %>
-          <table class="pta-table" style="font-size:.875rem">
+          <div class="pta-table-wrap"><table class="pta-table" style="font-size:.875rem">
             <thead><tr><th>File</th><th>Uploaded</th><th></th></tr></thead>
             <tbody>
               <% vaultPublic.forEach(function(f) { %>
@@ -1159,7 +1193,7 @@
               </tr>
               <% }); %>
             </tbody>
-          </table>
+          </table></div>
           <% } %>
         </div>
       </div>
@@ -1196,7 +1230,7 @@
           <% if (vaultAdmin.length === 0) { %>
           <p class="small mb-0" style="color:var(--text-muted);text-align:center;padding:1rem 0">No files yet.</p>
           <% } else { %>
-          <table class="pta-table" style="font-size:.875rem">
+          <div class="pta-table-wrap"><table class="pta-table" style="font-size:.875rem">
             <thead><tr><th>File</th><th>Uploaded</th><th></th></tr></thead>
             <tbody>
               <% vaultAdmin.forEach(function(f) { %>
@@ -1217,7 +1251,7 @@
               </tr>
               <% }); %>
             </tbody>
-          </table>
+          </table></div>
           <% } %>
         </div>
       </div>

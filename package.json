@@ -1,8 +1,11 @@
 {
   "name": "pt-associacao",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Membership management for PT Associacao",
   "main": "app.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "start": "node app.js",
     "dev": "node --watch app.js"

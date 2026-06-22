@@ -16,6 +16,14 @@
 .bg-honorary  { background-color: var(--violet-500) !important; }
 .text-honorary { color: var(--violet-500) !important; }
 
+/* Color the Associates count number to match the info tile icon */
+.pta-stat--info .pta-stat__value { color: var(--azure-600); }
+
+/* Allow nav items to wrap on narrow phones so labels don't clip */
+@media (max-width: 480px) {
+  .pta-nav__item { white-space: normal; }
+}
+
 /* OCR status mini-log shown inside the scanning modal */
 .pta-minilog {
   font-family: 'Courier New', Courier, monospace;

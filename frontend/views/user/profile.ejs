@@ -1,15 +1,13 @@
 <%- include('../partials/header') %>
 <% var pendingCount = invites.filter(function(i){ return i.status === 'pending'; }).length; %>
 
-<div class="row mb-3 align-items-center">
-  <div class="col">
-    <h2 class="fw-bold"><%= t('profile.title') %></h2>
+<div class="pta-pagehead">
+  <div class="pta-pagehead__titles">
+    <h1><%= t('profile.title') %></h1>
   </div>
-  <div class="col-auto">
-    <a href="/profile/edit" class="btn btn-primary">
-      <i class="bi bi-pencil"></i> <%= t('profile.edit_btn') %>
-    </a>
-  </div>
+  <a href="/profile/edit" class="pta-btn">
+    <i class="bi bi-pencil"></i> <%= t('profile.edit_btn') %>
+  </a>
 </div>
 
 <% if (feeReminder) { %>

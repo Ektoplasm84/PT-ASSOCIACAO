@@ -139,6 +139,7 @@
             <select name="position" class="pta-control">
               <% [
                 { val: 'member',    label: t('detail.pos_member') },
+                { val: 'associate', label: t('detail.pos_associate') },
                 { val: 'honorary',  label: t('detail.pos_honorary') },
                 { val: 'gestao',    label: t('detail.pos_gestao') },
                 { val: 'board',     label: t('detail.pos_board') },
@@ -265,7 +266,7 @@ function validatePwReset() {
         <hr style="margin:1rem 0;border-color:var(--surface-sunken,#d6d1c4)">
         <p class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.05em"><%= t('fee.update_payment') %></p>
         <form action="/admin/members/<%= member.id %>/fee" method="POST">
-          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;align-items:end">
+          <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:flex-end">
             <div class="pta-field">
               <label class="pta-field__label"><%= t('fee.annual_fee') %></label>
               <select name="fee_amount" class="pta-control">

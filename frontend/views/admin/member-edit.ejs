@@ -15,16 +15,16 @@
   documents.forEach(function(d){ if (d.doc_type && d.doc_type !== 'misc') _editCardDocs[d.doc_type] = d; });
 %>
 
-<div class="row mb-3">
-  <div class="col">
-    <h2 class="fw-bold mb-0">Edit — <%= member.arc_name_en || (member.first_name + ' ' + member.last_name) %></h2>
-    <% if (member.arc_chinese_name) { %><div class="text-muted" style="font-size:.9rem"><%= member.arc_chinese_name %> · <span class="pta-id"><%= member.member_id %></span></div><% } %>
+<div class="pta-pagehead">
+  <div class="pta-pagehead__titles">
+    <h1><%= t('common.edit') %> — <%= member.arc_name_en || (member.first_name + ' ' + member.last_name) %></h1>
+    <% if (member.arc_chinese_name) { %>
+    <p class="pta-pagehead__sub"><%= member.arc_chinese_name %> · <span class="pta-id"><%= member.member_id %></span></p>
+    <% } %>
   </div>
-  <div class="col-auto">
-    <a href="/admin/members/<%= member.id %>" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left"></i> Back
-    </a>
-  </div>
+  <a href="/admin/members/<%= member.id %>" class="pta-btn pta-btn--secondary">
+    <i class="bi bi-arrow-left"></i> <%= t('common.back') %>
+  </a>
 </div>
 
 <% if (errors.length) { %>

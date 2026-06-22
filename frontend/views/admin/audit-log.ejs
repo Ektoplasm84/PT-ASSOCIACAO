@@ -32,15 +32,15 @@
 </div></div>
 <% } else { %>
 <div class="pta-card pta-card--flush">
-  <div class="table-responsive">
-    <table class="table table-sm table-hover align-middle mb-0">
-      <thead class="table-light">
+  <div class="pta-table-wrap">
+    <table class="pta-table">
+      <thead>
         <tr>
           <th><%= t('audit.col_timestamp') %></th>
           <th><%= t('audit.col_actor') %></th>
           <th><%= t('audit.col_member') %></th>
           <th><%= t('audit.col_action') %></th>
-          <th><%= t('audit.col_detail') %></th>
+          <th class="d-none d-md-table-cell"><%= t('audit.col_detail') %></th>
         </tr>
       </thead>
       <tbody>
@@ -48,17 +48,15 @@
           const meta = ACTION_LABELS[log.action] || { label: log.action, icon: 'bi-circle', color: 'neutral' };
         %>
         <tr>
-          <td class="text-muted small text-nowrap"><%= log.created_at ? log.created_at.replace('T',' ').slice(0,19) : '—' %></td>
-          <td>
-            <span class="small"><%= log.actor_email || '—' %></span>
-          </td>
+          <td style="white-space:nowrap;font-size:.8rem;color:var(--text-muted)"><%= log.created_at ? log.created_at.replace('T',' ').slice(0,19) : '—' %></td>
+          <td style="font-size:.875rem"><%= log.actor_email || '—' %></td>
           <td>
             <% if (log.member_id) { %>
-            <a href="/admin/members/<%= log.member_id %>" class="small text-decoration-none">
+            <a href="/admin/members/<%= log.member_id %>" style="font-size:.875rem;text-decoration:none">
               <%= log.member_ref || `member #${log.member_id}` %>
             </a>
             <% } else { %>
-            <span class="text-muted small"><%= log.member_ref || '—' %></span>
+            <span style="color:var(--text-muted);font-size:.875rem"><%= log.member_ref || '—' %></span>
             <% } %>
           </td>
           <td>
@@ -67,7 +65,7 @@
               <%= meta.label %>
             </span>
           </td>
-          <td class="small text-muted"><%= log.detail || '' %></td>
+          <td class="d-none d-md-table-cell" style="font-size:.8rem;color:var(--text-muted)"><%= log.detail || '' %></td>
         </tr>
         <% }) %>
       </tbody>
