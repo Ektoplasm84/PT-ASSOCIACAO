@@ -78,6 +78,18 @@
         <label class="form-label"><%= t('form.address_en') %></label>
         <input type="text" name="address" class="form-control" value="<%= v.address || '' %>">
       </div>
+      <div class="col-md-4">
+        <label class="form-label"><%= t('form.degree') %></label>
+        <input type="text" name="degree" class="form-control" value="<%= v.degree || '' %>">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label"><%= t('form.university') %></label>
+        <input type="text" name="university" class="form-control" value="<%= v.university || '' %>">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label"><%= t('form.profession') %></label>
+        <input type="text" name="profession" class="form-control" value="<%= v.profession || '' %>">
+      </div>
       <div class="col-12">
         <label class="form-label"><%= t('form.photo') %></label>
         <% if (isEdit && v.photo_path) { %>

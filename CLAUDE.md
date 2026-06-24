@@ -80,8 +80,10 @@ utils/ocr.js             OpenRouter vision API — dual-model parallel scan + ba
                                   getActiveModels(), setActiveModels(models),
                                   testModel(modelId),
                                   getModelTimeout(), setModelTimeout(ms)
-utils/export.js          Data export — startExportJob(members, docsMap) → jobId; _runExport builds 31-col XLSX (ExcelJS)
-                         then ZIP (archiver) with data.xlsx + per-member ASSOC-XXXX/ document folders.
+utils/export.js          Data export — startExportJob(members, docsMap, selectedFields?) → jobId; _runExport builds
+                         34-col XLSX (ExcelJS), filtered to selectedFields when given (member_id always force-included);
+                         then ZIP (archiver) with data.xlsx + per-member ASSOC-XXXX/ document folders (unaffected by field selection).
+                         FIELD_DEFS — exported master {header,key,width} column list; admin/export.ejs field picker is built from it.
                          DOC_TYPE_LABELS map renames files in ZIP: `ASSOC-XXXX_ARC_Front.jpg`, `ASSOC-XXXX_TW_Passport_Front.jpg`, etc.
                          Misc documents: `Attachment_01`, `Attachment_02`, … fallback.
                          getExportJob(jobId) → job state; deleteExportJob(jobId) → unlinks ZIP + removes Map entry.
@@ -120,8 +122,10 @@ frontend/views/admin/members-list.ejs     Search + fee filter chips + TYPE filte
                                           Associate badge: pta-tone-warning (amber); table wrapped in pta-table-wrap
 frontend/views/admin/member-detail.ejs    APRC/TW Passport display; NIA blocked for non-ARC; position dropdown includes associate
 frontend/views/admin/member-edit.ejs      pta-pagehead heading (converted from Bootstrap row/col); subtitle shows arc_chinese_name + member_id
-frontend/views/admin/export.ejs           Export Data page — scope radio + member typeahead + chips + progress card;
-                                          all data fetched client-side; admin/SA only
+frontend/views/admin/export.ejs           Export Data page — scope radio + member typeahead + chips;
+                                          Fields card: per-field checkboxes grouped (Identity/Fees/Residence/CC/Personal/Other)
+                                            + Select All/None; posted as fields[] in POST /admin/export body (member_id always included);
+                                          progress card; all data fetched client-side; admin/SA only
 frontend/views/admin/audit-log.ejs        Audit log page (paginated, admin+ only)
                                           pta-pagehead + pta-table (DS class) + pta-table-wrap; Detail column d-none d-md-table-cell
 frontend/views/user/profile.ejs           Own profile — pta-pagehead heading; single-scroll layout; profile-layout CSS grid;
@@ -280,6 +284,8 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - **File Vault audit** — `vault.upload` and `vault.delete` action keys; detail includes section + filename + size. Both called via `writeAudit()` from `utils/audit.js` in the vault routes.
 - **Language switcher** — `GET /lang/:code` sets `lang` cookie (365 days, `httpOnly:false`, `sameSite:lax`); redirect is validated same-origin with normalized path; `utils/i18n.js` reads cookie from raw headers on every request; supported codes: `en` / `pt` / `zh-TW`; default: `en`. Switcher shown in topbar (dark style) and login page (`.pta-langsw--light`).
 - **`<html lang="">` attribute** — set from `res.locals.lang` in both `header.ejs` and `login.ejs`; enables `:lang(zh-TW)` CSS rule that applies CJK font stack.
+- **Degree / University / Profession fields** — three nullable TEXT columns on `members` (Personal Info section); editable by admins in `member-form.ejs` and by members themselves in `profile-edit.ejs`; displayed in the "Contact Details" card on `member-detail.ejs` (renamed from "Contact") and in `profile.ejs`; included as columns in the data export XLSX.
+- **Export Data fields picker** — `admin/export.ejs` lets admins toggle which XLSX columns to include via grouped checkboxes (Identity & Contact / Membership & Fees / Residence Document / Cartão de Cidadão / Personal & Education / Other) plus Select All/None; selection is posted as `fields[]` in the `POST /admin/export` body. `member_id` is always force-included server-side in `routes/admin.js` regardless of the `fields` array sent — never trust the client to keep the row identifier. `utils/export.js` exports `FIELD_DEFS` (the master `{header,key,width}` column list); `startExportJob`/`_runExport` filter `ws.columns` to the selected keys but still build the full row-data object per member — ExcelJS ignores row keys that have no matching column, so the row-building code does not need to branch on selection.
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "pt-associacao",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Membership management for PT Associacao",
   "main": "app.js",
   "engines": {

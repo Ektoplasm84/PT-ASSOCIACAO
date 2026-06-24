@@ -16,7 +16,7 @@ const { computeFeeStatus } = require('../utils/fee');
 const { scan: ocrScan, checkModels, getModelWarnings, dismissModelWarning, getActiveModels, setActiveModels, testModel: ocrTestModel, getModelTimeout, setModelTimeout, startOcrJob, getOcrJob } = require('../utils/ocr');
 const { getLogs, subscribe: logSubscribe } = require('../utils/logstream');
 const { writeAudit } = require('../utils/audit');
-const { startExportJob, getExportJob, deleteExportJob } = require('../utils/export');
+const { startExportJob, getExportJob, deleteExportJob, FIELD_DEFS } = require('../utils/export');
 const countries        = require('../utils/countries');
 const taiwanLocations  = require('../utils/taiwan-districts');
 
@@ -450,6 +450,7 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
     join_date,
     fee_amount, fee_last_paid,
     notes,
+    degree, university, profession,
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number,
     tw_id_number, date_of_birth, gender, birthplace_tw,
@@ -501,11 +502,12 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
          city_zh, district_zh, district_en, address_zh,
          join_date, fee_amount, fee_last_paid, fee_valid_until, fee_status,
          notes, photo_path,
+         degree, university, profession,
          arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
          passport_number, arc_serial_number,
          cc_number, cc_expiry_date, nif, niss, is_aprc, is_tw_passport, is_tw_id, tw_id_number,
          date_of_birth, gender, birthplace_tw)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       userRes.lastInsertRowid, memberId,
       first_name, last_name, phone,
@@ -515,6 +517,7 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
       parseInt(fee_amount, 10) >= 0 ? parseInt(fee_amount, 10) : 300,
       fee_last_paid || null, feeValidUntil, feeStatus,
       notes || null, photoPath,
+      degree || null, university || null, profession || null,
       (is_tw_id || is_tw_passport) ? null : (arc_number || null),
       is_tw_id ? null : (arc_name_en || null),
       arc_chinese_name || null,
@@ -589,6 +592,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
     join_date,
     fee_amount, fee_last_paid,
     notes,
+    degree, university, profession,
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number,
     tw_id_number, date_of_birth, gender, birthplace_tw,
@@ -653,6 +657,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
         city_zh=?, district_zh=?, district_en=?, address_zh=?,
         join_date=?, fee_amount=?, fee_last_paid=?, fee_valid_until=?, fee_status=?,
         notes=?, photo_path=?,
+        degree=?, university=?, profession=?,
         arc_number=?, arc_name_en=?, arc_chinese_name=?, arc_issue_date=?, arc_expiry_date=?,
         passport_number=?, arc_serial_number=?,
         cc_number=?, cc_expiry_date=?, nif=?, niss=?,
@@ -667,6 +672,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
       join_date,
       parseInt(fee_amount, 10) >= 0 ? parseInt(fee_amount, 10) : 300, fee_last_paid || null, feeValidUntil, feeStatus,
       notes || null, photoPath,
+      degree || null, university || null, profession || null,
       (is_tw_id || is_tw_passport) ? null : (arc_number || null),
       is_tw_id ? null : (arc_name_en || null),
       arc_chinese_name || null,
@@ -1282,7 +1288,7 @@ router.get('/audit', adminOnly, (req, res) => {
 // --- Data export ---
 
 router.get('/export', adminOnly, (req, res) => {
-  res.render('admin/export', { title: 'Export Data', _navActive: 'export' });
+  res.render('admin/export', { title: 'Export Data', _navActive: 'export', fields: FIELD_DEFS });
 });
 
 router.get('/export/search', adminOnly, (req, res) => {
@@ -1305,7 +1311,11 @@ router.get('/export/search', adminOnly, (req, res) => {
 });
 
 router.post('/export', adminOnly, (req, res) => {
-  const { scope, memberIds } = req.body;
+  const { scope, memberIds, fields } = req.body;
+  const validKeys = FIELD_DEFS.map(f => f.key);
+  const selectedFields = Array.isArray(fields)
+    ? fields.filter(k => validKeys.includes(k))
+    : null;
 
   let members;
   if (scope === 'all') {
@@ -1340,7 +1350,7 @@ router.post('/export', adminOnly, (req, res) => {
     documentsMap[d.member_id].push(d);
   }
 
-  const jobId = startExportJob(members, documentsMap);
+  const jobId = startExportJob(members, documentsMap, selectedFields);
   res.json({ jobId });
 });
 

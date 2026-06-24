@@ -58,6 +58,7 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - **TW Passport OCR revamp** — improved prompt for `tw_passport_front` (9 fields: `passport_number`, `tw_id_number`, `arc_name_en`, `arc_chinese_name`, `date_of_birth`, `gender`, `arc_issue_date`, `arc_expiry_date`, `birthplace_tw`); gender stored as 男/女 (no translation); Chinese name auto-splits on apply same as TW ID; `date_of_birth`, `gender`, `birthplace_tw` shown in form and stored for both `is_tw_passport` and `is_tw_id` holders; `tw_id_number` (統一編號) shown and stored for both
 - **Version V1.9** — Extended name suggestion banners (English contextual for ARC/Passport + Chinese name from TW ID/Passport); Chinese name + member ID subtitle on member-edit heading; Export Data feature (admin/SA only) at `/admin/export` — selectable scope (all / specific members), ZIP output with 31-column XLSX spreadsheet + per-member document folders, server-side background job with live progress bar; jimp upgraded to v1.6.1 (security fix); `archiver` + `exceljs` added as dependencies
 - **Version V2.0** — Associate Member category (`position='associate'`): new dashboard stat tile (info/azure tone), position badge (amber/warning tone), TYPE filter row on members list (All / Members / Associate / Honorary / Management), position dropdown option on member-detail; Dashboard Warnings table upgraded: Residence Doc column shows full validity status (Valid / APRC / TW Passport / TW National ID badges; Expiring / Expired for regular ARC), CC column same; Export doc-type file naming: exported ZIP entries renamed to `ASSOC-XXXX_ARC_Front.jpg` etc. via `DOC_TYPE_LABELS` map; Full mobile responsiveness pass: `pta-pagehead` on member-edit and profile headings, `pta-table-wrap` on all dashboard vault + audit log tables, audit log upgraded to `pta-table` DS class with Detail column hidden on mobile (`d-none d-md-table-cell`), 5th stats tile spans full width at ≤768px, nav item wrap on ≤480px, TYPE filter label hides on narrow phones; Node engines field set to `>=20.0.0` (cPanel server runs Node 20 LTS)
+- **Version V2.1** — Member fields: Degree, University, Profession — three new `members` columns (all nullable TEXT); editable in admin member-form and self-service profile-edit (Personal Info section); displayed in member-detail "Contact Details" card (renamed from "Contact") and profile.ejs Personal Info card; included in the data export XLSX; `detail.contact_title` / `form.degree` / `form.university` / `form.profession` / `profile.degree` / `profile.university` / `profile.profession` keys added to all three locale files. Export Data: selectable fields — `admin/export.ejs` Fields card lets admins toggle which of the 34 XLSX columns to include (grouped: Identity & Contact / Membership & Fees / Residence Document / Cartão de Cidadão / Personal & Education / Other), with Select All/None shortcuts; `member_id` is always force-included server-side regardless of selection; `utils/export.js` exports `FIELD_DEFS` (master column list) and `startExportJob`/`_runExport` accept an optional `selectedFields` array that filters `ws.columns` (row-building is unchanged — ExcelJS ignores row keys with no matching column); identity documents in the ZIP are unaffected by the field selection
 
 ### Not Yet Built
 - Email notifications to members
@@ -116,8 +117,10 @@ PT ASSOCIACAO/
 │   │                             Exports: scan, checkModels, getModelWarnings, dismissModelWarning,
 │   │                                      getActiveModels, setActiveModels, testModel,
 │   │                                      getModelTimeout, setModelTimeout
-│   ├── export.js                 Data export — startExportJob(members, docsMap) → jobId; getExportJob(jobId);
-│   │                             deleteExportJob(jobId); builds 31-column XLSX + ZIP with per-member doc folders
+│   ├── export.js                 Data export — startExportJob(members, docsMap, selectedFields?) → jobId; getExportJob(jobId);
+│   │                             deleteExportJob(jobId); builds 34-column XLSX (filtered to selectedFields when given;
+│   │                             member_id always included) + ZIP with per-member doc folders
+│   │                             FIELD_DEFS — exported master {header,key,width} column list; drives admin export.ejs field picker
 │   │                             Temp ZIPs written to uploads/tmp/; orphan cleanup runs at module load
 │   ├── i18n.js                   Zero-dependency i18n middleware — reads lang cookie, caches locale JSON,
 │   │                             attaches t(dot.key) + lang to res.locals on every request
@@ -146,6 +149,8 @@ PT ASSOCIACAO/
 │   │   │   ├── member-new.ejs    New member form
 │   │   │   ├── member-edit.ejs   Edit member form; heading subtitle shows arc_chinese_name + member_id
 │   │   │   ├── export.ejs        Export Data page — scope radio (all/specific) + member typeahead + chips;
+│   │   │   │                     Fields card — per-field checkboxes grouped (Identity/Fees/Residence/CC/Personal/Other),
+│   │   │   │                       Select All/None buttons; selection posted as fields[] (Member ID always included);
 │   │   │   │                     progress card with live bar + download button; admin/SA only
 │   │   │   └── audit-log.ejs     Paginated audit log (admin+ only)
 │   │   └── user/
@@ -243,6 +248,9 @@ On cPanel hosting, set `OPENROUTER_API_KEY`, `SESSION_SECRET`, and `NODE_ENV=pro
 | cc_expiry_date | TEXT | ISO date |
 | nif | TEXT | 9-digit tax number |
 | niss | TEXT | 11-digit social security number |
+| degree | TEXT | Academic degree (e.g. "Master of Science") |
+| university | TEXT | Institution where the degree was obtained |
+| profession | TEXT | Current occupation |
 | updated_at | TEXT | ISO-8601 datetime |
 
 ### `documents`
@@ -715,11 +723,12 @@ Use `partials/member-form.ejs`. Variables include `defaultFee`.
 - All banner variables are block-scoped inside their `if` blocks to avoid conflict with `const _docType` declared later in the ARC section
 
 #### `admin/export.ejs`
-Variables: none (all data fetched client-side via fetch API).
+Variables: `fields` (FIELD_DEFS array from `utils/export.js`, passed by the GET `/admin/export` route — used only to confirm the server's known field list; the on-page checkbox groups are hardcoded by key in `_fieldGroups` for translation/grouping control).
 
 - Scope radio: All Members / Specific Members
 - When "Specific" selected: `.pta-search` typeahead (debounced 280ms, min 2 chars) builds a chip list of selected members; chips removable
-- Generate button POSTs to `/admin/export`, receives `jobId`, begins polling `/admin/export/status/:jobId` every 750ms
+- Fields card: checkboxes grouped into Identity & Contact / Membership & Fees / Residence Document / Cartão de Cidadão / Personal & Education / Other; all checked by default; Select All / Select None buttons toggle every `.field-toggle` checkbox; Member ID shown as a locked badge (not a checkbox — always included)
+- Generate button POSTs to `/admin/export` with `{ scope, memberIds, fields: string[] }`, receives `jobId`, begins polling `/admin/export/status/:jobId` every 750ms
 - Progress card (hidden until job starts): Bootstrap progress bar + stage label; on completion shows download link to `/admin/export/download/:jobId`; on error shows message in red
 
 #### `user/profile.ejs`

@@ -284,6 +284,20 @@ if (!memberCols9.includes('birthplace_tw')) {
   db.prepare('ALTER TABLE members ADD COLUMN birthplace_tw TEXT').run();
 }
 
+// --- Migration: add degree, university, profession to members ---
+const memberCols10 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols10.includes('degree')) {
+  db.prepare('ALTER TABLE members ADD COLUMN degree TEXT').run();
+}
+const memberCols11 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols11.includes('university')) {
+  db.prepare('ALTER TABLE members ADD COLUMN university TEXT').run();
+}
+const memberCols12 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols12.includes('profession')) {
+  db.prepare('ALTER TABLE members ADD COLUMN profession TEXT').run();
+}
+
 // --- Migration: add doc_type and thumb_path to documents ---
 const docCols = db.prepare('PRAGMA table_info(documents)').all().map(c => c.name);
 if (!docCols.includes('doc_type')) {

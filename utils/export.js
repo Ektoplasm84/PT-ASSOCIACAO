@@ -19,6 +19,46 @@ const DOC_TYPE_LABELS = {
   tw_id_back:        'TW_ID_Back',
 };
 
+// Master column list for the XLSX export — also drives the "Fields to Export" picker on the admin UI.
+// member_id is always included server-side regardless of selection (primary row identifier).
+const FIELD_DEFS = [
+  { header: 'Member ID',         key: 'member_id',         width: 14 },
+  { header: 'First Name',        key: 'first_name',        width: 16 },
+  { header: 'Last Name',         key: 'last_name',         width: 22 },
+  { header: 'Display Name (EN)', key: 'display_name',      width: 30 },
+  { header: 'Chinese Name',      key: 'arc_chinese_name',  width: 14 },
+  { header: 'Email',             key: 'email',             width: 32 },
+  { header: 'Phone',             key: 'phone',             width: 18 },
+  { header: 'Join Date',         key: 'join_date',         width: 12 },
+  { header: 'Position',          key: 'position',          width: 14 },
+  { header: 'Role',              key: 'role',              width: 14 },
+  { header: 'Fee Status',        key: 'fee_status',        width: 18 },
+  { header: 'Fee Amount (TWD)',  key: 'fee_amount',        width: 16 },
+  { header: 'Fee Last Paid',     key: 'fee_last_paid',     width: 14 },
+  { header: 'Fee Valid Until',   key: 'fee_valid_until',   width: 14 },
+  { header: 'ARC Number',        key: 'arc_number',        width: 14 },
+  { header: 'ARC Serial No.',    key: 'arc_serial_number', width: 14 },
+  { header: 'ARC Issue Date',    key: 'arc_issue_date',    width: 14 },
+  { header: 'ARC Expiry Date',   key: 'arc_expiry_date',   width: 14 },
+  { header: 'Passport Number',   key: 'passport_number',   width: 14 },
+  { header: 'TW ID Number',      key: 'tw_id_number',      width: 14 },
+  { header: 'CC Number',         key: 'cc_number',         width: 24 },
+  { header: 'CC Expiry',         key: 'cc_expiry_date',    width: 12 },
+  { header: 'NIF',               key: 'nif',               width: 12 },
+  { header: 'NISS',              key: 'niss',              width: 14 },
+  { header: 'Date of Birth',     key: 'date_of_birth',     width: 14 },
+  { header: 'Gender',            key: 'gender',            width: 8  },
+  { header: 'Birthplace (TW)',   key: 'birthplace_tw',     width: 20 },
+  { header: 'Address (ZH)',      key: 'address_zh',        width: 40 },
+  { header: 'Address (EN)',      key: 'address',           width: 40 },
+  { header: 'Degree',            key: 'degree',            width: 22 },
+  { header: 'University',        key: 'university',        width: 28 },
+  { header: 'Profession',        key: 'profession',        width: 22 },
+  { header: 'Notes',             key: 'notes',             width: 40 },
+  { header: 'Documents',         key: 'documents',         width: 50 },
+];
+const FIELD_KEYS = FIELD_DEFS.map(f => f.key);
+
 function _ensureTmpDir() {
   if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
 }
@@ -36,11 +76,11 @@ _cleanupOrphans();
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
-function startExportJob(members, documentsMap) {
+function startExportJob(members, documentsMap, selectedFields) {
   _ensureTmpDir();
   const jobId = crypto.randomBytes(8).toString('hex');
   _jobs.set(jobId, { pending: true, progress: 0, total: members.length + 1, stage: 'Preparing…' });
-  _runExport(jobId, members, documentsMap).catch(err => {
+  _runExport(jobId, members, documentsMap, selectedFields).catch(err => {
     const j = _jobs.get(jobId) || {};
     _jobs.set(jobId, { ...j, error: err.message, done: true });
   });
@@ -59,7 +99,7 @@ function deleteExportJob(jobId) {
 
 // ── Core export ────────────────────────────────────────────────────────────────
 
-async function _runExport(jobId, members, documentsMap) {
+async function _runExport(jobId, members, documentsMap, selectedFields) {
   const job = _jobs.get(jobId);
 
   // Stage 1: Build Excel workbook
@@ -72,39 +112,10 @@ async function _runExport(jobId, members, documentsMap) {
   wb.created = new Date();
 
   const ws = wb.addWorksheet('Members');
-  ws.columns = [
-    { header: 'Member ID',         key: 'member_id',         width: 14 },
-    { header: 'First Name',        key: 'first_name',        width: 16 },
-    { header: 'Last Name',         key: 'last_name',         width: 22 },
-    { header: 'Display Name (EN)', key: 'display_name',      width: 30 },
-    { header: 'Chinese Name',      key: 'arc_chinese_name',  width: 14 },
-    { header: 'Email',             key: 'email',             width: 32 },
-    { header: 'Phone',             key: 'phone',             width: 18 },
-    { header: 'Join Date',         key: 'join_date',         width: 12 },
-    { header: 'Position',          key: 'position',          width: 14 },
-    { header: 'Role',              key: 'role',              width: 14 },
-    { header: 'Fee Status',        key: 'fee_status',        width: 18 },
-    { header: 'Fee Amount (TWD)',  key: 'fee_amount',        width: 16 },
-    { header: 'Fee Last Paid',     key: 'fee_last_paid',     width: 14 },
-    { header: 'Fee Valid Until',   key: 'fee_valid_until',   width: 14 },
-    { header: 'ARC Number',        key: 'arc_number',        width: 14 },
-    { header: 'ARC Serial No.',    key: 'arc_serial_number', width: 14 },
-    { header: 'ARC Issue Date',    key: 'arc_issue_date',    width: 14 },
-    { header: 'ARC Expiry Date',   key: 'arc_expiry_date',   width: 14 },
-    { header: 'Passport Number',   key: 'passport_number',   width: 14 },
-    { header: 'TW ID Number',      key: 'tw_id_number',      width: 14 },
-    { header: 'CC Number',         key: 'cc_number',         width: 24 },
-    { header: 'CC Expiry',         key: 'cc_expiry_date',    width: 12 },
-    { header: 'NIF',               key: 'nif',               width: 12 },
-    { header: 'NISS',              key: 'niss',              width: 14 },
-    { header: 'Date of Birth',     key: 'date_of_birth',     width: 14 },
-    { header: 'Gender',            key: 'gender',            width: 8  },
-    { header: 'Birthplace (TW)',   key: 'birthplace_tw',     width: 20 },
-    { header: 'Address (ZH)',      key: 'address_zh',        width: 40 },
-    { header: 'Address (EN)',      key: 'address',           width: 40 },
-    { header: 'Notes',             key: 'notes',             width: 40 },
-    { header: 'Documents',         key: 'documents',         width: 50 },
-  ];
+  const wanted = Array.isArray(selectedFields) && selectedFields.length
+    ? new Set(['member_id', ...selectedFields.filter(k => FIELD_KEYS.includes(k))])
+    : new Set(FIELD_KEYS);
+  ws.columns = FIELD_DEFS.filter(f => wanted.has(f.key));
 
   const hdr = ws.getRow(1);
   hdr.font = { bold: true };
@@ -148,6 +159,9 @@ async function _runExport(jobId, members, documentsMap) {
       birthplace_tw:     m.birthplace_tw  || '',
       address_zh:        m.address_zh     || '',
       address:           m.address        || '',
+      degree:            m.degree         || '',
+      university:        m.university     || '',
+      profession:        m.profession     || '',
       notes:             m.notes          || '',
       documents:         docs.map(d => DOC_TYPE_LABELS[d.doc_type] || d.original_name).join(', '),
     });
@@ -195,4 +209,4 @@ async function _runExport(jobId, members, documentsMap) {
   job.progress = job.total;
 }
 
-module.exports = { startExportJob, getExportJob, deleteExportJob };
+module.exports = { startExportJob, getExportJob, deleteExportJob, FIELD_DEFS };

@@ -1,5 +1,16 @@
 <%- include('../partials/header') %>
 
+<%
+  const _fieldGroups = [
+    { label: t('export.group_identity'),  keys: ['first_name','last_name','display_name','arc_chinese_name','email','phone','join_date','position','role'] },
+    { label: t('export.group_fees'),      keys: ['fee_status','fee_amount','fee_last_paid','fee_valid_until'] },
+    { label: t('export.group_residence'), keys: ['arc_number','arc_serial_number','arc_issue_date','arc_expiry_date','passport_number','tw_id_number'] },
+    { label: t('export.group_cc'),        keys: ['cc_number','cc_expiry_date','nif','niss'] },
+    { label: t('export.group_personal'),  keys: ['date_of_birth','gender','birthplace_tw','address_zh','address','degree','university','profession'] },
+    { label: t('export.group_other'),     keys: ['notes','documents'] },
+  ];
+%>
+
 <div class="pta-pagehead">
   <div class="pta-pagehead__titles">
     <h1><%= t('export.title') %></h1>
@@ -38,13 +49,52 @@
       <div id="searchResults" class="list-group mb-2" style="max-height:240px;overflow-y:auto"></div>
       <div id="selectedChips" class="d-flex flex-wrap gap-2"></div>
     </div>
-
-    <div id="exportErrMsg" class="alert alert-danger py-2 mb-3" style="display:none"></div>
-
-    <button class="pta-btn pta-btn--secondary" id="exportBtn" onclick="startExport()">
-      <i class="bi bi-box-arrow-up"></i> <%= t('export.generate_btn') %>
-    </button>
   </div>
+</div>
+
+<!-- Fields card -->
+<div class="pta-card mb-3" id="fieldsCard">
+  <header class="pta-card__head">
+    <i class="bi bi-ui-checks-grid"></i>
+    <div class="pta-card__titles">
+      <span class="pta-card__title"><%= t('export.fields_title') %></span>
+    </div>
+  </header>
+  <div class="pta-card__body">
+    <p class="text-muted small mb-3"><%= t('export.fields_hint') %></p>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <span class="pta-badge pta-badge--soft pta-tone-neutral"><%= t('export.fields.member_id') %></span>
+      <button type="button" class="pta-btn pta-btn--ghost pta-btn--sm ms-auto" onclick="toggleAllFields(true)">
+        <%= t('export.select_all') %>
+      </button>
+      <button type="button" class="pta-btn pta-btn--ghost pta-btn--sm" onclick="toggleAllFields(false)">
+        <%= t('export.select_none') %>
+      </button>
+    </div>
+
+    <div class="row g-3">
+      <% _fieldGroups.forEach(function (group) { %>
+      <div class="col-md-6">
+        <div class="small fw-semibold text-uppercase text-muted mb-2" style="letter-spacing:.04em"><%= group.label %></div>
+        <% group.keys.forEach(function (key) { %>
+        <div class="form-check">
+          <input class="form-check-input field-toggle" type="checkbox" value="<%= key %>" id="field_<%= key %>" checked>
+          <label class="form-check-label" for="field_<%= key %>"><%= t('export.fields.' + key) %></label>
+        </div>
+        <% }); %>
+      </div>
+      <% }); %>
+    </div>
+  </div>
+</div>
+
+<!-- Action -->
+<div id="exportErrMsg" class="alert alert-danger py-2 mb-3" style="display:none"></div>
+<div class="mb-3">
+  <button class="pta-btn pta-btn--secondary" id="exportBtn" onclick="startExport()">
+    <i class="bi bi-box-arrow-up"></i> <%= t('export.generate_btn') %>
+  </button>
 </div>
 
 <!-- Progress card -->
@@ -147,6 +197,15 @@ function renderChips() {
   }
 }
 
+// ── Field toggles ────────────────────────────────────────────────────────────────
+function toggleAllFields(checked) {
+  document.querySelectorAll('.field-toggle').forEach(function (cb) { cb.checked = checked; });
+}
+
+function selectedFields() {
+  return Array.from(document.querySelectorAll('.field-toggle:checked')).map(function (cb) { return cb.value; });
+}
+
 // ── Start export ──────────────────────────────────────────────────────────────
 async function startExport() {
   const errEl = document.getElementById('exportErrMsg');
@@ -168,6 +227,7 @@ async function startExport() {
   const body = {
     scope,
     memberIds: [..._selectedMap.keys()].join(','),
+    fields: selectedFields(),
   };
 
   try {
