@@ -4,7 +4,7 @@ const fs = require('fs');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
-const Jimp = require('jimp');
+const { Jimp } = require('jimp');
 const db = require('../database/db');
 const { writeAudit } = require('../utils/audit');
 const { startOcrJob, getOcrJob } = require('../utils/ocr');
@@ -16,9 +16,16 @@ function fixFilename(name) {
 }
 
 async function generateThumb(srcPath, thumbPath) {
-  const img = await Jimp.read(srcPath);
-  await img.resize(300, Jimp.AUTO).writeAsync(thumbPath);
+  const img = await Jimp.fromFile(srcPath);
+  img.resize({ w: 300 });
+  await img.write(thumbPath);
 }
+
+// Extension is derived from the validated mimetype, never from the
+// attacker-controlled originalname — otherwise a spoofed Content-Type on
+// the multipart field lets a file land on disk as e.g. ".svg" and get
+// served/rendered as a script-capable type.
+const IMAGE_EXT_BY_MIME = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
 
 const CARD_TYPES = ['arc_front', 'arc_back', 'cc_front', 'cc_back', 'tw_passport_front', 'tw_id_front', 'tw_id_back'];
 
@@ -43,7 +50,7 @@ const photoStorage = multer.diskStorage({
     cb(null, path.join(process.cwd(), 'uploads', 'photos'));
   },
   filename(req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = IMAGE_EXT_BY_MIME[file.mimetype] || '.jpg';
     cb(null, `${Date.now()}-${uuidv4()}${ext}`);
   },
 });
@@ -245,6 +252,8 @@ router.get('/documents/:docId/view', (req, res) => {
   const filePath = path.join(process.cwd(), doc.file_path);
   if (!fs.existsSync(filePath)) return res.status(404).send('File missing from server.');
 
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', 'sandbox');
   res.setHeader('Content-Disposition', contentDispositionFilename('inline', doc.original_name));
   res.sendFile(filePath);
 });
@@ -323,7 +332,7 @@ router.post('/documents/card', cardUpload.single('image'), async (req, res) => {
   const docType = req.body.doc_type;
   if (!CARD_TYPES.includes(docType)) return res.status(400).json({ error: 'Invalid card type.' });
 
-  const ext          = path.extname(req.file.originalname).toLowerCase() || '.jpg';
+  const ext          = IMAGE_EXT_BY_MIME[req.file.mimetype] || '.jpg';
   const filename     = `${Date.now()}-${uuidv4()}${ext}`;
   const filePath     = path.join('uploads', 'documents', filename);
   const thumbRelPath = path.join('uploads', 'thumbs', `thumb-${filename}`);

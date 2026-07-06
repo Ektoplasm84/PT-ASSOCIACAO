@@ -60,6 +60,7 @@ app.use(
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: 8 * 60 * 60 * 1000,
     },
   }),
@@ -94,6 +95,7 @@ app.get("/uploads/photos/:filename", requireAuth, (req, res) => {
     path.basename(req.params.filename),
   );
   if (!fs.existsSync(filePath)) return res.status(404).send("Not found.");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.sendFile(filePath);
 });
 app.get("/uploads/thumbs/:filename", requireAuth, (req, res) => {
@@ -104,6 +106,7 @@ app.get("/uploads/thumbs/:filename", requireAuth, (req, res) => {
     path.basename(req.params.filename),
   );
   if (!fs.existsSync(filePath)) return res.status(404).send("Not found.");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.sendFile(filePath);
 });
 
@@ -155,6 +158,7 @@ app.get("/vault/files/:id", requireAuth, (req, res) => {
   const filePath = path.join(process.cwd(), "uploads", "vault", "public", row.filename);
   if (!fs.existsSync(filePath)) return res.status(404).send("File not found on disk");
   res.setHeader("Content-Type", row.mime_type || "application/octet-stream");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Content-Disposition", cdFilename("attachment", row.original_name));
   res.sendFile(filePath);
 });

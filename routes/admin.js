@@ -68,12 +68,26 @@ const NIA_HEADERS = {
 
 // --- Multer config ---
 
+// Extensions are derived from the validated mimetype, never from the
+// attacker-controlled originalname — otherwise a spoofed Content-Type on the
+// multipart field lets a file land on disk as e.g. ".svg" and get
+// served/rendered as a script-capable type.
+const IMAGE_EXT_BY_MIME = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+
+const DOC_EXT_BY_MIME = {
+  ...IMAGE_EXT_BY_MIME,
+  'application/pdf': '.pdf',
+  'text/plain': '.txt',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+};
+
 const photoStorage = multer.diskStorage({
   destination(req, file, cb) {
     cb(null, path.join(process.cwd(), 'uploads', 'photos'));
   },
   filename(req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = IMAGE_EXT_BY_MIME[file.mimetype] || '.jpg';
     cb(null, `${Date.now()}-${uuidv4()}${ext}`);
   },
 });
@@ -83,7 +97,7 @@ const docStorage = multer.diskStorage({
     cb(null, path.join(process.cwd(), 'uploads', 'documents'));
   },
   filename(req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = DOC_EXT_BY_MIME[file.mimetype] || '.bin';
     cb(null, `${Date.now()}-${uuidv4()}${ext}`);
   },
 });
@@ -118,13 +132,19 @@ const cardUpload = multer({
 
 const CARD_TYPES = ['arc_front', 'arc_back', 'cc_front', 'cc_back', 'tw_passport_front', 'tw_id_front', 'tw_id_back'];
 
+const VAULT_EXT_BY_MIME = {
+  ...DOC_EXT_BY_MIME,
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+};
+
 const vaultStorage = multer.diskStorage({
   destination(req, file, cb) {
     const section = req.body.section === 'admin' ? 'admin' : 'public';
     cb(null, path.join(process.cwd(), 'uploads', 'vault', section));
   },
   filename(req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = VAULT_EXT_BY_MIME[file.mimetype] || '.bin';
     cb(null, `${Date.now()}-${uuidv4()}${ext}`);
   },
 });
@@ -769,7 +789,7 @@ router.post('/members/:id/documents/card', adminOnly, cardUpload.single('image')
   const docType = req.body.doc_type;
   if (!CARD_TYPES.includes(docType)) return res.status(400).json({ error: 'Invalid card type.' });
 
-  const ext = (path.extname(req.file.originalname).toLowerCase()) || '.jpg';
+  const ext = IMAGE_EXT_BY_MIME[req.file.mimetype] || '.jpg';
   const filename = `${Date.now()}-${uuidv4()}${ext}`;
   const filePath = path.join('uploads', 'documents', filename);
   const thumbFilename = `thumb-${filename}`;
@@ -1464,6 +1484,7 @@ router.get('/vault/files/:id', (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).send('File not found on disk');
 
   res.setHeader('Content-Type', row.mime_type || 'application/octet-stream');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', contentDispositionFilename('attachment', row.original_name));
   res.sendFile(filePath);
 });

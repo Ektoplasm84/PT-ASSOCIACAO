@@ -6,7 +6,7 @@ A membership management web application for a Portuguese-Taiwanese association. 
 
 ---
 
-## Current Status (as of 2026-06-21)
+## Current Status (as of 2026-07-06)
 
 ### Done
 - Full Node.js + Express backend with SQLite embedded database
@@ -59,6 +59,16 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - **Version V1.9** — Extended name suggestion banners (English contextual for ARC/Passport + Chinese name from TW ID/Passport); Chinese name + member ID subtitle on member-edit heading; Export Data feature (admin/SA only) at `/admin/export` — selectable scope (all / specific members), ZIP output with 31-column XLSX spreadsheet + per-member document folders, server-side background job with live progress bar; jimp upgraded to v1.6.1 (security fix); `archiver` + `exceljs` added as dependencies
 - **Version V2.0** — Associate Member category (`position='associate'`): new dashboard stat tile (info/azure tone), position badge (amber/warning tone), TYPE filter row on members list (All / Members / Associate / Honorary / Management), position dropdown option on member-detail; Dashboard Warnings table upgraded: Residence Doc column shows full validity status (Valid / APRC / TW Passport / TW National ID badges; Expiring / Expired for regular ARC), CC column same; Export doc-type file naming: exported ZIP entries renamed to `ASSOC-XXXX_ARC_Front.jpg` etc. via `DOC_TYPE_LABELS` map; Full mobile responsiveness pass: `pta-pagehead` on member-edit and profile headings, `pta-table-wrap` on all dashboard vault + audit log tables, audit log upgraded to `pta-table` DS class with Detail column hidden on mobile (`d-none d-md-table-cell`), 5th stats tile spans full width at ≤768px, nav item wrap on ≤480px, TYPE filter label hides on narrow phones; Node engines field set to `>=20.0.0` (cPanel server runs Node 20 LTS)
 - **Version V2.1** — Member fields: Degree, University, Profession — three new `members` columns (all nullable TEXT); editable in admin member-form and self-service profile-edit (Personal Info section); displayed in member-detail "Contact Details" card (renamed from "Contact") and profile.ejs Personal Info card; included in the data export XLSX; `detail.contact_title` / `form.degree` / `form.university` / `form.profession` / `profile.degree` / `profile.university` / `profile.profession` keys added to all three locale files. Export Data: selectable fields — `admin/export.ejs` Fields card lets admins toggle which of the 34 XLSX columns to include (grouped: Identity & Contact / Membership & Fees / Residence Document / Cartão de Cidadão / Personal & Education / Other), with Select All/None shortcuts; `member_id` is always force-included server-side regardless of selection; `utils/export.js` exports `FIELD_DEFS` (master column list) and `startExportJob`/`_runExport` accept an optional `selectedFields` array that filters `ws.columns` (row-building is unchanged — ExcelJS ignores row keys with no matching column); identity documents in the ZIP are unaffected by the field selection
+- **Brand emblem replaced (2026-07-06)** — `logo-emblem.png` is now a transparent Taiwan-silhouette azulejo tile design (227×400, non-square), replacing the old copper/charcoal armillary-sphere emblem; topbar image is `27×48` and login-page image is `54×96` (both preserve the new aspect ratio instead of forcing a square); `logo-full.jpg` regenerated from the same source (white background, 510×900, reserved for future email/share use); unused `logo-emblem.svg` and `logo-wordmark.svg` removed (confirmed unreferenced in any template)
+- **Security hardening pass (2026-07-06)** — full audit + fix cycle, see CLAUDE.md § Hard Rules for the resulting always-follow rules:
+  - Stored-XSS fix: upload extension is now derived from the validated mimetype (`IMAGE_EXT_BY_MIME` / `DOC_EXT_BY_MIME` / `VAULT_EXT_BY_MIME` maps in `routes/admin.js` / `routes/user.js`) instead of the attacker-controlled `file.originalname`, across every multer `diskStorage` config (photo, document, vault, card uploads)
+  - `X-Content-Type-Options: nosniff` added to every file-serving route (photos/thumbs, vault files, card/member documents); own-document view route in `routes/user.js` also gained `Content-Security-Policy: sandbox` to match the admin equivalent
+  - Session fixation fix: `routes/auth.js` now calls `req.session.regenerate()` on login before setting `session.userId`
+  - Session cookie sets `sameSite: "lax"` explicitly (`app.js`) — the app's CSRF defense, relying on all mutating routes being POST-only
+  - `multer` bumped `^2.0.0` → `^2.2.0` (patches GHSA-72gw-mp4g-v24j DoS advisory)
+  - `routes/user.js`'s `generateThumb()` fixed from the jimp v0.x API to v1.x (was silently failing — member-uploaded card thumbnails weren't generating)
+  - Diagnostic token for `node-check.php` / `node-kill.php` rotated; CLAUDE.md no longer contains the literal value (placeholder `<token>` only)
+  - Removed stale duplicate `app copy.js` from git
 
 ### Not Yet Built
 - Email notifications to members
@@ -760,7 +770,7 @@ Table: filename + size | description | uploader name | date | download button. E
 | `bcryptjs` | Pure JS — no native addon |
 | `better-sqlite3` | Synchronous SQLite, embedded |
 | `better-sqlite3-session-store` | Sessions in same SQLite file |
-| `multer ^2.x` | Security fixes vs 1.x |
+| `multer ^2.2.x` | Security fixes vs 1.x and vs 2.0.x (GHSA-72gw-mp4g-v24j DoS) |
 | `uuid ^11.x` | Modern ESM-compatible |
 | `jimp ^1.x` | Pure JS image resize (v0.x had a `file-type` vuln); named export `{ Jimp }`, `fromFile()` API |
 | `archiver ^7.x` | Pure JS ZIP builder — no native compile; used by export feature |

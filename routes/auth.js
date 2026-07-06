@@ -85,11 +85,19 @@ router.post('/login', (req, res) => {
   }
 
   clearAttempts(ip);
-  req.session.userId = user.id;
-  req.session.role = user.role;
-  req.session.flash = { type: 'success', message: `Welcome back!` };
 
-  return res.redirect(adminDest(user.role, user.position) ? '/admin' : '/profile');
+  // Regenerate the session on login so an attacker can't fixate a session ID
+  // set before authentication and inherit it once the victim logs in.
+  req.session.regenerate((err) => {
+    if (err) {
+      req.session.flash = { type: 'danger', message: 'Login failed. Please try again.' };
+      return res.redirect('/login');
+    }
+    req.session.userId = user.id;
+    req.session.role = user.role;
+    req.session.flash = { type: 'success', message: `Welcome back!` };
+    return res.redirect(adminDest(user.role, user.position) ? '/admin' : '/profile');
+  });
 });
 
 router.post('/logout', (req, res) => {

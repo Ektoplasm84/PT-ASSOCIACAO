@@ -32,11 +32,11 @@ Server runs on `http://localhost:3000`. Default login: `admin@associacao.pt` / `
 LiteSpeed's `lsnode` process manager does not always terminate cleanly when you click "Stop" — the old process can be orphaned (PPID=1) and keep serving stale code. Always kill it explicitly:
 
 1. `git pull` in the app directory on the server
-2. Check PID: `https://associacao.poetico.co/node-check.php?token=ptassoc-diag-2024`
-3. Kill it: `https://associacao.poetico.co/node-kill.php?token=ptassoc-diag-2024&pid=XXXX`
+2. Check PID: `https://associacao.poetico.co/node-check.php?token=<token>`
+3. Kill it: `https://associacao.poetico.co/node-kill.php?token=<token>&pid=XXXX`
 4. cPanel → Node.js Selector → **Start**
 
-`node-check.php` and `node-kill.php` are gitignored — upload manually to `public_html/` only when needed, delete after use. The PID changes on every restart; always check before killing.
+`node-check.php` and `node-kill.php` are gitignored — upload manually to `public_html/` only when needed, delete after use. The PID changes on every restart; always check before killing. The real `<token>` value lives only in the local (gitignored) `node-check.php` / `node-kill.php` files — never write the literal token into any committed file, since these diagnostic endpoints have no auth beyond the token string. If it's ever exposed (server logs, referrer headers, a committed file), rotate it in both PHP files and re-upload.
 
 ---
 
@@ -135,9 +135,8 @@ frontend/public/css/custom.css            Bootstrap overrides only
 frontend/public/css/ds/pt-design-system.css   PT Design System — tokens + .pta-* components
 frontend/public/css/ds/pt-bootstrap-bridge.css Bootstrap variable remap to design tokens
 frontend/public/css/ds/azulejo-tile.svg   Background tile — must stay next to CSS (relative url())
-frontend/public/images/logo-emblem.png    Brand emblem (512×512, copper on charcoal) — topbar + login
-frontend/public/images/logo-full.jpg      Full lockup for emails/share
-frontend/public/images/logo-wordmark.svg  Full wordmark
+frontend/public/images/logo-emblem.png    Brand emblem (227×400, Taiwan-silhouette azulejo tile, transparent) — topbar + login
+frontend/public/images/logo-full.jpg      Full lockup on white background (510×900) — reserved for emails/share, not used in app chrome
 uploads/                 Runtime only — photos, documents, thumbs, vault/, tmp/ (never commit)
 uploads/vault/public/    Public vault files — served via authenticated route
 uploads/vault/admin/     Admin vault files — served via authenticated route
@@ -194,6 +193,10 @@ Events tables (in data.db):
 - **Export feature requires `npm install`** — `archiver` and `exceljs` are new dependencies added in V1.9; run `npm install` on cPanel after deploying this version.
 - **Export temp files in `uploads/tmp/`** — ZIPs are auto-deleted after the client downloads them; `_cleanupOrphans()` in `utils/export.js` also deletes leftover ZIPs on every server restart. Never serve `uploads/tmp/` statically.
 - **jimp v1.x API** — use `const { Jimp } = require('jimp')` (named export, NOT default); `Jimp.fromFile(path)` (NOT `Jimp.read()`); `img.resize({ w: 300 })` (NOT `.resize(300, Jimp.AUTO)`); `img.write(dest)`. Do not revert to v0.x patterns.
+- **Upload file extensions are derived from the validated mimetype, never from `file.originalname`** — `IMAGE_EXT_BY_MIME` / `DOC_EXT_BY_MIME` / `VAULT_EXT_BY_MIME` lookup maps (`routes/admin.js`, `routes/user.js`) map each allow-listed mimetype to a fixed extension for every multer `diskStorage` config (photos, documents, vault, card uploads). `file.originalname` is attacker-controlled and independent of the actual file bytes — trusting it lets a spoofed multipart `Content-Type` land a file on disk as `.svg`/`.html`, which a browser can then render inline as script-capable content. Never revert to `path.extname(file.originalname)`.
+- **All file-serving routes set `X-Content-Type-Options: nosniff`** — photos/thumbs (`app.js`), vault files (`app.js` `/vault/files/:id` + `admin.js` `/admin/vault/files/:id`), and card/member documents (`admin.js`, `user.js`) all set this header; document *view* routes (inline disposition) additionally set `Content-Security-Policy: sandbox`. Any new route serving an uploaded file must set at least `nosniff`.
+- **Session is regenerated on login** — `routes/auth.js`'s `POST /login` calls `req.session.regenerate()` before setting `session.userId`/`session.role`, to prevent session-fixation (an attacker-supplied pre-auth session ID being reused post-auth). Never set session fields directly on the pre-regenerate session object.
+- **Session cookie sets `sameSite: "lax"` explicitly** (`app.js`) — this, combined with every state-changing route in the app being POST-only (no GET-based mutations exist), is the app's CSRF defense; there is no separate CSRF token system. If a new mutating route is ever added, it must be POST (or another non-GET verb), never GET, or this protection breaks.
 
 ---
 
@@ -494,7 +497,7 @@ footer.ejs  →  </main>
 ### Topbar & brand (DS R4)
 - Background: `#313131` charcoal — set via `.pta-topbar { background: #313131; }` override at end of `pt-design-system.css` (not via the `--surface-inverse` token, to avoid breaking other uses)
 - Brand name: `<span class="pta-brand__name">Associação Cultural Portuguesa</span>` / `<span class="pta-brand__sub">na Formosa</span>`
-- Emblem: `logo-emblem.png` (512×512, copper on charcoal) — **not** `.svg`; reference in `header.ejs` and `login.ejs`
+- Emblem: `logo-emblem.png` (227×400, Taiwan-silhouette azulejo tile, transparent PNG, non-square — rendered at `width="27" height="48"` in topbar, `width="54" height="96"` on login) — reference in `header.ejs` and `login.ejs`
 - Member-only nav (non-canViewAll) shows only "My Profile"; Documents link is in the admin/gestao nav only
 
 ### SRI hashes
