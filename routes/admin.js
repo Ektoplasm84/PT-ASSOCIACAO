@@ -1274,6 +1274,10 @@ router.post('/settings/models', superAdminOnly, (req, res) => {
     req.session.flash = { type: 'danger', message: 'Model list cannot be empty.' };
     return res.redirect('/admin');
   }
+  if (models.length < 2) {
+    req.session.flash = { type: 'danger', message: 'At least 2 models are required (primary + secondary run in parallel).' };
+    return res.redirect('/admin');
+  }
   setActiveModels(models);
   setSetting('ocr_models', JSON.stringify(models));
 

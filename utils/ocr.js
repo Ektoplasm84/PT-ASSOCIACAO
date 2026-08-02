@@ -396,6 +396,16 @@ async function callVision(imagePath, prompt, onStep) {
 
   const [primary, secondary, tertiary] = _activeModels;
   const t0 = Date.now();
+
+  // Only one model configured — skip the parallel/merge path entirely.
+  if (!secondary) {
+    console.log(`[ocr] single-model scan started — model: ${primary}`);
+    step(`Sending to ${shortModelName(primary)}…`, 'info');
+    const result = await callVisionModel(primary, prompt, b64, mime);
+    step(`${shortModelName(primary)}: reply received`, 'ok');
+    return result;
+  }
+
   console.log(`[ocr] parallel scan started — models: [${primary}, ${secondary}]`);
 
   step(`Sending to primary (${shortModelName(primary)}) + secondary (${shortModelName(secondary)}) in parallel…`, 'info');

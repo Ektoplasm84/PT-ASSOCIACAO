@@ -329,6 +329,7 @@ The first two active models run **in parallel**. Their results are merged:
 - First non-empty value wins for each field
 - If both return different non-empty values → field recorded in `_conflicts: { field: [valA, valB] }`
 - If either is rate-limited (429), the third model is substituted as fallback
+- If only one model is active (`_activeModels.length === 1`), `callVision()` in `ocr.js` skips the parallel/merge path entirely and calls that single model directly — `POST /admin/settings/models` now rejects saving fewer than 2 models (`Model list cannot be empty` / `At least 2 models are required`) so this path should only be reachable via a stale/manually-edited `ocr_models` setting row, but the fallback exists so a 1-model list never sends `model: undefined` to OpenRouter (was the cause of a `"No models provided"` 400).
 
 ### Active model list (runtime-configurable)
 The list lives in `_activeModels` inside `ocr.js`. On startup, `routes/admin.js` reads `ocr_models` from the `settings` table and calls `setActiveModels()`. If no setting exists, the hardcoded `DEFAULT_VISION_MODELS` is used:
@@ -351,7 +352,7 @@ await testModel('model/id');    // pings one model; returns { ok: bool, error?: 
 ```
 Dashboard "OCR Model Configuration" card shows current models with role labels (Primary / Secondary / Fallback), per-model Test and Remove buttons, Add Model input, and Save. `POST /admin/settings/models` persists the list.
 
-Model IDs are validated against `MODEL_ID_RE = /^[a-zA-Z0-9_\-/:\.]{1,120}$/` on both the models-save and test routes. `POST /admin/ocr-test-model` enforces a 10-second per-model cooldown via `_testCooldowns` Map.
+Model IDs are validated against `MODEL_ID_RE = /^[a-zA-Z0-9_\-/:\.]{1,120}$/` on both the models-save and test routes. `POST /admin/ocr-test-model` enforces a 10-second per-model cooldown via `_testCooldowns` Map. `POST /admin/settings/models` requires **at least 2** models (rejects with a flash error otherwise) — the dual-model parallel/conflict-detection design assumes a primary + secondary pair.
 
 ### Post-processing
 - `arc_serial_number`: spaces stripped (models hallucinate a space between letter prefix and digits)
