@@ -16,7 +16,7 @@ function fixFilename(name) {
 }
 
 async function generateThumb(srcPath, thumbPath) {
-  const img = await Jimp.fromFile(srcPath);
+  const img = await Jimp.read(srcPath);
   img.resize({ w: 300 });
   await img.write(thumbPath);
 }
@@ -129,7 +129,7 @@ router.post('/', photoUpload.single('photo'), (req, res) => {
     address, city, postal_code,
     city_zh, district_zh, district_en, address_zh,
     current_password, new_password,
-    degree, university, profession,
+    degree, university, profession, nationality,
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number, tw_id_number, date_of_birth, gender, birthplace_tw,
     cc_number, cc_expiry_date, nif, niss,
@@ -185,7 +185,7 @@ router.post('/', photoUpload.single('photo'), (req, res) => {
         address_type=?, address=?, city=?, postal_code=?,
         city_zh=?, district_zh=?, district_en=?, address_zh=?,
         photo_path=?,
-        degree=?, university=?, profession=?,
+        degree=?, university=?, profession=?, nationality=?,
         arc_number=?, arc_name_en=?, arc_chinese_name=?, arc_issue_date=?, arc_expiry_date=?,
         passport_number=?, arc_serial_number=?, tw_id_number=?,
         date_of_birth=?, gender=?, birthplace_tw=?,
@@ -197,7 +197,7 @@ router.post('/', photoUpload.single('photo'), (req, res) => {
       address_type || 'tw', address || null, city || null, postal_code || null,
       city_zh || null, district_zh || null, district_en || null, address_zh || null,
       photoPath,
-      degree || null, university || null, profession || null,
+      degree || null, university || null, profession || null, nationality || null,
       arc_number || null, arc_name_en || null, arc_chinese_name || null,
       arc_issue_date || null, arc_expiry_date || null,
       passport_number || null, arc_serial_number || null,
@@ -343,7 +343,12 @@ router.post('/documents/card', cardUpload.single('image'), async (req, res) => {
     fs.writeFileSync(absFilePath, req.file.buffer);
 
     let thumbPath = null;
-    try { await generateThumb(absFilePath, absThumbPath); thumbPath = thumbRelPath; } catch (_) {}
+    try {
+      await generateThumb(absFilePath, absThumbPath);
+      thumbPath = thumbRelPath;
+    } catch (thumbErr) {
+      console.warn(`[thumb] generation failed: ${thumbErr.message}`);
+    }
 
     const existing = db.prepare('SELECT * FROM documents WHERE member_id = ? AND doc_type = ?').get(member.id, docType);
     if (existing) {

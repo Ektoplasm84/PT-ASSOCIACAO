@@ -43,3 +43,27 @@
 .pta-minilog__line--warn  { color: #7a4f00; }
 .pta-minilog__line--error { color: #842029; }
 .pta-minilog__line--info  { color: #444; }
+.pta-minilog__ts { color: #888; margin-right: .3em; font-size: .7rem; }
+.pta-minilog--server { max-height: 220px; background: #1e1e1e; color: #d4d4d4; border-color: #333; }
+.pta-minilog--server .pta-minilog__line--ok    { color: #4ec979; }
+.pta-minilog--server .pta-minilog__line--warn  { color: #e5c07b; }
+.pta-minilog--server .pta-minilog__line--error { color: #e06c75; }
+.pta-minilog--server .pta-minilog__line--info  { color: #abb2bf; }
+.pta-minilog--server .pta-minilog__ts          { color: #636d83; }
+
+/* Floating OCR indicator (minimized scan) */
+.pta-ocr-fab {
+  position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1060;
+  display: flex; align-items: center; gap: .45rem;
+  background: var(--verde-600, #1a8a5a); color: #fff;
+  padding: .55rem 1rem; border-radius: 2rem;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  cursor: pointer; font-size: .85rem; font-weight: 600;
+  animation: pta-fab-pulse 2s ease-in-out infinite;
+  transition: transform .15s;
+}
+.pta-ocr-fab:hover { transform: scale(1.06); }
+@keyframes pta-fab-pulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+  50%      { box-shadow: 0 4px 20px rgba(26,138,90,.5); }
+}

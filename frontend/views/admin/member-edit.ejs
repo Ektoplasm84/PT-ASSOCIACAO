@@ -124,12 +124,12 @@
 </div>
 
 <!-- OCR Review Modal -->
-<div class="modal fade" id="ocrModal" tabindex="-1">
+<div class="modal fade" id="ocrModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="ocrModalTitle"><%= t('ocr.modal_title') %></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close" id="ocrMinimizeBtn" title="Minimize"></button>
       </div>
       <div class="modal-body">
         <div id="ocrSpinner" class="py-3">
@@ -178,15 +178,28 @@
             <span id="ocrErrMsg"></span>
           </div>
         </div>
+        <!-- Server console log panel -->
+        <details id="ocrServerLog" class="mt-2" style="display:none">
+          <summary class="small fw-semibold" style="cursor:pointer;color:var(--text-muted);user-select:none">
+            <i class="bi bi-terminal me-1"></i>Server Log
+          </summary>
+          <div id="ocrServerLogBody" class="pta-minilog pta-minilog--server mt-1"></div>
+        </details>
       </div>
       <div class="modal-footer" id="ocrFooter" style="display:none">
-        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-secondary btn-sm" id="ocrCloseBtn">Cancel</button>
         <button class="btn btn-success btn-sm" id="ocrApplyBtn">
           <i class="bi bi-pencil-square"></i> Apply to Form
         </button>
       </div>
     </div>
   </div>
+</div>
+
+<!-- Floating OCR indicator (shown when modal is minimized during scan) -->
+<div id="ocrFloatingIndicator" class="pta-ocr-fab" style="display:none" title="OCR scan in progress — click to open">
+  <div class="spinner-border spinner-border-sm text-white" role="status"></div>
+  <span class="pta-ocr-fab__label">OCR</span>
 </div>
 
 <script>
@@ -196,6 +209,7 @@
   function currentFormValues() {
     var fields = ['arc_number','arc_name_en','arc_chinese_name','arc_issue_date','arc_expiry_date',
                   'passport_number','arc_serial_number','tw_id_number','address_zh',
+                  'city_zh','district_zh','nationality',
                   'cc_number','cc_expiry_date','nif','niss',
                   'date_of_birth','gender','birthplace_tw'];
     var out = {};
@@ -231,6 +245,93 @@
   var elErrMsg    = document.getElementById('ocrErrMsg');
   var elFooter    = document.getElementById('ocrFooter');
   var elApply     = document.getElementById('ocrApplyBtn');
+  var elMinBtn    = document.getElementById('ocrMinimizeBtn');
+  var elCloseBtn  = document.getElementById('ocrCloseBtn');
+  var elFab       = document.getElementById('ocrFloatingIndicator');
+  var elServerLog = document.getElementById('ocrServerLog');
+  var elServerLogBody = document.getElementById('ocrServerLogBody');
+
+  // ── OCR scan active tracking ──
+  var _ocrActive = false;
+  var _sseSource = null;
+
+  function setOcrActive(active) {
+    _ocrActive = active;
+    elFab.style.display = 'none';
+    if (active) {
+      connectSSE();
+      elServerLog.style.display = '';
+    } else {
+      disconnectSSE();
+    }
+  }
+
+  // ── Minimize / Restore ──
+  elMinBtn.addEventListener('click', function () {
+    if (_ocrActive) {
+      ocrModal().hide();
+      elFab.style.display = '';
+    } else {
+      ocrModal().hide();
+    }
+  });
+
+  elFab.addEventListener('click', function () {
+    elFab.style.display = 'none';
+    ocrModal().show();
+  });
+
+  elCloseBtn.addEventListener('click', function () {
+    ocrModal().hide();
+  });
+
+  // ── Server Log SSE stream ──
+  function connectSSE() {
+    if (_sseSource) return;
+    elServerLogBody.innerHTML = '';
+    try {
+      _sseSource = new EventSource('/admin/logs/stream');
+      _sseSource.onmessage = function (ev) {
+        try {
+          var entry = JSON.parse(ev.data);
+          if (entry.msg && entry.msg.indexOf('[ocr]') !== -1) {
+            appendServerLogLine(entry);
+          }
+        } catch (_) {}
+      };
+      _sseSource.onerror = function () {
+        disconnectSSE();
+      };
+    } catch (_) {}
+  }
+
+  function disconnectSSE() {
+    if (_sseSource) {
+      try { _sseSource.close(); } catch (_) {}
+      _sseSource = null;
+    }
+  }
+
+  var LEVEL_CLS = { log: 'info', warn: 'warn', error: 'error' };
+  var LEVEL_ICON = { log: '→', warn: '⚠', error: '✗' };
+
+  function appendServerLogLine(entry) {
+    var cls  = LEVEL_CLS[entry.level] || 'info';
+    var icon = LEVEL_ICON[entry.level] || '→';
+    var div  = document.createElement('div');
+    div.className = 'pta-minilog__line pta-minilog__line--' + cls;
+    div.innerHTML = '<span class="pta-minilog__icon">' + icon + '</span>' +
+      '<span class="pta-minilog__ts">' + (entry.ts || '') + '</span>' +
+      '<span>' + escHtml(entry.msg) + '</span>';
+    elServerLogBody.appendChild(div);
+    elServerLogBody.scrollTop = elServerLogBody.scrollHeight;
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
 
   var STATE_ICON = { ok: '✓', warn: '⚠', error: '✗', info: '→' };
   function renderSteps(steps) {
@@ -253,13 +354,13 @@
     tw_id_back:       '<%= t("profile.card_tw_id_back") %>',
   };
   var CARD_FIELDS = {
-    arc_front:        ['arc_number', 'arc_chinese_name', 'arc_name_en', 'gender', 'date_of_birth', 'arc_issue_date', 'arc_expiry_date', 'passport_number', 'address_zh'],
+    arc_front:        ['arc_number', 'arc_chinese_name', 'arc_name_en', 'gender', 'date_of_birth', 'arc_issue_date', 'arc_expiry_date', 'passport_number', 'nationality', 'address_zh', 'city_zh', 'district_zh'],
     arc_back:         ['arc_serial_number'],
     cc_front:         ['cc_number', 'cc_expiry_date'],
     cc_back:          ['nif', 'niss'],
-    tw_passport_front:['passport_number', 'tw_id_number', 'arc_name_en', 'arc_chinese_name', 'date_of_birth', 'gender', 'arc_issue_date', 'arc_expiry_date', 'birthplace_tw'],
+    tw_passport_front:['passport_number', 'tw_id_number', 'arc_name_en', 'arc_chinese_name', 'nationality', 'date_of_birth', 'gender', 'arc_issue_date', 'arc_expiry_date', 'birthplace_tw'],
     tw_id_front:      ['tw_id_number', 'arc_chinese_name', 'date_of_birth', 'gender', 'arc_issue_date'],
-    tw_id_back:       ['address_zh', 'birthplace_tw'],
+    tw_id_back:       ['address_zh', 'city_zh', 'district_zh', 'birthplace_tw'],
   };
   var FIELD_LABELS = {
     arc_number: 'ARC Number',           arc_name_en: 'English Name',
@@ -267,6 +368,8 @@
     arc_issue_date: 'Issue Date',       arc_expiry_date: 'Expiry Date',
     passport_number: 'Passport Number', arc_serial_number: 'Serial Number',
     tw_id_number: 'TW National ID No.',address_zh: 'Address (ZH)',
+    city_zh: 'City (ZH)',              district_zh: 'District (ZH)',
+    nationality: 'Nationality',
     cc_number: 'CC Number',             cc_expiry_date: 'CC Expiry Date',
     nif: 'NIF',                         niss: 'NISS',
     date_of_birth: 'Date of Birth',     gender: 'Gender',
@@ -277,7 +380,12 @@
     elSpinner.style.display = state === 'loading' ? '' : 'none';
     elResults.style.display = state === 'results' ? '' : 'none';
     elErr.style.display     = state === 'error'   ? '' : 'none';
-    elFooter.style.display  = state === 'results' ? '' : 'none';
+    elFooter.style.display  = (state === 'results' || state === 'error') ? '' : 'none';
+    if (state === 'loading') {
+      setOcrActive(true);
+    } else if (state === 'results' || state === 'error') {
+      setOcrActive(false);
+    }
   }
 
   function buildFieldRow(key, ocrVal, modelConflict, currentMember) {
@@ -449,6 +557,7 @@
     _currentDocType = type;
     var file = inputEl.files[0];
     elTitle.textContent = 'Uploading ' + (CARD_LABELS[type] || type) + '…';
+    elServerLogBody.innerHTML = '';
     setOcrState('loading');
     ocrModal().show();
     var fd = new FormData();
@@ -469,6 +578,7 @@
   window.ocrRescan = function (type, docId) {
     _currentDocType = type;
     elTitle.textContent = 'Scanning ' + (CARD_LABELS[type] || type) + '… (0s)';
+    elServerLogBody.innerHTML = '';
     setOcrState('loading');
     ocrModal().show();
     fetch('/admin/members/' + MEMBER_ID + '/documents/' + docId + '/ocr', { method: 'POST' })

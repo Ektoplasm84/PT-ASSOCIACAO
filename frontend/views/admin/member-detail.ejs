@@ -224,14 +224,19 @@ function validatePwReset() {
         <dl class="pta-dl pta-dl--split">
           <dt><%= t('detail.phone') %></dt><dd class="mono"><%= member.phone || '—' %></dd>
           <dt><%= t('detail.email') %></dt><dd><%= member.email || '—' %></dd>
+          <dt><%= t('detail.nationality') %></dt><dd><%= member.nationality || '—' %></dd>
+          <dt><%= t('detail.profession') %></dt><dd><%= member.profession || '—' %></dd>
           <dt><%= t('detail.degree') %></dt><dd><%= member.degree || '—' %></dd>
           <dt><%= t('detail.university') %></dt><dd><%= member.university || '—' %></dd>
-          <dt><%= t('detail.profession') %></dt><dd><%= member.profession || '—' %></dd>
         </dl>
         <div class="pta-fieldset">
           <div>
             <div class="pta-fieldset__lbl"><%= t('detail.address_zh') %></div>
             <div class="pta-fieldset__val"><%= member.address_zh || '—' %></div>
+          </div>
+          <div>
+            <div class="pta-fieldset__lbl"><%= t('detail.city_zh') %> / <%= t('detail.district_zh') %></div>
+            <div class="pta-fieldset__val"><%= member.city_zh || '—' %> — <%= member.district_zh || '—' %></div>
           </div>
           <div>
             <div class="pta-fieldset__lbl"><%= t('detail.address_en') %></div>

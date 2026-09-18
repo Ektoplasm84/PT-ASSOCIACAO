@@ -60,21 +60,36 @@
                  placeholder="e.g. 臺北市大安區信義路四段1號">
           <div class="form-text"><%= t('form.address_zh_hint_short') %></div>
         </div>
+        <div class="col-md-6">
+          <label class="form-label"><%= t('form.city_zh') %></label>
+          <input type="text" name="city_zh" class="form-control" value="<%= member.city_zh || '' %>"
+                 placeholder="e.g. 臺北市">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label"><%= t('form.district_zh') %></label>
+          <input type="text" name="district_zh" class="form-control" value="<%= member.district_zh || '' %>"
+                 placeholder="e.g. 大安區">
+        </div>
         <div class="col-12">
           <label class="form-label"><%= t('form.address_en') %></label>
           <input type="text" name="address" class="form-control" value="<%= member.address || '' %>">
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
+          <label class="form-label"><%= t('form.nationality') %></label>
+          <input type="text" name="nationality" class="form-control" value="<%= member.nationality || '' %>"
+                 placeholder="e.g. PORTUGUESA">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label"><%= t('form.profession') %></label>
+          <input type="text" name="profession" class="form-control" value="<%= member.profession || '' %>">
+        </div>
+        <div class="col-md-6">
           <label class="form-label"><%= t('form.degree') %></label>
           <input type="text" name="degree" class="form-control" value="<%= member.degree || '' %>">
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
           <label class="form-label"><%= t('form.university') %></label>
           <input type="text" name="university" class="form-control" value="<%= member.university || '' %>">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label"><%= t('form.profession') %></label>
-          <input type="text" name="profession" class="form-control" value="<%= member.profession || '' %>">
         </div>
         <div class="col-12">
           <label class="form-label"><%= t('form.photo') %></label>
@@ -287,12 +302,12 @@
 </div>
 
 <!-- OCR Review Modal -->
-<div class="modal fade" id="profOcrModal" tabindex="-1">
+<div class="modal fade" id="profOcrModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="profOcrModalTitle"><%= t('ocr.modal_title') %></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close" id="profOcrMinimizeBtn" title="Minimize"></button>
       </div>
       <div class="modal-body">
         <div id="profOcrSpinner" class="py-3">
@@ -343,13 +358,19 @@
         </div>
       </div>
       <div class="modal-footer" id="profOcrFooter" style="display:none">
-        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-secondary btn-sm" id="profOcrCloseBtn">Cancel</button>
         <button class="btn btn-success btn-sm" id="profOcrApplyBtn">
           <i class="bi bi-pencil-square"></i> Apply to Form
         </button>
       </div>
     </div>
   </div>
+</div>
+
+<!-- Floating OCR indicator (shown when modal is minimized during scan) -->
+<div id="profOcrFab" class="pta-ocr-fab" style="display:none" title="OCR scan in progress — click to open">
+  <div class="spinner-border spinner-border-sm text-white" role="status"></div>
+  <span class="pta-ocr-fab__label">OCR</span>
 </div>
 
 <script>
@@ -379,6 +400,29 @@
   var elErrMsg    = document.getElementById('profOcrErrMsg');
   var elFooter    = document.getElementById('profOcrFooter');
   var elApply     = document.getElementById('profOcrApplyBtn');
+  var elMinBtn    = document.getElementById('profOcrMinimizeBtn');
+  var elCloseBtn  = document.getElementById('profOcrCloseBtn');
+  var elFab       = document.getElementById('profOcrFab');
+
+  var _profOcrActive = false;
+
+  elMinBtn.addEventListener('click', function () {
+    if (_profOcrActive) {
+      profOcrModal().hide();
+      elFab.style.display = '';
+    } else {
+      profOcrModal().hide();
+    }
+  });
+
+  elFab.addEventListener('click', function () {
+    elFab.style.display = 'none';
+    profOcrModal().show();
+  });
+
+  elCloseBtn.addEventListener('click', function () {
+    profOcrModal().hide();
+  });
 
   var STATE_ICON = { ok: '✓', warn: '⚠', error: '✗', info: '→' };
   function renderSteps(steps) {
@@ -401,13 +445,13 @@
     tw_id_back:       '<%= t("profile.card_tw_id_back") %>',
   };
   var CARD_FIELDS = {
-    arc_front:        ['arc_number', 'arc_chinese_name', 'arc_name_en', 'gender', 'date_of_birth', 'arc_issue_date', 'arc_expiry_date', 'passport_number', 'address_zh'],
+    arc_front:        ['arc_number', 'arc_chinese_name', 'arc_name_en', 'gender', 'date_of_birth', 'arc_issue_date', 'arc_expiry_date', 'passport_number', 'nationality', 'address_zh', 'city_zh', 'district_zh'],
     arc_back:         ['arc_serial_number'],
     cc_front:         ['cc_number', 'cc_expiry_date'],
     cc_back:          ['nif', 'niss'],
-    tw_passport_front:['passport_number', 'tw_id_number', 'arc_name_en', 'arc_chinese_name', 'date_of_birth', 'gender', 'arc_issue_date', 'arc_expiry_date', 'birthplace_tw'],
+    tw_passport_front:['passport_number', 'tw_id_number', 'arc_name_en', 'arc_chinese_name', 'nationality', 'date_of_birth', 'gender', 'arc_issue_date', 'arc_expiry_date', 'birthplace_tw'],
     tw_id_front:      ['tw_id_number', 'arc_chinese_name', 'date_of_birth', 'gender', 'arc_issue_date'],
-    tw_id_back:       ['address_zh', 'birthplace_tw'],
+    tw_id_back:       ['address_zh', 'city_zh', 'district_zh', 'birthplace_tw'],
   };
   var FIELD_LABELS = {
     arc_number: 'ARC Number',           arc_name_en: 'English Name',
@@ -415,6 +459,8 @@
     arc_issue_date: 'Issue Date',       arc_expiry_date: 'Expiry Date',
     passport_number: 'Passport Number', arc_serial_number: 'Serial Number',
     tw_id_number: 'TW National ID No.',address_zh: 'Address (ZH)',
+    city_zh: 'City (ZH)',              district_zh: 'District (ZH)',
+    nationality: 'Nationality',
     cc_number: 'CC Number',             cc_expiry_date: 'CC Expiry Date',
     nif: 'NIF',                         niss: 'NISS',
     date_of_birth: 'Date of Birth',     gender: 'Gender',
@@ -424,6 +470,7 @@
   function currentFormValues() {
     var fields = ['arc_number','arc_name_en','arc_chinese_name','arc_issue_date','arc_expiry_date',
                   'passport_number','arc_serial_number','tw_id_number','address_zh',
+                  'city_zh','district_zh','nationality',
                   'cc_number','cc_expiry_date','nif','niss',
                   'date_of_birth','gender','birthplace_tw'];
     var out = {};
@@ -438,7 +485,9 @@
     elSpinner.style.display = state === 'loading' ? '' : 'none';
     elResults.style.display = state === 'results' ? '' : 'none';
     elErr.style.display     = state === 'error'   ? '' : 'none';
-    elFooter.style.display  = state === 'results' ? '' : 'none';
+    elFooter.style.display  = (state === 'results' || state === 'error') ? '' : 'none';
+    _profOcrActive = (state === 'loading');
+    if (!_profOcrActive) elFab.style.display = 'none';
   }
 
   function buildFieldRow(key, ocrVal, modelConflict, currentMember) {
@@ -652,6 +701,7 @@
       if (inp) inp.value = val;
     });
     profOcrModal().hide();
+    elFab.style.display = 'none';
   });
 })();
 </script>

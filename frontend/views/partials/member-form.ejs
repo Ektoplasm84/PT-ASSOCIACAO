@@ -74,21 +74,36 @@
                placeholder="e.g. 臺北市大安區信義路四段1號">
         <div class="form-text"><%= t('form.address_zh_hint') %></div>
       </div>
+      <div class="col-md-6">
+        <label class="form-label"><%= t('form.city_zh') %></label>
+        <input type="text" name="city_zh" class="form-control" value="<%= v.city_zh || '' %>"
+               placeholder="e.g. 臺北市">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label"><%= t('form.district_zh') %></label>
+        <input type="text" name="district_zh" class="form-control" value="<%= v.district_zh || '' %>"
+               placeholder="e.g. 大安區">
+      </div>
       <div class="col-12">
         <label class="form-label"><%= t('form.address_en') %></label>
         <input type="text" name="address" class="form-control" value="<%= v.address || '' %>">
       </div>
-      <div class="col-md-4">
+      <div class="col-md-6">
+        <label class="form-label"><%= t('form.nationality') %></label>
+        <input type="text" name="nationality" class="form-control" value="<%= v.nationality || '' %>"
+               placeholder="e.g. PORTUGUESA">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label"><%= t('form.profession') %></label>
+        <input type="text" name="profession" class="form-control" value="<%= v.profession || '' %>">
+      </div>
+      <div class="col-md-6">
         <label class="form-label"><%= t('form.degree') %></label>
         <input type="text" name="degree" class="form-control" value="<%= v.degree || '' %>">
       </div>
-      <div class="col-md-4">
+      <div class="col-md-6">
         <label class="form-label"><%= t('form.university') %></label>
         <input type="text" name="university" class="form-control" value="<%= v.university || '' %>">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label"><%= t('form.profession') %></label>
-        <input type="text" name="profession" class="form-control" value="<%= v.profession || '' %>">
       </div>
       <div class="col-12">
         <label class="form-label"><%= t('form.photo') %></label>

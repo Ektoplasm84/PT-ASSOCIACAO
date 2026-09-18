@@ -1,5 +1,6 @@
 const fs   = require('fs');
 const path = require('path');
+const twDistricts = require('./taiwan-districts');
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -48,6 +49,7 @@ Field locations and constraints:
 - 居留期限 Date of expiry: labelled "Date of expiry (Y/M/D)". If the card shows "永久" or "PERMANENT", return "9999-12-31".
 - 出生日期 Date of birth: printed below the English name, YYYY/MM/DD format.
 - 護照號碼 Passport No.: printed in the right-centre section.
+- 國籍 Nationality: printed in the centre, e.g. 葡萄牙. Return the text exactly as printed.
 - 居留地址 Residence address: full Chinese address at the very bottom of the card.
 
 {
@@ -59,6 +61,7 @@ Field locations and constraints:
   "arc_issue_date":   "核發日期 Date of issue — YYYY-MM-DD, suffix after date discarded",
   "arc_expiry_date":  "居留期限 Date of expiry — YYYY-MM-DD; '9999-12-31' if permanent/永久",
   "passport_number":  "護照號碼 Passport No., e.g. CC637162",
+  "nationality":      "國籍 Nationality — as printed, e.g. 葡萄牙",
   "address_zh":       "居留地址 Residence address — full Chinese address at the bottom, e.g. 臺北市萬華區西藏路199巷61號7樓"
 }`,
 
@@ -103,31 +106,33 @@ Field locations and constraints:
   "niss": "N.º SEGURANÇA SOCIAL / SOCIAL SECURITY No. — 11-digit number; '' if card shows 'X', e.g. 12069447472"
 }`,
 
-  tw_passport_front: `You are a data-extraction assistant. The image is the biographical data page of a Republic of China (Taiwan) Passport (中華民國護照).
+  tw_passport_front: `You are a data-extraction assistant. The image is the biographical data page of a passport (any country — Taiwan, Portugal, Germany, etc.).
 Extract the fields below and return ONLY a valid JSON object — no markdown, no explanation.
-Use empty string "" for any field you cannot confidently read.
+Use empty string "" for any field you cannot confidently read or that does not exist on this passport.
 All dates must be in YYYY-MM-DD format (Gregorian / CE calendar).
 
-Field locations and constraints:
-- 護照號碼 PASSPORT NO. is printed near the top. Format: exactly 2 uppercase letters followed by 8 digits, no spaces, e.g. AB12345678.
-- 統一編號 PERSONAL NO. (National ID number) is 1 uppercase letter followed by 9 digits, no spaces, e.g. A123456789.
-- English name: "SURNAME" and "GIVEN NAME" are printed on separate labeled lines. Combine as GIVEN_NAME SURNAME in Western given-name-first order, ALL CAPS, e.g. WEI-MING CHEN. Hyphens within a given name are preserved.
-- Chinese name (姓名): full Chinese name, family name first. May appear as 姓/名 on separate lines or combined. Return as a single string, e.g. 陳威明.
-- 出生日期 DATE OF BIRTH: dates on this page use Gregorian calendar (DD MMM YYYY or similar) — convert to YYYY-MM-DD.
-- 性別 SEX: the card shows both the Latin "M"/"F" and Chinese 男/女. Return the Chinese character exactly: '男' or '女'. Do not return M, F, or an English word.
-- 出生地 PLACE OF BIRTH: printed in Chinese. Return only the Chinese text, e.g. 臺灣省臺北市.
-- 簽發日期 DATE OF ISSUE and 有效期限 DATE OF EXPIRY: Gregorian calendar — convert to YYYY-MM-DD.
+ICAO machine-readable passports share a common layout. Field labels vary by language but occupy standard positions:
+- PASSPORT NO. / Nr. / N.º: alphanumeric, 6–12 characters, printed near the top. Remove spaces.
+- PERSONAL NO. / NATIONAL ID: only present on some passports (e.g. Taiwan 統一編號). Return "" if absent.
+- SURNAME and GIVEN NAME(S): may be on separate labeled lines or a single name block. Combine as GIVEN_NAME(S) SURNAME in Western given-name-first order, ALL CAPS. Preserve hyphens within names.
+- Chinese name (姓名): only present on CJK passports. Return the full Chinese name as a single string, family name first. Return "" if absent.
+- DATE OF BIRTH: various printed formats (DD.MM.YYYY, DD MMM YYYY, YYYY/MM/DD, etc.) — convert to YYYY-MM-DD.
+- SEX / GESCHLECHT / SEXO: return exactly as printed on the card — '男', '女', 'M', or 'F'.
+- NATIONALITY / STAATSANGEHÖRIGKEIT / NACIONALIDADE: return the nationality exactly as printed, e.g. DEUTSCH, PORTUGUESA, 中華民國.
+- PLACE OF BIRTH / GEBURTSORT / LOCAL DE NASCIMENTO: return exactly as printed, in whatever language/script appears on the card.
+- DATE OF ISSUE and DATE OF EXPIRY: convert to YYYY-MM-DD regardless of printed format.
 
 {
-  "passport_number":  "護照號碼 PASSPORT NO. — 2 uppercase letters + 8 digits, no spaces, e.g. AB12345678",
-  "tw_id_number":     "統一編號 PERSONAL NO. — 1 uppercase letter + 9 digits, no spaces, e.g. A123456789",
-  "arc_name_en":      "English name — given name first, surname last, ALL CAPS, e.g. WEI-MING CHEN",
-  "arc_chinese_name": "Chinese name (姓名) — full name, family name first, e.g. 陳威明",
-  "date_of_birth":    "出生日期 DATE OF BIRTH — YYYY-MM-DD, e.g. 1985-03-22",
-  "gender":           "性別 SEX — return the Chinese character: '男' for male, '女' for female, nothing else",
-  "arc_issue_date":   "簽發日期 DATE OF ISSUE — YYYY-MM-DD",
-  "arc_expiry_date":  "有效期限 DATE OF EXPIRY — YYYY-MM-DD",
-  "birthplace_tw":    "出生地 PLACE OF BIRTH — Chinese text only, e.g. 臺灣省臺北市"
+  "passport_number":  "Passport number — alphanumeric, no spaces, e.g. C1V5THNYW or AB12345678",
+  "tw_id_number":     "National ID / Personal No. (Taiwan 統一編號) — 1 letter + 9 digits; '' if not present on this passport",
+  "arc_name_en":      "English name — given name(s) first, surname last, ALL CAPS, e.g. LEANDER-JOHANNES FERREIRA ULRICH",
+  "arc_chinese_name": "Chinese name (姓名) — full name, family name first, e.g. 陳威明; '' if not present",
+  "date_of_birth":    "Date of birth — YYYY-MM-DD, e.g. 1989-08-12",
+  "gender":           "Sex — exactly as printed: '男', '女', 'M', or 'F'",
+  "nationality":      "Nationality — as printed on the passport, e.g. DEUTSCH, PORTUGUESA, 中華民國",
+  "arc_issue_date":   "Date of issue — YYYY-MM-DD",
+  "arc_expiry_date":  "Date of expiry — YYYY-MM-DD",
+  "birthplace_tw":    "Place of birth — as printed, any language/script, e.g. 臺灣省臺北市 or EDELSCHROTT"
 }`,
 
   tw_id_front: `You are a data-extraction assistant. The image is the FRONT of a Republic of China (Taiwan) National Identity Card (中華民國國民身分證).
@@ -384,7 +389,9 @@ async function callVision(imagePath, prompt, onStep) {
 
   const ext  = path.extname(imagePath).toLowerCase();
   const mime = MIME[ext] || 'image/jpeg';
-  const b64  = fs.readFileSync(imagePath).toString('base64');
+  const imgBuf = fs.readFileSync(imagePath);
+  const b64  = imgBuf.toString('base64');
+  step(`Image loaded: ${path.basename(imagePath)} (${(imgBuf.length / 1024).toFixed(0)} KB, ${mime})`, 'info');
 
   // Pinned model in .env — single call, no merge
   if (process.env.OPENROUTER_MODEL) {
@@ -443,20 +450,58 @@ async function callVision(imagePath, prompt, onStep) {
   }
 
   if (!resultA && !resultB) throw new Error('All vision models failed or timed out');
-  if (!resultA) { console.log(`[ocr] using secondary result only`); return resultB; }
-  if (!resultB) { console.log(`[ocr] using primary result only`);   return resultA; }
+  if (!resultA) {
+    const fields = Object.keys(resultB).filter(k => k[0] !== '_' && resultB[k]);
+    step(`Using secondary result only — ${fields.length} fields extracted`, 'info');
+    console.log(`[ocr] using secondary result only`);
+    return resultB;
+  }
+  if (!resultB) {
+    const fields = Object.keys(resultA).filter(k => k[0] !== '_' && resultA[k]);
+    step(`Using primary result only — ${fields.length} fields extracted`, 'info');
+    console.log(`[ocr] using primary result only`);
+    return resultA;
+  }
 
   step(`Reconciling both responses…`, 'info');
   console.log(`[ocr] merging results from both models — total ${Date.now() - t0}ms`);
-  return mergeResults(resultA, resultB);
+  const merged = mergeResults(resultA, resultB);
+  const mFields = Object.keys(merged).filter(k => k[0] !== '_' && merged[k]);
+  const cCount = merged._conflicts ? Object.keys(merged._conflicts).length : 0;
+  step(`Merged: ${mFields.length} fields extracted${cCount ? ', ' + cCount + ' conflict(s)' : ''}`, cCount ? 'warn' : 'ok');
+  return merged;
+}
+
+// ── Address parsing ────────────────────────────────────────────────────────────
+
+function parseAddressCity(addressZh) {
+  if (!addressZh) return null;
+  for (const city of twDistricts) {
+    if (addressZh.startsWith(city.cityZh)) {
+      for (const d of city.districts) {
+        if (addressZh.startsWith(city.cityZh + d.districtZh)) {
+          return { city_zh: city.cityZh, district_zh: d.districtZh, district_en: d.districtEn };
+        }
+      }
+      return { city_zh: city.cityZh, district_zh: '', district_en: '' };
+    }
+  }
+  return null;
 }
 
 // ── Post-processing ────────────────────────────────────────────────────────────
 
 function postProcess(docType, data) {
   if (docType === 'arc_back' && data.arc_serial_number) {
-    // Models hallucinate a space between the letter prefix and digits: "F 230502164" → "F230502164"
     data.arc_serial_number = data.arc_serial_number.replace(/\s+/g, '');
+  }
+  if (data.address_zh) {
+    const parsed = parseAddressCity(data.address_zh);
+    if (parsed) {
+      data.city_zh = parsed.city_zh;
+      data.district_zh = parsed.district_zh;
+      data.district_en = parsed.district_en;
+    }
   }
   return data;
 }
@@ -464,11 +509,15 @@ function postProcess(docType, data) {
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 async function scan(docType, imagePath, onStep) {
+  const step = typeof onStep === 'function' ? onStep : () => {};
   const prompt = PROMPTS[docType];
   if (!prompt) throw new Error(`No vision prompt for document type: ${docType}`);
+  step(`Starting scan: ${docType}`, 'info');
   console.log(`[ocr] scan requested — docType=${docType} file=${path.basename(imagePath)}`);
   const result = postProcess(docType, await callVision(imagePath, prompt, onStep));
-  console.log(`[ocr] scan done — fields: ${Object.keys(result).filter(k => k[0] !== '_' && result[k]).join(', ') || '(none extracted)'}`);
+  const fields = Object.keys(result).filter(k => k[0] !== '_' && result[k]);
+  step(`Scan complete — ${fields.length} fields: ${fields.join(', ') || '(none)'}`, 'ok');
+  console.log(`[ocr] scan done — fields: ${fields.join(', ') || '(none extracted)'}`);
   return result;
 }
 

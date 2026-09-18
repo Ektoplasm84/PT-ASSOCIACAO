@@ -169,7 +169,7 @@ const vaultUpload = multer({
 
 // Generate a 300-wide thumbnail (non-fatal if it fails)
 async function generateThumb(srcPath, thumbPath) {
-  const img = await Jimp.fromFile(srcPath);
+  const img = await Jimp.read(srcPath);
   img.resize({ w: 300 });
   await img.write(thumbPath);
 }
@@ -470,7 +470,7 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
     join_date,
     fee_amount, fee_last_paid,
     notes,
-    degree, university, profession,
+    degree, university, profession, nationality,
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number,
     tw_id_number, date_of_birth, gender, birthplace_tw,
@@ -522,12 +522,12 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
          city_zh, district_zh, district_en, address_zh,
          join_date, fee_amount, fee_last_paid, fee_valid_until, fee_status,
          notes, photo_path,
-         degree, university, profession,
+         degree, university, profession, nationality,
          arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
          passport_number, arc_serial_number,
          cc_number, cc_expiry_date, nif, niss, is_aprc, is_tw_passport, is_tw_id, tw_id_number,
          date_of_birth, gender, birthplace_tw)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       userRes.lastInsertRowid, memberId,
       first_name, last_name, phone,
@@ -537,7 +537,7 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
       parseInt(fee_amount, 10) >= 0 ? parseInt(fee_amount, 10) : 300,
       fee_last_paid || null, feeValidUntil, feeStatus,
       notes || null, photoPath,
-      degree || null, university || null, profession || null,
+      degree || null, university || null, profession || null, nationality || null,
       (is_tw_id || is_tw_passport) ? null : (arc_number || null),
       is_tw_id ? null : (arc_name_en || null),
       arc_chinese_name || null,
@@ -612,7 +612,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
     join_date,
     fee_amount, fee_last_paid,
     notes,
-    degree, university, profession,
+    degree, university, profession, nationality,
     arc_number, arc_name_en, arc_chinese_name, arc_issue_date, arc_expiry_date,
     passport_number, arc_serial_number,
     tw_id_number, date_of_birth, gender, birthplace_tw,
@@ -677,7 +677,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
         city_zh=?, district_zh=?, district_en=?, address_zh=?,
         join_date=?, fee_amount=?, fee_last_paid=?, fee_valid_until=?, fee_status=?,
         notes=?, photo_path=?,
-        degree=?, university=?, profession=?,
+        degree=?, university=?, profession=?, nationality=?,
         arc_number=?, arc_name_en=?, arc_chinese_name=?, arc_issue_date=?, arc_expiry_date=?,
         passport_number=?, arc_serial_number=?,
         cc_number=?, cc_expiry_date=?, nif=?, niss=?,
@@ -692,7 +692,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
       join_date,
       parseInt(fee_amount, 10) >= 0 ? parseInt(fee_amount, 10) : 300, fee_last_paid || null, feeValidUntil, feeStatus,
       notes || null, photoPath,
-      degree || null, university || null, profession || null,
+      degree || null, university || null, profession || null, nationality || null,
       (is_tw_id || is_tw_passport) ? null : (arc_number || null),
       is_tw_id ? null : (arc_name_en || null),
       arc_chinese_name || null,
@@ -804,7 +804,9 @@ router.post('/members/:id/documents/card', adminOnly, cardUpload.single('image')
     try {
       await generateThumb(absFilePath, absThumbPath);
       thumbPath = thumbRelPath;
-    } catch (_) {}
+    } catch (thumbErr) {
+      console.warn(`[thumb] generation failed for ${filename}: ${thumbErr.message}`);
+    }
 
     // Delete any existing card of this type for this member
     const existing = db.prepare(
@@ -963,6 +965,7 @@ router.post('/members/:id/apply-card-fields', adminOnly, (req, res) => {
   const ALLOWED = [
     'arc_number', 'arc_name_en', 'arc_chinese_name', 'arc_issue_date', 'arc_expiry_date',
     'arc_serial_number', 'passport_number', 'tw_id_number', 'address_zh',
+    'city_zh', 'district_zh', 'district_en', 'nationality',
     'cc_number', 'cc_expiry_date', 'nif', 'niss',
     'date_of_birth', 'gender', 'birthplace_tw',
   ];
@@ -1415,7 +1418,7 @@ router.get('/logs', (req, res) => {
 });
 
 router.get('/logs/stream', (req, res) => {
-  if (res.locals.currentUser?.role !== 'super_admin') {
+  if (!['super_admin', 'admin'].includes(res.locals.currentUser?.role)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   res.setHeader('Content-Type',      'text/event-stream');

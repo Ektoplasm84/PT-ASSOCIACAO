@@ -298,6 +298,12 @@ if (!memberCols12.includes('profession')) {
   db.prepare('ALTER TABLE members ADD COLUMN profession TEXT').run();
 }
 
+// --- Migration: add nationality to members ---
+const memberCols13 = db.prepare('PRAGMA table_info(members)').all().map(c => c.name);
+if (!memberCols13.includes('nationality')) {
+  db.prepare('ALTER TABLE members ADD COLUMN nationality TEXT').run();
+}
+
 // --- Migration: add doc_type and thumb_path to documents ---
 const docCols = db.prepare('PRAGMA table_info(documents)').all().map(c => c.name);
 if (!docCols.includes('doc_type')) {
