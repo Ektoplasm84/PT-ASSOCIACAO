@@ -50,7 +50,7 @@
           <div class="col-sm-6"><span class="text-muted small"><%= t('profile.email') %></span><div><%= member.email || '—' %></div></div>
           <div class="col-12"><span class="text-muted small"><%= t('profile.address_zh') %></span><div><%= member.address_zh || '—' %></div></div>
           <div class="col-sm-6"><span class="text-muted small"><%= t('profile.city_zh') %></span><div><%= member.city_zh || '—' %></div></div>
-          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.district_zh') %></span><div><%= member.district_zh || '—' %></div></div>
+          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.district_zh') %></span><div><%= member.district_zh || '—' %><% if (member.district_en) { %> (<%= member.district_en %>)<% } %></div></div>
           <div class="col-12"><span class="text-muted small"><%= t('profile.address_en') %></span><div><%= member.address || '—' %></div></div>
           <div class="col-sm-6"><span class="text-muted small"><%= t('profile.nationality') %></span><div><%= member.nationality || '—' %></div></div>
           <div class="col-sm-6"><span class="text-muted small"><%= t('profile.profession') %></span><div><%= member.profession || '—' %></div></div>
@@ -69,7 +69,6 @@
       <div class="card-header fw-semibold"><%= t('profile.section_membership') %></div>
       <div class="card-body">
         <div class="row g-2">
-          <div class="col-sm-6"><span class="text-muted small"><%= t('profile.email') %></span><div><%= member.email %></div></div>
           <div class="col-sm-6"><span class="text-muted small"><%= t('profile.joined') %></span><div><%= member.join_date ? member.join_date.slice(0,10) : '—' %></div></div>
           <% if (member.user_position === 'honorary') { %>
           <div class="col-12">
@@ -158,8 +157,16 @@
 
     <!-- My Documents (full-width) -->
     <%
-      const CARD_TYPES_U = ['arc_front', 'arc_back', 'cc_front', 'cc_back'];
-      const CARD_LABELS_U = { arc_front: t('profile.card_arc_front'), arc_back: t('profile.card_arc_back'), cc_front: t('profile.card_cc_front'), cc_back: t('profile.card_cc_back') };
+      const CARD_TYPES_U = ['arc_front', 'arc_back', 'cc_front', 'cc_back', 'tw_passport_front', 'tw_id_front', 'tw_id_back'];
+      const CARD_LABELS_U = {
+        arc_front:        t('profile.card_arc_front'),
+        arc_back:         t('profile.card_arc_back'),
+        cc_front:         t('profile.card_cc_front'),
+        cc_back:          t('profile.card_cc_back'),
+        tw_passport_front:t('profile.card_tw_passport_front'),
+        tw_id_front:      t('profile.card_tw_id_front'),
+        tw_id_back:       t('profile.card_tw_id_back'),
+      };
       const cardDocsU = {};
       documents.forEach(d => { if (CARD_TYPES_U.includes(d.doc_type)) cardDocsU[d.doc_type] = d; });
       const miscDocsU = documents.filter(d => !d.doc_type || d.doc_type === 'misc');

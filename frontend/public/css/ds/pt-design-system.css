@@ -857,7 +857,7 @@ select.pta-control{appearance:none;background-image:url("data:image/svg+xml;char
 .pta-cardgrid .span2{grid-column:1 / -1;}
 
 /* Document slots */
-.pta-docslots{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);}
+.pta-docslots{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--space-3);}
 .pta-docslot{
   border:1px solid var(--border-subtle);border-radius:var(--radius-md);overflow:hidden;background:var(--stone-50);
 }

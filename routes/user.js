@@ -317,8 +317,8 @@ router.post('/invites/:id/respond', (req, res) => {
   ).get(req.params.id, req.session.userId);
   if (!invite) return res.status(404).json({ error: 'Invite not found.' });
   db.prepare(
-    `UPDATE event_invites SET status = ?, responded_at = datetime('now') WHERE id = ?`
-  ).run(action, req.params.id);
+    `UPDATE event_invites SET status = ?, responded_at = datetime('now') WHERE id = ? AND user_id = ?`
+  ).run(action, req.params.id, req.session.userId);
   res.json({ ok: true, status: action });
 });
 
@@ -418,6 +418,7 @@ router.get('/documents/:docId/download', (req, res) => {
   const filePath = path.join(process.cwd(), doc.file_path);
   if (!fs.existsSync(filePath)) return res.status(404).send('File missing from server.');
 
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', contentDispositionFilename('attachment', doc.original_name));
   res.sendFile(filePath);
 });

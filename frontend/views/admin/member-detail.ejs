@@ -153,7 +153,7 @@
             <span class="pta-field__hint"><%= t('account.position_hint') %></span>
           </div>
           <button type="submit" class="pta-btn pta-btn--secondary pta-btn--block"
-                  onclick="return confirm('Update account settings for <%= _delName.replace(/'/g, '\\\'') %>?')">
+                  id="changeRoleBtn" data-member-name="<%= _delName %>">
             <i class="bi bi-arrow-repeat"></i> <%= t('account.save_changes') %>
           </button>
         </form>
@@ -161,7 +161,7 @@
         <hr style="margin:1.25rem 0">
 
         <form action="/admin/members/<%= member.id %>/set-password" method="POST"
-              id="resetPwForm" onsubmit="return validatePwReset()">
+              id="resetPwForm" data-member-name="<%= _delName %>">
           <p class="pta-field__hint" style="margin-bottom:.75rem"><%= t('account.reset_pw_hint') %></p>
           <div class="pta-field">
             <label class="pta-field__label"><%= t('account.new_password') %></label>
@@ -183,12 +183,29 @@
     <% } %>
 
 <script>
-function validatePwReset() {
-  const p = document.getElementById('rpNewPw').value;
-  const c = document.getElementById('rpConfirmPw').value;
-  if (p !== c) { alert('Passwords do not match.'); return false; }
-  return confirm('Set a new password for <%= _delName.replace(/'/g, '\\\'') %>?');
-}
+(function () {
+  var roleBtn = document.getElementById('changeRoleBtn');
+  if (roleBtn) {
+    roleBtn.addEventListener('click', function (e) {
+      if (!confirm('Update account settings for ' + roleBtn.dataset.memberName + '?')) e.preventDefault();
+    });
+  }
+  var pwForm = document.getElementById('resetPwForm');
+  if (pwForm) {
+    pwForm.addEventListener('submit', function (e) {
+      var p = document.getElementById('rpNewPw').value;
+      var c = document.getElementById('rpConfirmPw').value;
+      if (p !== c) { alert('Passwords do not match.'); e.preventDefault(); return; }
+      if (!confirm('Set a new password for ' + pwForm.dataset.memberName + '?')) e.preventDefault();
+    });
+  }
+  var delForm = document.getElementById('deleteMemberForm');
+  if (delForm) {
+    delForm.addEventListener('submit', function (e) {
+      if (!confirm('Permanently delete ' + delForm.dataset.memberName + ' and all their data?')) e.preventDefault();
+    });
+  }
+})();
 </script>
 
     <!-- Danger Zone -->
@@ -200,7 +217,7 @@ function validatePwReset() {
       </header>
       <div class="pta-card__body">
         <form action="/admin/members/<%= member.id %>/delete" method="POST"
-              onsubmit="return confirm('Permanently delete <%= _delName.replace(/'/g, '\\\'') %> and all their data?')">
+              id="deleteMemberForm" data-member-name="<%= _delName %>">
           <button type="submit" class="pta-btn pta-btn--danger pta-btn--block">
             <i class="bi bi-trash"></i> <%= t('member.delete_btn') %>
           </button>
@@ -230,13 +247,13 @@ function validatePwReset() {
           <dt><%= t('detail.university') %></dt><dd><%= member.university || '—' %></dd>
         </dl>
         <div class="pta-fieldset">
-          <div>
+          <div style="grid-column:1/-1">
             <div class="pta-fieldset__lbl"><%= t('detail.address_zh') %></div>
             <div class="pta-fieldset__val"><%= member.address_zh || '—' %></div>
           </div>
           <div>
             <div class="pta-fieldset__lbl"><%= t('detail.city_zh') %> / <%= t('detail.district_zh') %></div>
-            <div class="pta-fieldset__val"><%= member.city_zh || '—' %> — <%= member.district_zh || '—' %></div>
+            <div class="pta-fieldset__val"><%= member.city_zh || '—' %> — <%= member.district_zh || '—' %><% if (member.district_en) { %> (<%= member.district_en %>)<% } %></div>
           </div>
           <div>
             <div class="pta-fieldset__lbl"><%= t('detail.address_en') %></div>
@@ -302,7 +319,7 @@ function validatePwReset() {
         <i class="bi bi-person-vcard"></i>
         <div class="pta-card__titles">
           <span class="pta-card__eyebrow"><%= member.is_aprc ? t('detail.arc_title_aprc') : member.is_tw_passport ? t('detail.arc_title_passport') : member.is_tw_id ? t('detail.arc_title_tw_id') : t('detail.arc_title_arc') %></span>
-          <span class="pta-card__title">Residence — <%= member.is_aprc ? t('detail.arc_section_aprc') : member.is_tw_passport ? t('detail.arc_section_passport') : member.is_tw_id ? t('detail.arc_section_tw_id') : t('detail.arc_section_arc') %></span>
+          <span class="pta-card__title"><%= t('detail.arc_section_prefix') %> — <%= member.is_aprc ? t('detail.arc_section_aprc') : member.is_tw_passport ? t('detail.arc_section_passport') : member.is_tw_id ? t('detail.arc_section_tw_id') : t('detail.arc_section_arc') %></span>
         </div>
       </header>
       <div class="pta-card__body">

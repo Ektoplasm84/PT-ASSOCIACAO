@@ -192,12 +192,17 @@ function dismissModelWarning(model) {
   delete modelStatus[model];
 }
 
+const TEST_TIMEOUT_MS = 15_000; // short deadline for ping-style test/health-check calls
+
 async function testModel(modelId) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey || apiKey === 'your_key_here') return { ok: false, error: 'API key not set' };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TEST_TIMEOUT_MS);
   try {
     const res = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
+      signal: controller.signal,
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: modelId,
@@ -209,7 +214,9 @@ async function testModel(modelId) {
     const body = await res.text().catch(() => '');
     return { ok: false, error: `HTTP ${res.status}${body ? ': ' + body.slice(0, 120) : ''}` };
   } catch (e) {
-    return { ok: false, error: e.message.slice(0, 140) };
+    return { ok: false, error: e.name === 'AbortError' ? `Timed out after ${TEST_TIMEOUT_MS / 1000}s` : e.message.slice(0, 140) };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -220,9 +227,12 @@ async function checkModels() {
   const models = process.env.OPENROUTER_MODEL ? [process.env.OPENROUTER_MODEL] : _activeModels;
 
   await Promise.allSettled(models.map(async (model) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TEST_TIMEOUT_MS);
     try {
       const res = await fetch(OPENROUTER_API_URL, {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model,
@@ -249,9 +259,11 @@ async function checkModels() {
     } catch (e) {
       modelStatus[model] = {
         status: 'offline',
-        error: e.message.slice(0, 140),
+        error: e.name === 'AbortError' ? `Timed out after ${TEST_TIMEOUT_MS / 1000}s` : e.message.slice(0, 140),
         detectedAt: new Date().toISOString(),
       };
+    } finally {
+      clearTimeout(timer);
     }
   }));
 
@@ -357,8 +369,8 @@ function mergeResults(a, b) {
   const allKeys   = new Set([...Object.keys(a), ...Object.keys(b)]);
 
   for (const key of allKeys) {
-    const va = (a[key] || '').trim();
-    const vb = (b[key] || '').trim();
+    const va = String(a[key] ?? '').trim();
+    const vb = String(b[key] ?? '').trim();
 
     if      (!va && !vb) merged[key] = '';
     else if (!va)        merged[key] = vb;
@@ -498,16 +510,20 @@ function postProcess(docType, data) {
     data.arc_serial_number = data.arc_serial_number.replace(/\s+/g, '');
   }
   if (data.address_zh) {
-    const parsed = parseAddressCity(data.address_zh);
-    if (parsed) {
-      data.city_zh     = parsed.city_zh;
-      data.district_zh = parsed.district_zh;
-      data.district_en = parsed.district_en;
-    } else if (data.city_zh && data.district_zh && !data.district_en) {
-      const city = twDistricts.find(c => c.cityZh === data.city_zh);
-      if (city) {
-        const dist = city.districts.find(d => d.districtZh === data.district_zh);
+    if (data.city_zh && data.district_zh) {
+      // AI already extracted city/district directly — only resolve the missing district_en.
+      if (!data.district_en) {
+        const city = twDistricts.find(c => c.cityZh === data.city_zh);
+        const dist = city && city.districts.find(d => d.districtZh === data.district_zh);
         if (dist) data.district_en = dist.districtEn;
+      }
+    } else {
+      // AI missed city/district — fall back to prefix-matching the address text.
+      const parsed = parseAddressCity(data.address_zh);
+      if (parsed) {
+        data.city_zh     = data.city_zh     || parsed.city_zh;
+        data.district_zh = data.district_zh || parsed.district_zh;
+        data.district_en = data.district_en || parsed.district_en;
       }
     }
   }

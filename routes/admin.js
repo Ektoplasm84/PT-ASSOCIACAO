@@ -348,7 +348,7 @@ router.post('/events', calendarWriteGuard, (req, res) => {
   res.json({ ok: true, eventId, inviteCount });
 });
 
-router.get('/events/:id/invites', adminOnly, (req, res) => {
+router.get('/events/:id/invites', calendarWriteGuard, (req, res) => {
   const rows = db.prepare(`
     SELECT ei.status, u.email,
            COALESCE(m.arc_name_en, m.first_name || ' ' || m.last_name) as display_name,
@@ -756,23 +756,24 @@ router.post('/members/:id/delete', adminOnly, (req, res) => {
     return res.redirect(`/admin/members/${req.params.id}`);
   }
 
-  // Clean up files
+  const docs = db.prepare(`SELECT file_path FROM documents WHERE member_id = ?`).all(member.id);
+
+  // Deleting the user cascades to members and documents. Run the DB delete before touching
+  // files or the audit log, so a DB-level failure (FK/lock) never leaves a false "deleted"
+  // audit entry or orphaned file cleanup against a member row that still exists.
+  db.prepare(`DELETE FROM users WHERE id = ?`).run(member.user_id);
+
   if (member.photo_path) {
     const p = path.join(process.cwd(), member.photo_path);
     if (fs.existsSync(p)) fs.unlinkSync(p);
   }
-  const docs = db.prepare(`SELECT file_path FROM documents WHERE member_id = ?`).all(member.id);
   for (const doc of docs) {
     const p = path.join(process.cwd(), doc.file_path);
     if (fs.existsSync(p)) fs.unlinkSync(p);
   }
 
-  // Audit before deletion — member row will not exist after CASCADE
   writeAudit(res.locals.currentUser.id, res.locals.currentUser.email,
              member.id, `${member.member_id} ${member.first_name} ${member.last_name}`, 'member.deleted', null);
-
-  // Deleting the user cascades to members and documents
-  db.prepare(`DELETE FROM users WHERE id = ?`).run(member.user_id);
 
   req.session.flash = { type: 'success', message: 'Member deleted.' };
   res.redirect('/admin/members');
@@ -818,10 +819,26 @@ router.post('/members/:id/documents/card', adminOnly, cardUploadJson, async (req
       console.warn(`[thumb] generation failed for ${filename}: ${thumbErr.message}`);
     }
 
-    // Delete any existing card of this type for this member
-    const existing = db.prepare(
-      'SELECT * FROM documents WHERE member_id = ? AND doc_type = ?'
-    ).get(member.id, docType);
+    // Replace any existing card of this type for this member — DELETE + INSERT run as one
+    // transaction so a failed INSERT can't leave the slot's DB row deleted with no replacement.
+    const replaceCard = db.transaction(() => {
+      const existing = db.prepare(
+        'SELECT * FROM documents WHERE member_id = ? AND doc_type = ?'
+      ).get(member.id, docType);
+      if (existing) {
+        db.prepare('DELETE FROM documents WHERE id = ?').run(existing.id);
+      }
+
+      const insertRes = db.prepare(`
+        INSERT INTO documents (member_id, file_path, original_name, mime_type, doc_type, thumb_path)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(member.id, filePath, fixFilename(req.file.originalname), req.file.mimetype, docType, thumbPath);
+
+      return { existing, docId: insertRes.lastInsertRowid };
+    });
+
+    const { existing, docId } = replaceCard();
+
     if (existing) {
       const oldFile = path.join(process.cwd(), existing.file_path);
       if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
@@ -829,15 +846,7 @@ router.post('/members/:id/documents/card', adminOnly, cardUploadJson, async (req
         const oldThumb = path.join(process.cwd(), existing.thumb_path);
         if (fs.existsSync(oldThumb)) fs.unlinkSync(oldThumb);
       }
-      db.prepare('DELETE FROM documents WHERE id = ?').run(existing.id);
     }
-
-    const insertRes = db.prepare(`
-      INSERT INTO documents (member_id, file_path, original_name, mime_type, doc_type, thumb_path)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(member.id, filePath, fixFilename(req.file.originalname), req.file.mimetype, docType, thumbPath);
-
-    const docId = insertRes.lastInsertRowid;
 
     writeAudit(res.locals.currentUser.id, res.locals.currentUser.email,
                member.id, `${member.member_id} ${member.first_name} ${member.last_name}`, 'member.card_uploaded', docType);
@@ -936,6 +945,7 @@ router.get('/members/:id/documents/:docId/download', adminOnly, (req, res) => {
   const filePath = path.join(process.cwd(), doc.file_path);
   if (!fs.existsSync(filePath)) return res.status(404).send('File missing from server.');
 
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', contentDispositionFilename('attachment', doc.original_name));
   res.sendFile(filePath);
 });
@@ -1069,6 +1079,10 @@ router.post('/members/:id/arc-fetch-photo', adminOnly, async (req, res) => {
 
   const member = db.prepare('SELECT * FROM members WHERE id = ?').get(req.params.id);
   if (!member) return res.status(404).json({ error: 'Member not found.' });
+
+  if (member.is_aprc || member.is_tw_passport || member.is_tw_id) {
+    return res.status(400).json({ success: false, error: 'NIA photo fetch is not available for this document type.' });
+  }
 
   try {
     // Step 1: validate captcha (mirrors NIA's own client-side check)
@@ -1407,6 +1421,7 @@ router.get('/export/download/:jobId', adminOnly, (req, res) => {
   const date     = new Date().toISOString().slice(0, 10);
   const filename = `pt-associacao-export-${date}.zip`;
   res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
   const stream = fs.createReadStream(job.zipPath);
@@ -1428,7 +1443,7 @@ router.get('/logs', (req, res) => {
 });
 
 router.get('/logs/stream', (req, res) => {
-  if (!['super_admin', 'admin'].includes(res.locals.currentUser?.role)) {
+  if (res.locals.currentUser?.role !== 'super_admin') {
     return res.status(403).json({ error: 'Forbidden' });
   }
   res.setHeader('Content-Type',      'text/event-stream');
@@ -1451,14 +1466,12 @@ function canUploadVault(user) {
 }
 
 // Upload — section determined by form field; admin section restricted to canWrite
-router.post('/vault/upload', (req, res, next) => {
-  // Determine section before multer so diskStorage can route correctly
-  const rawSection = req.body && req.body.section;
-  req.vaultSection = rawSection === 'admin' ? 'admin' : 'public';
-  next();
-}, vaultUpload.single('vault_file'), (req, res) => {
+// multer's diskStorage.destination() reads req.body.section live during multipart parsing
+// (correct as long as the "section" field precedes "vault_file" in the form), so the
+// section used here — read after multer finishes — must match that same logic exactly.
+router.post('/vault/upload', vaultUpload.single('vault_file'), (req, res) => {
   const u = res.locals.currentUser;
-  const section = req.vaultSection;
+  const section = req.body.section === 'admin' ? 'admin' : 'public';
 
   if (!canUploadVault(u)) {
     if (req.file) fs.unlink(req.file.path, () => {});
@@ -1493,7 +1506,7 @@ router.get('/vault/files/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM vault_files WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).send('Not found');
 
-  if (row.section === 'admin' && u.role !== 'super_admin' && u.role !== 'admin' && !MGMT_POSITIONS.includes(u.position)) {
+  if (row.section === 'admin' && u.role !== 'super_admin' && u.role !== 'admin') {
     return res.status(403).send('Access denied');
   }
 
