@@ -124,7 +124,7 @@ const docUpload = multer({
 // Card images uploaded via AJAX — use memory storage so we can pass buffer to OCR without extra disk write
 const cardUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter(req, file, cb) {
     cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype));
   },
@@ -559,8 +559,8 @@ router.post('/members', adminOnly, photoUpload.single('photo'), (req, res) => {
   writeAudit(res.locals.currentUser.id, res.locals.currentUser.email,
              newMember.id, `${memberId} ${first_name} ${last_name}`, 'member.created', null);
 
-  req.session.flash = { type: 'success', message: `Member ${first_name} ${last_name} created (${memberId}).` };
-  res.redirect('/admin/members');
+  req.session.flash = { type: 'success', message: `Member ${first_name} ${last_name} created (${memberId}). Upload documents and scan cards below.` };
+  res.redirect(`/admin/members/${newMember.id}/edit`);
 });
 
 // --- Member detail ---
@@ -688,7 +688,7 @@ router.post('/members/:id', adminOnly, photoUpload.single('photo'), (req, res) =
     `).run(
       first_name, last_name, phone,
       address_type || 'tw', address || null, city || null, postal_code || null,
-      city_zh || null, district_zh || null, district_en || null, address_zh || null,
+      city_zh || null, district_zh || null, district_en || member.district_en || null, address_zh || null,
       join_date,
       parseInt(fee_amount, 10) >= 0 ? parseInt(fee_amount, 10) : 300, fee_last_paid || null, feeValidUntil, feeStatus,
       notes || null, photoPath,
@@ -781,7 +781,17 @@ router.post('/members/:id/delete', adminOnly, (req, res) => {
 // --- Upload card documents (AJAX) ---
 // One slot per type per member — replaces existing if present. Runs OCR and returns extracted fields.
 
-router.post('/members/:id/documents/card', adminOnly, cardUpload.single('image'), async (req, res) => {
+function cardUploadJson(req, res, next) {
+  cardUpload.single('image')(req, res, (err) => {
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? 'File too large (max 10 MB).' : err.message;
+      return res.status(400).json({ error: msg });
+    }
+    next();
+  });
+}
+
+router.post('/members/:id/documents/card', adminOnly, cardUploadJson, async (req, res) => {
   const member = db.prepare('SELECT id, member_id, first_name, last_name FROM members WHERE id = ?').get(req.params.id);
   if (!member) return res.status(404).json({ error: 'Member not found.' });
   if (!req.file) return res.status(400).json({ error: 'No image uploaded.' });

@@ -31,7 +31,7 @@ const CARD_TYPES = ['arc_front', 'arc_back', 'cc_front', 'cc_back', 'tw_passport
 
 const cardUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter(req, file, cb) {
     cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype));
   },
@@ -195,7 +195,7 @@ router.post('/', photoUpload.single('photo'), (req, res) => {
     `).run(
       phone,
       address_type || 'tw', address || null, city || null, postal_code || null,
-      city_zh || null, district_zh || null, district_en || null, address_zh || null,
+      city_zh || null, district_zh || null, district_en || member.district_en || null, address_zh || null,
       photoPath,
       degree || null, university || null, profession || null, nationality || null,
       arc_number || null, arc_name_en || null, arc_chinese_name || null,
@@ -324,7 +324,17 @@ router.post('/invites/:id/respond', (req, res) => {
 
 // --- Upload own card document (AJAX) + auto-OCR ---
 
-router.post('/documents/card', cardUpload.single('image'), async (req, res) => {
+function cardUploadJson(req, res, next) {
+  cardUpload.single('image')(req, res, (err) => {
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? 'File too large (max 10 MB).' : err.message;
+      return res.status(400).json({ error: msg });
+    }
+    next();
+  });
+}
+
+router.post('/documents/card', cardUploadJson, async (req, res) => {
   const member = getOwnMember(req.session.userId);
   if (!member) return res.status(403).json({ error: 'Unauthorized.' });
   if (!req.file) return res.status(400).json({ error: 'No image uploaded.' });

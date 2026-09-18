@@ -150,8 +150,8 @@
               <span class="badge bg-info text-dark">?</span> models disagree — pick one.
             </span>
             <div class="d-flex gap-2">
-              <button type="button" class="btn btn-outline-success btn-sm" id="ocrAcceptAll">
-                <i class="bi bi-check-all"></i> Accept All
+              <button type="button" class="btn btn-outline-success btn-sm" id="ocrAcceptAll" title="Checks new fields only — existing values (yellow rows) must be checked manually">
+                <i class="bi bi-check-all"></i> Accept New
               </button>
               <button type="button" class="btn btn-outline-secondary btn-sm" id="ocrRejectAll">
                 <i class="bi bi-x-lg"></i> Reject All
@@ -460,8 +460,9 @@
 
     var tdCheck = document.createElement('td');
     tdCheck.className = 'text-center align-middle';
-    cb.checked  = hasOcr || isModelConflict;
+    cb.checked  = (hasOcr && !isDbConflict) || isModelConflict;
     cb.disabled = !hasOcr && !isModelConflict;
+    if (isDbConflict && !isModelConflict) cb.dataset.overwrite = '1';
     tdCheck.appendChild(cb);
     tr.appendChild(tdCheck);
 
@@ -488,7 +489,7 @@
 
   document.getElementById('ocrAcceptAll').addEventListener('click', function () {
     elContainer.querySelectorAll('input[type=checkbox][data-field]').forEach(function (cb) {
-      if (!cb.disabled) cb.checked = true;
+      if (!cb.disabled && !cb.dataset.overwrite) cb.checked = true;
     });
   });
   document.getElementById('ocrRejectAll').addEventListener('click', function () {

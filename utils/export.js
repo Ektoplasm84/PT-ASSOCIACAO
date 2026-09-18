@@ -14,7 +14,7 @@ const DOC_TYPE_LABELS = {
   arc_back:          'ARC_Back',
   cc_front:          'CC_Front',
   cc_back:           'CC_Back',
-  tw_passport_front: 'TW_Passport_Front',
+  tw_passport_front: 'Passport_Front',
   tw_id_front:       'TW_ID_Front',
   tw_id_back:        'TW_ID_Back',
 };

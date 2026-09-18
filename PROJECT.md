@@ -20,7 +20,7 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - Session-based authentication (bcrypt), sessions persisted in SQLite
 - **PT Design System** — `.pta-*` component layer on top of Bootstrap 5; full design handoff applied to all admin pages
 - **Card OCR** — dual-model parallel execution via OpenRouter vision API; admin reviews merged results + model conflict highlights in modal; apply selectively
-- **NIA ARC photo fetch** — server fetches Taiwan NIA captcha, admin solves it, official photo saved to profile; blocked for APRC and TW Passport members
+- **NIA ARC photo fetch** — server fetches Taiwan NIA captcha, admin solves it, official photo saved to profile; blocked for APRC and Passport members
 - **Image lightbox** — clicking card or misc doc thumbnails opens a Bootstrap modal with full-size view + download button
 - **Dashboard warnings** — compact stats bar + Warnings & Advisories table (unpaid fees + expiring ARC/CC within 60 days)
 - **Vision Model Health** — super_admin dashboard card; on-demand model ping; passive offline detection during scans; dismiss individual warnings
@@ -47,17 +47,17 @@ A membership management web application for a Portuguese-Taiwanese association. 
 - **Calendar event strips** — colored `.pta-cal-strip` titles in calendar cells; up to 2 stacked; "+N more" strip; `.has-events` tint
 - **ARC name hint on edit form** — blue info banner + "Use ARC name" button when `arc_name_en` differs from stored name
 - **APRC support** — `is_aprc INTEGER` column on members; permanent residents get "APRC — PERMANENT" badge (info tone) instead of expiry; NIA fetch blocked with message; ID Type column shows "APRC"
-- **Taiwan Passport support** — `is_tw_passport INTEGER` column on members; ARC/ID section shows 3-way radio (ARC / APRC / TW Passport); passport expiry tracked via `arc_expiry_date`; NIA fetch blocked
-- **Members list improvements** — Warnings column (doc expiry badges), ID Type column (ARC/APRC/TW Passport), Sort dropdown (name A-Z/Z-A, recently added, oldest, join date ↑↓)
+- **Passport support** — `is_tw_passport INTEGER` column on members; ARC/ID section shows 4-way radio (ARC / APRC / Passport / TW ID); passport expiry tracked via `arc_expiry_date`; NIA fetch blocked
+- **Members list improvements** — Warnings column (doc expiry badges), ID Type column (ARC/APRC/Passport), Sort dropdown (name A-Z/Z-A, recently added, oldest, join date ↑↓)
 - **File Vault** — two-section document vault: Public (all members can view/download; admin/SA/management can upload) and Administration (admin/SA only); dashboard cards for upload + manage; `/vault` member page; all actions audited; files stored under `uploads/vault/{section}/`
 - **Design System R4** — responsive shell: fluid `.pta-main`, mobile bottom tab nav (`.pta-nav` transforms to fixed bottom bar at ≤768px), copper/charcoal login, mobile calendar agenda (`.pta-agenda` / `renderAgendaMobile()`), `pta-table-wrap` on dashboard tables, profile single-scroll layout (`profile-layout` CSS grid, Bootstrap tabs removed), audit log DS upgrade (pta-pagehead + pta-badge tones + pta-card wrappers); charcoal topbar `#313131`; brand "Associação Cultural Portuguesa / na Formosa"; emblem updated to `logo-emblem.png`
 - **Version V1.8** — Cookie-based EN/PT/ZH-TW language switcher (zero-dependency i18n middleware, `locales/` JSON files, `.pta-langsw` DS component); security: open-redirect hardening on `/lang/:code`
-- **TW National ID support** — 4-way doc type selector (ARC / APRC / TW Passport / TW National ID); `is_tw_id` flag + `tw_id_number` dedicated column; NIA fetch blocked; ID Type column shows "TW National ID"
+- **TW National ID support** — 4-way doc type selector (ARC / APRC / Passport / TW National ID); `is_tw_id` flag + `tw_id_number` dedicated column; NIA fetch blocked; ID Type column shows "TW National ID"
 - **OCR on edit page** — card upload + OCR moved from member-detail (read-only) to member-edit; members can also OCR their own cards on `/profile/edit`; "Apply to Form" fills inputs client-side (no server round-trip); card slot updates preview immediately after upload via `URL.createObjectURL()` without waiting for page reload
 - **TW ID OCR revamp** — improved prompts for `tw_id_front` (5 fields: `tw_id_number`, `arc_chinese_name`, `date_of_birth`, `gender`, `arc_issue_date`) and `tw_id_back` (2 fields: `address_zh`, `birthplace_tw`); fields extracted in original language — no translation (gender stored as 男/女); ROC→CE date conversion; new DB columns `date_of_birth`, `gender`, `birthplace_tw`; Chinese name auto-splits to `last_name` / `first_name` on apply (first char = surname)
 - **TW Passport OCR revamp** — improved prompt for `tw_passport_front` (9 fields: `passport_number`, `tw_id_number`, `arc_name_en`, `arc_chinese_name`, `date_of_birth`, `gender`, `arc_issue_date`, `arc_expiry_date`, `birthplace_tw`); gender stored as 男/女 (no translation); Chinese name auto-splits on apply same as TW ID; `date_of_birth`, `gender`, `birthplace_tw` shown in form and stored for both `is_tw_passport` and `is_tw_id` holders; `tw_id_number` (統一編號) shown and stored for both
 - **Version V1.9** — Extended name suggestion banners (English contextual for ARC/Passport + Chinese name from TW ID/Passport); Chinese name + member ID subtitle on member-edit heading; Export Data feature (admin/SA only) at `/admin/export` — selectable scope (all / specific members), ZIP output with 31-column XLSX spreadsheet + per-member document folders, server-side background job with live progress bar; jimp upgraded to v1.6.1 (security fix); `archiver` + `exceljs` added as dependencies
-- **Version V2.0** — Associate Member category (`position='associate'`): new dashboard stat tile (info/azure tone), position badge (amber/warning tone), TYPE filter row on members list (All / Members / Associate / Honorary / Management), position dropdown option on member-detail; Dashboard Warnings table upgraded: Residence Doc column shows full validity status (Valid / APRC / TW Passport / TW National ID badges; Expiring / Expired for regular ARC), CC column same; Export doc-type file naming: exported ZIP entries renamed to `ASSOC-XXXX_ARC_Front.jpg` etc. via `DOC_TYPE_LABELS` map; Full mobile responsiveness pass: `pta-pagehead` on member-edit and profile headings, `pta-table-wrap` on all dashboard vault + audit log tables, audit log upgraded to `pta-table` DS class with Detail column hidden on mobile (`d-none d-md-table-cell`), 5th stats tile spans full width at ≤768px, nav item wrap on ≤480px, TYPE filter label hides on narrow phones; Node engines field set to `>=20.0.0` (cPanel server runs Node 20 LTS)
+- **Version V2.0** — Associate Member category (`position='associate'`): new dashboard stat tile (info/azure tone), position badge (amber/warning tone), TYPE filter row on members list (All / Members / Associate / Honorary / Management), position dropdown option on member-detail; Dashboard Warnings table upgraded: Residence Doc column shows full validity status (Valid / APRC / Passport / TW National ID badges; Expiring / Expired for regular ARC), CC column same; Export doc-type file naming: exported ZIP entries renamed to `ASSOC-XXXX_ARC_Front.jpg` etc. via `DOC_TYPE_LABELS` map; Full mobile responsiveness pass: `pta-pagehead` on member-edit and profile headings, `pta-table-wrap` on all dashboard vault + audit log tables, audit log upgraded to `pta-table` DS class with Detail column hidden on mobile (`d-none d-md-table-cell`), 5th stats tile spans full width at ≤768px, nav item wrap on ≤480px, TYPE filter label hides on narrow phones; Node engines field set to `>=20.0.0` (cPanel server runs Node 20 LTS)
 - **Version V2.1** — Member fields: Degree, University, Profession — three new `members` columns (all nullable TEXT); editable in admin member-form and self-service profile-edit (Personal Info section); displayed in member-detail "Contact Details" card (renamed from "Contact") and profile.ejs Personal Info card; included in the data export XLSX; `detail.contact_title` / `form.degree` / `form.university` / `form.profession` / `profile.degree` / `profile.university` / `profile.profession` keys added to all three locale files. Export Data: selectable fields — `admin/export.ejs` Fields card lets admins toggle which of the 34 XLSX columns to include (grouped: Identity & Contact / Membership & Fees / Residence Document / Cartão de Cidadão / Personal & Education / Other), with Select All/None shortcuts; `member_id` is always force-included server-side regardless of selection; `utils/export.js` exports `FIELD_DEFS` (master column list) and `startExportJob`/`_runExport` accept an optional `selectedFields` array that filters `ws.columns` (row-building is unchanged — ExcelJS ignores row keys with no matching column); identity documents in the ZIP are unaffected by the field selection
 - **Brand emblem replaced (2026-07-06)** — `logo-emblem.png` is now a transparent Taiwan-silhouette azulejo tile design (227×400, non-square), replacing the old copper/charcoal armillary-sphere emblem; topbar image is `27×48` and login-page image is `54×96` (both preserve the new aspect ratio instead of forcing a square); `logo-full.jpg` regenerated from the same source (white background, 510×900, reserved for future email/share use); unused `logo-emblem.svg` and `logo-wordmark.svg` removed (confirmed unreferenced in any template)
 - **Security hardening pass (2026-07-06)** — full audit + fix cycle, see CLAUDE.md § Hard Rules for the resulting always-follow rules:
@@ -69,6 +69,8 @@ A membership management web application for a Portuguese-Taiwanese association. 
   - `routes/user.js`'s `generateThumb()` fixed from the jimp v0.x API to v1.x (was silently failing — member-uploaded card thumbnails weren't generating)
   - Diagnostic token for `node-check.php` / `node-kill.php` rotated; CLAUDE.md no longer contains the literal value (placeholder `<token>` only)
   - Removed stale duplicate `app copy.js` from git
+- **Version V2.2** — City/district OCR extraction, nationality field, universal passport support, thumbnail generation fix, OCR modal UX improvements
+- **Version V2.3** — Card upload JSON error handling (`cardUploadJson()` wrapper returns JSON instead of HTML on multer errors); "TW Passport" → "Passport" in all UI labels (internal identifiers unchanged); ARC address OCR improved (city/district extracted directly by AI in prompt with `parseAddressCity()` fallback); OCR modal DB conflicts unchecked by default (prevents silently overwriting existing data — only model conflicts and new-value fields auto-checked); post-create redirect goes to edit page (allows immediate document upload); profile-edit.ejs data-loss bugs fixed (DOB/gender shown for all doc types, birthplace for tw_id/tw_passport, tw_id_number for tw_id/tw_passport); `district_en` preserved on save via `member.district_en` fallback (OCR-only field with no form input); PROJECT.md diagnostic token redacted
 
 ### Not Yet Built
 - Email notifications to members
@@ -149,13 +151,13 @@ PT ASSOCIACAO/
 │   │   │   ├── flash.ejs         Alert banner for success/error messages
 │   │   │   ├── phone-field.ejs   Reusable country dial-code picker + number input
 │   │   │   └── member-form.ejs   5-section form (Personal / Membership / ARC+ID / CC / Notes)
-│   │   │                         ARC section uses .pta-seg segmented control (ARC / APRC / TW Passport)
+│   │   │                         ARC section uses .pta-seg segmented control (ARC / APRC / Passport / TW ID)
 │   │   │                         with icons; APRC has no "(Permanent)" label suffix
 │   │   ├── admin/
 │   │   │   ├── dashboard.ejs     Stats + Warnings + Vision Model Health + OCR config (with timeout) +
 │   │   │   │                     Fee config + Calendar + Recent Members + File Vault (two sections)
 │   │   │   ├── members-list.ejs  Search + fee filter + sort dropdown + Warnings column + ID Type column
-│   │   │   ├── member-detail.ejs APRC/TW Passport display; NIA blocked message for non-ARC
+│   │   │   ├── member-detail.ejs APRC/Passport display; NIA blocked message for non-ARC
 │   │   │   ├── member-new.ejs    New member form
 │   │   │   ├── member-edit.ejs   Edit member form; heading subtitle shows arc_chinese_name + member_id
 │   │   │   ├── export.ejs        Export Data page — scope radio (all/specific) + member typeahead + chips;
@@ -247,9 +249,9 @@ On cPanel hosting, set `OPENROUTER_API_KEY`, `SESSION_SECRET`, and `NODE_ENV=pro
 | passport_number | TEXT | |
 | arc_serial_number | TEXT | Reference number next to barcode on ARC back |
 | is_aprc | INTEGER | 1 = permanent resident; no expiry shown; NIA fetch blocked |
-| is_tw_passport | INTEGER | 1 = Taiwan Passport as primary ID; expiry tracked via arc_expiry_date |
+| is_tw_passport | INTEGER | 1 = Passport as primary ID; expiry tracked via arc_expiry_date |
 | is_tw_id | INTEGER | 1 = Taiwan National ID as primary ID; no expiry; NIA fetch blocked |
-| tw_id_number | TEXT | 統一編號 — 1 letter + 9 digits (e.g. `U220596267`); TW ID and TW Passport holders |
+| tw_id_number | TEXT | 統一編號 — 1 letter + 9 digits (e.g. `U220596267`); TW ID and Passport holders |
 | date_of_birth | TEXT | ISO date — extracted from TW ID front (出生年月日, ROC→CE converted) |
 | gender | TEXT | 男 / 女 — stored as Chinese character exactly as printed on TW ID |
 | birthplace_tw | TEXT | Chinese location string from TW ID back (出生地, e.g. 臺灣省花蓮縣) |
@@ -411,7 +413,7 @@ canUploadVault(user)            // returns true for admin/SA/all management posi
 
 1. **Personal Info** — first name, last name, phone, email, address ZH + EN, photo
 2. **Membership Info** — member ID, join date, annual fee, last paid, valid until, fee status
-3. **ARC / ID Data** — 3-way radio: ARC / APRC / TW Passport; number, names, dates, serial; "APRC — PERMANENT" badge when `is_aprc=1`; expiry label changes for passport
+3. **ARC / ID Data** — 4-way radio: ARC / APRC / Passport / TW ID; number, names, dates, serial; "APRC — PERMANENT" badge when `is_aprc=1`; expiry label changes for passport; DOB/gender for all types; birthplace for TW ID/Passport
 4. **Cartão de Cidadão** — CC number, expiry, NIF, NISS
 5. **Notes** — admin-only
 
@@ -455,7 +457,7 @@ canUploadVault(user)            // returns true for admin/SA/all management posi
 | POST | `/admin/members/:id/documents/:docId/delete` | adminOnly | Delete document |
 | GET | `/admin/members/:id/documents/:docId/view` | viewAll | Serve document inline |
 | GET | `/admin/members/:id/documents/:docId/download` | viewAll | Download document |
-| GET | `/admin/members/:id/arc-captcha` | adminOnly | Fetch NIA captcha (blocked for APRC/TW Passport) |
+| GET | `/admin/members/:id/arc-captcha` | adminOnly | Fetch NIA captcha (blocked for APRC/Passport/TW ID) |
 | POST | `/admin/members/:id/arc-fetch-photo` | adminOnly | Validate captcha + save NIA photo |
 | POST | `/admin/ocr-health-check` | superAdminOnly | Ping all OCR models |
 | POST | `/admin/ocr-dismiss-warning` | superAdminOnly | Clear in-memory model warning |
@@ -623,8 +625,8 @@ PDF, JPEG, PNG, WebP, plain text, Word (`.doc`/`.docx`), Excel (`.xls`/`.xlsx`).
 ### cPanel Deployment
 1. `git pull` in `/home/chiangly/repositories/PT-ASSOCIACAO/`
 2. `npm install` — **only when `package.json` changes**; not needed for locale JSON or `utils/i18n.js` edits (zero npm deps)
-3. Get PID: `https://associacao.poetico.co/node-check.php?token=ptassoc-diag-2024`
-4. Kill: `https://associacao.poetico.co/node-kill.php?token=ptassoc-diag-2024&pid=XXXX`
+3. Get PID: `https://associacao.poetico.co/node-check.php?token=<token>`
+4. Kill: `https://associacao.poetico.co/node-kill.php?token=<token>&pid=XXXX`
 5. cPanel → Node.js Selector → **Start**
 
 `node-check.php` and `node-kill.php` are gitignored — upload manually to `public_html/`, delete after use.
@@ -704,16 +706,16 @@ Columns: Member (avatar + name) | Member ID | Email | Position | ID Type | Fee S
 - `sort` param drives `ORDER BY` via server-side `SORT_MAP` whitelist
 - `memberListUrl(overrides)` helper builds URLs preserving all active filters
 - Warnings column: "No Warning" badge (success) or stacked doc-expiry badges (danger/warning)
-- ID Type column: ARC / APRC (info) / TW Passport
+- ID Type column: ARC / APRC (info) / Passport
 
 #### `admin/member-detail.ejs`
 Variables: `member` (full row), `documents[]`.
 
 ARC/ID card:
-- Card title changes: "ARC" / "APRC" / "Taiwan Passport"
-- Expiry label: "Expiry date" (ARC) / "Passport Expiry" (TW Passport) / hidden (APRC)
+- Card title changes: "ARC" / "APRC" / "Passport"
+- Expiry label: "Expiry date" (ARC) / "Passport Expiry" (Passport) / hidden (APRC)
 - Validity badge: computed by `docValidity()` for ARC/Passport; `{ label: 'APRC — PERMANENT', tone: 'info' }` for APRC
-- NIA button replaced with info note for APRC and TW Passport members
+- NIA button replaced with info note for APRC, Passport, and TW ID members
 
 #### `admin/member-new.ejs` / `admin/member-edit.ejs`
 Use `partials/member-form.ejs`. Variables include `defaultFee`.
@@ -721,8 +723,8 @@ Use `partials/member-form.ejs`. Variables include `defaultFee`.
 `member-edit.ejs` heading: shows `arc_chinese_name` + `.pta-id` member_id as a subtitle line when `arc_chinese_name` is present.
 
 `partials/member-form.ejs` ARC section:
-- `.pta-seg` segmented control with `btn-check` hidden radio inputs: ARC / APRC / TW Passport
-- Icons: `bi-credit-card-fill` (ARC), `bi-shield-fill-check` (APRC), `bi-passport-fill` (TW Passport)
+- `.pta-seg` segmented control with `btn-check` hidden radio inputs: ARC / APRC / Passport / TW ID
+- Icons: `bi-credit-card-fill` (ARC), `bi-shield-fill-check` (APRC), `bi-passport-fill` (Passport), `bi-person-vcard-fill` (TW ID)
 - APRC label has no "(Permanent)" suffix — implied by the acronym
 - `arcDocTypeChanged()` JS toggles: expiry label, passport label, APRC permanent badge visibility
 - Selected type submitted as `residence_doc_type` → server derives `is_aprc` and `is_tw_passport`
@@ -786,7 +788,7 @@ Table: filename + size | description | uploader name | date | download button. E
 - **OCR model IDs** — verify on OpenRouter before adding; wrong IDs give HTTP 400; only `:free` models are free
 - **HTTPS cookies on cPanel** — requires `app.set('trust proxy', 1)` AND `NODE_ENV=production` in cPanel panel
 - **Chinese filenames** — `fixFilename()` must wrap `req.file.originalname` before DB insert; busboy decodes as latin1
-- **APRC members** — never compute fee status for honorary; similarly never show NIA fetch for APRC/TW Passport
+- **APRC members** — never compute fee status for honorary; similarly never show NIA fetch for APRC/Passport/TW ID
 - **Vault routing** — public vault routes live directly in `app.js` (not in `user.js`) to avoid the double-prefix problem from sharing the userRouter at a different mount point
 
 ---

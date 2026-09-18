@@ -100,7 +100,7 @@
           <% if (member.is_aprc || member.is_tw_passport || member.is_tw_id) { %>
           <div class="small text-muted mt-1 d-flex align-items-center gap-1">
             <i class="bi bi-info-circle"></i>
-            <%= t('member.nia_not_available') %> <%= member.is_aprc ? 'APRC' : member.is_tw_id ? 'TW National ID' : 'Taiwan Passport' %> <%= t('member.nia_holders') %>
+            <%= t('member.nia_not_available') %> <%= member.is_aprc ? 'APRC' : member.is_tw_id ? 'TW National ID' : 'Passport' %> <%= t('member.nia_holders') %>
           </div>
           <% } else { %>
           <button class="pta-btn pta-btn--secondary pta-btn--block" id="fetchArcPhotoBtn">

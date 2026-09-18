@@ -50,7 +50,7 @@ Field locations and constraints:
 - 出生日期 Date of birth: printed below the English name, YYYY/MM/DD format.
 - 護照號碼 Passport No.: printed in the right-centre section.
 - 國籍 Nationality: printed in the centre, e.g. 葡萄牙. Return the text exactly as printed.
-- 居留地址 Residence address: full Chinese address at the very bottom of the card.
+- 居留地址 Residence address: full Chinese address at the very bottom of the card. Taiwan addresses always start with a city/county (市/縣) followed by a district (區/鄉/鎮/市).
 
 {
   "arc_number":       "統一證號 UI No. — 1 uppercase letter + 9 digits, no spaces, e.g. A800173996",
@@ -62,7 +62,9 @@ Field locations and constraints:
   "arc_expiry_date":  "居留期限 Date of expiry — YYYY-MM-DD; '9999-12-31' if permanent/永久",
   "passport_number":  "護照號碼 Passport No., e.g. CC637162",
   "nationality":      "國籍 Nationality — as printed, e.g. 葡萄牙",
-  "address_zh":       "居留地址 Residence address — full Chinese address at the bottom, e.g. 臺北市萬華區西藏路199巷61號7樓"
+  "address_zh":       "居留地址 Residence address — full Chinese address at the bottom, e.g. 臺北市萬華區西藏路199巷61號7樓",
+  "city_zh":          "City/county extracted from the address — the first segment ending in 市 or 縣, e.g. 臺北市, 新北市, 桃園市, 高雄市",
+  "district_zh":      "District extracted from the address — the segment after the city ending in 區, 鄉, 鎮, or 市(county-level city), e.g. 萬華區, 中正區, 板橋區"
 }`,
 
   arc_back: `You are a data-extraction assistant. The image is the BACK of a Taiwan ARC (Alien Resident Certificate).
@@ -498,9 +500,15 @@ function postProcess(docType, data) {
   if (data.address_zh) {
     const parsed = parseAddressCity(data.address_zh);
     if (parsed) {
-      data.city_zh = parsed.city_zh;
+      data.city_zh     = parsed.city_zh;
       data.district_zh = parsed.district_zh;
       data.district_en = parsed.district_en;
+    } else if (data.city_zh && data.district_zh && !data.district_en) {
+      const city = twDistricts.find(c => c.cityZh === data.city_zh);
+      if (city) {
+        const dist = city.districts.find(d => d.districtZh === data.district_zh);
+        if (dist) data.district_en = dist.districtEn;
+      }
     }
   }
   return data;

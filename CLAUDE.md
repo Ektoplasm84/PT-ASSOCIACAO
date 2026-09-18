@@ -100,7 +100,7 @@ locales/zh-TW.json       Traditional Chinese locale — AI-generated; has `_note
                          needs native speaker review before relying on translations
 frontend/views/          ALL EJS templates — design territory
 frontend/views/partials/phone-field.ejs    Reusable dial-code picker partial
-frontend/views/partials/member-form.ejs   5-section member form; ARC section uses .pta-seg (ARC/APRC/TW Passport)
+frontend/views/partials/member-form.ejs   5-section member form; ARC section uses .pta-seg (ARC/APRC/Passport/TW ID)
                                           Icons: bi-credit-card-fill / bi-shield-fill-check / bi-passport-fill
                                           APRC label does NOT say "(Permanent)" — that is implied by the name
                                           English name banner (alert-info): shown when arc_name_en ≠ stored name;
@@ -109,7 +109,7 @@ frontend/views/partials/member-form.ejs   5-section member form; ARC section use
                                             split: first char → last_name, rest → first_name
                                           Both banners use data-* attributes on the button (XSS-safe); never interpolate into JS
 frontend/views/admin/dashboard.ejs        Stats (5 tiles: Total/Paid/Unpaid/Honorary/Associates) + Warnings + OCR config + Fee + Calendar + Vault
-                                          Warnings table: Residence Doc column = full validity badge (Valid/APRC/TW Passport/TW ID/Expiring/Expired);
+                                          Warnings table: Residence Doc column = full validity badge (Valid/APRC/Passport/TW ID/Expiring/Expired);
                                             CC column same; Fee column full badge states
                                           pta-table-wrap on all 6 tables (2 vault + warnings + calendar + recent-members + any others)
                                           5th stat tile: grid-column:1/-1 at ≤768px (spans both columns of 2-col mobile grid)
@@ -120,7 +120,7 @@ frontend/views/admin/members-list.ejs     Search + fee filter chips + TYPE filte
                                           TYPE chips: All / Members / Associate / Honorary / Management — posFilter query param; validated against VALID_POS_FILTERS
                                           "Type" label: d-none d-sm-inline (hides on narrow phones)
                                           Associate badge: pta-tone-warning (amber); table wrapped in pta-table-wrap
-frontend/views/admin/member-detail.ejs    APRC/TW Passport display; NIA blocked for non-ARC; position dropdown includes associate
+frontend/views/admin/member-detail.ejs    APRC/Passport display; NIA blocked for non-ARC; position dropdown includes associate
 frontend/views/admin/member-edit.ejs      pta-pagehead heading (converted from Bootstrap row/col); subtitle shows arc_chinese_name + member_id
 frontend/views/admin/export.ejs           Export Data page — scope radio + member typeahead + chips;
                                           Fields card: per-field checkboxes grouped (Identity/Fees/Residence/CC/Personal/Other)
@@ -197,6 +197,10 @@ Events tables (in data.db):
 - **All file-serving routes set `X-Content-Type-Options: nosniff`** — photos/thumbs (`app.js`), vault files (`app.js` `/vault/files/:id` + `admin.js` `/admin/vault/files/:id`), and card/member documents (`admin.js`, `user.js`) all set this header; document *view* routes (inline disposition) additionally set `Content-Security-Policy: sandbox`. Any new route serving an uploaded file must set at least `nosniff`.
 - **Session is regenerated on login** — `routes/auth.js`'s `POST /login` calls `req.session.regenerate()` before setting `session.userId`/`session.role`, to prevent session-fixation (an attacker-supplied pre-auth session ID being reused post-auth). Never set session fields directly on the pre-regenerate session object.
 - **Session cookie sets `sameSite: "lax"` explicitly** (`app.js`) — this, combined with every state-changing route in the app being POST-only (no GET-based mutations exist), is the app's CSRF defense; there is no separate CSRF token system. If a new mutating route is ever added, it must be POST (or another non-GET verb), never GET, or this protection breaks.
+- **Card upload routes return JSON errors** — both `routes/admin.js` and `routes/user.js` card upload routes use `cardUploadJson()` wrapper (not raw `cardUpload.single('image')` as middleware) so multer errors (size, type) return `{ error }` JSON, not HTML — the client-side `fetch()` expects JSON.
+- **"Passport" not "TW Passport" in UI** — all user-facing labels say "Passport" (not "TW Passport" or "Taiwan Passport") because the passport field is not Taiwan-specific. Internal identifiers (`tw_passport_front`, `is_tw_passport`, i18n keys like `card_tw_passport_front`) keep the `tw_` prefix. Only UI-visible strings changed.
+- **OCR-only fields must be preserved on save** — `district_en` has no form input (set only via OCR apply-card-fields); both admin and user update routes use `district_en || member.district_en || null` to avoid wiping it on every save.
+- **Profile-edit.ejs form inputs must match the UPDATE statement** — DOB and gender are shown for ALL doc types (unconditionally); birthplace is shown for `is_tw_id || is_tw_passport`; `tw_id_number` is shown for `is_tw_id || is_tw_passport`. Any field in the SQL UPDATE that has no form input must fall back to `member.<field>` to avoid writing null.
 
 ---
 
@@ -262,6 +266,7 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - **Fee status for honorary members** — never compute fee status for `position='honorary'`; their fee sections show N/A and they are excluded from paid/unpaid dashboard counts
 - **Login rate limiting** lives in-memory in `routes/auth.js` — it resets on server restart by design (shared hosting); do not persist to DB
 - **New member placeholder credentials** — `GET /admin/members/new` pre-fills `email=membro.XXXX@associacao.pt`, `first_name=Novo`, `last_name=Membro XXXX` (random 4-char suffix). Admin can override before saving. Email is the login identifier — changing it immediately changes what the member uses to log in.
+- **Post-create redirect goes to edit page** — after creating a new member, the redirect goes to `/admin/members/:id/edit` (not the members list) so the admin can immediately upload documents without navigating back.
 - **Fee dropdown in `member-form.ejs`** is dynamic — shows the member's actual stored fee amount (non-zero) or falls back to the `defaultFee` local for new members. `defaultFee` must be passed to `res.render()` for both new and edit routes — including validation re-renders on error.
 - **Calendar events** — created by admin/SA/gestao via dashboard modal; `resolveAudience()` in `routes/admin.js` converts audience group strings to user IDs via a single UNION query; invites inserted in the same transaction as the event; `end_date` must be ≥ `start_date` (validated server-side); `GET /admin/events/:id/invites` requires `adminOnly` guard (not just viewAll)
 - **Notification bell** — `pendingInviteCount` set in `requireAuth` on every request; topbar bell links to `/profile#notifications`; member profile is single-scroll — `id="notifications"` anchor scrolls directly to that section; no tabs, no `activeTab` local
@@ -276,12 +281,12 @@ Two independent columns on `users`: `role` (permission) and `position` (associat
 - **Notes card on member profile** — gated by `canWrite && member.notes` (not `currentUser.role === 'admin'`); super_admin users also see notes.
 - **Calendar event indicators** — dashboard calendar cells use `.pta-cal-strip` (colored titled strips, not dots); up to 2 strips stacked per day; colors assigned by `CAL_COLORS[event.id % 8]`; "+N more" strip when >2 events. Cells with events get `.has-events` class (light blue tint, bold number). "New Event" button in dashboard is guarded for `canWrite` OR management positions. On mobile (≤640px) `renderAgendaMobile()` builds a `.pta-agenda` list view from `_calEvents` grouped by day; clicking an item calls `selectDay()`.
 - **NIA fetch-error retry** — when the NIA photo fetch fails, a "Try again" button is shown in `member-detail.ejs` that re-runs `loadCaptcha()` without a page reload.
-- **NIA fetch blocked for APRC/TW Passport/TW ID** — `is_aprc=1`, `is_tw_passport=1`, or `is_tw_id=1` members show an info note instead of the fetch button; the captcha and fetch routes also check and return a descriptive error if called directly.
+- **NIA fetch blocked for APRC/Passport/TW ID** — `is_aprc=1`, `is_tw_passport=1`, or `is_tw_id=1` members show an info note instead of the fetch button; the captcha and fetch routes also check and return a descriptive error if called directly.
 - **File Vault** — Public Vault: any logged-in member can view/download; admin/SA/management can upload. Administration Vault: admin/SA only. Delete: admin/SA only. Upload and delete are audited. Max 20 MB per file; allowed: PDF, images, Word, Excel, plain text.
 - **Members list Warnings column** — computed client-side from `m.arc_expiry_date`, `m.cc_expiry_date`, and `m.is_aprc`; APRC members skip the ARC expiry check. Multiple badges can stack in one cell. "No Warning" badge (success) when no issues.
-- **Members list ID Type column** — shows ARC / APRC (info tone) / TW Passport based on `is_aprc` and `is_tw_passport` flags.
+- **Members list ID Type column** — shows ARC / APRC (info tone) / Passport based on `is_aprc` and `is_tw_passport` flags.
 - **ARC name hint on edit form** — `member-form.ejs` shows a blue info banner with a "Use ARC name" button when `arc_name_en` differs from `first_name + last_name`; values are in `data-arc-first`/`data-arc-last` HTML attributes (EJS HTML-escapes them); JS reads via `this.dataset.*` — never interpolated into JS source. Splits on last whitespace: last word → Last Name, remainder → First Name.
-- **ARC section is now 3-way** — `member-form.ejs` uses `.pta-seg` (DS segmented control) with `btn-check` radio inputs (`residence_doc_type`: `arc` / `aprc` / `tw_passport`); icons: `bi-credit-card-fill` / `bi-shield-fill-check` / `bi-passport-fill`; APRC label has no "(Permanent)" suffix — implied by name; `arcDocTypeChanged()` JS toggles expiry label, passport label, and APRC permanent badge; server derives `is_aprc` and `is_tw_passport` from this single field.
+- **ARC section is now 4-way** — `member-form.ejs` uses `.pta-seg` (DS segmented control) with `btn-check` radio inputs (`residence_doc_type`: `arc` / `aprc` / `tw_passport` / `tw_id`); icons: `bi-credit-card-fill` / `bi-shield-fill-check` / `bi-passport-fill` / `bi-person-vcard-fill`; APRC label has no "(Permanent)" suffix — implied by name; `arcDocTypeChanged()` JS toggles expiry label, passport label, and APRC permanent badge; server derives `is_aprc`, `is_tw_passport`, and `is_tw_id` from this single field.
 - **Members list sort** — `sort` param driven by a server-side `SORT_MAP` whitelist; `memberListUrl(overrides)` helper in the template builds URLs preserving all active filters. Defensive fallback `var sort = (typeof sort !== 'undefined') ? sort : 'name_az'` at top of template guards against old cached routes.
 - **Vault confirm dialog XSS** — delete forms use `data-name="<%= f.original_name %>"` (EJS auto-escapes) + `this.dataset.name` in `onsubmit`; never interpolate user-controlled text directly into a JS event handler attribute.
 - **File Vault audit** — `vault.upload` and `vault.delete` action keys; detail includes section + filename + size. Both called via `writeAudit()` from `utils/audit.js` in the vault routes.
@@ -354,6 +359,9 @@ Dashboard "OCR Model Configuration" card shows current models with role labels (
 
 Model IDs are validated against `MODEL_ID_RE = /^[a-zA-Z0-9_\-/:\.]{1,120}$/` on both the models-save and test routes. `POST /admin/ocr-test-model` enforces a 10-second per-model cooldown via `_testCooldowns` Map. `POST /admin/settings/models` requires **at least 2** models (rejects with a flash error otherwise) — the dual-model parallel/conflict-detection design assumes a primary + secondary pair.
 
+### City/district extraction (arc_front)
+The `arc_front` prompt includes `city_zh` and `district_zh` output fields — the AI extracts them directly from the address. `postProcess()` uses AI-extracted values first, falls back to `parseAddressCity()` (prefix-matching against `taiwan-districts.js`) if the AI missed them, and resolves `district_en` from the matched district data.
+
 ### Post-processing
 - `arc_serial_number`: spaces stripped (models hallucinate a space between letter prefix and digits)
 - `arc_name_en`: prompts instruct models to reorder from ARC SURNAME-FIRST format to Western GIVEN-FIRST
@@ -376,6 +384,8 @@ Dashboard shows a "Vision Model Health" card (super_admin only).
 
 ### OCR Review Modal conflicts
 When `_conflicts` is present in `extracted`, the modal shows a `<select>` dropdown for each conflicted field (Model A vs Model B) instead of a static value. The checkbox's `data-value` updates live when the admin picks.
+
+**DB conflict behavior**: when an OCR field differs from the member's existing DB value, it is a "DB conflict" — the checkbox is unchecked by default (yellow highlight) so existing data is not silently overwritten. Only model-model conflicts and new-value fields are auto-checked.
 
 Routes in `routes/admin.js`:
 - `POST /admin/members/:id/documents/card` — upload image, auto-OCR, return `{ extracted }` JSON
